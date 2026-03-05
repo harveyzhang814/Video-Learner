@@ -338,3 +338,38 @@ ipcMain.handle('get-available-subtitles', async (event, id) => {
     return { en: null, zh: null, articleSource: null };
   }
 });
+
+// Reset task step
+ipcMain.handle('reset-task-step', async (event, { id, step }) => {
+  const fs = require('fs');
+  const path = require('path');
+  const metaPath = path.join(__dirname, '../..', 'work', id, 'transcript', 'meta.json');
+
+  if (!fs.existsSync(metaPath)) {
+    throw new Error('任务不存在');
+  }
+
+  const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+
+  // 根据步骤更新状态
+  switch (step) {
+    case 'video':
+      meta.download_status = 'pending';
+      meta.download_attempts = 0;
+      break;
+    case 'transcript':
+      meta.transcript_done = false;
+      break;
+    case 'article':
+      meta.article_done = false;
+      break;
+    case 'summary':
+      meta.summary_done = false;
+      break;
+    default:
+      throw new Error('未知步骤: ' + step);
+  }
+
+  fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+  return { success: true };
+});
