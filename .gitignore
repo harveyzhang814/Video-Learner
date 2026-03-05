@@ -24,11 +24,8 @@ electron/node_modules/
 *.temp
 *.part
 
-# Work outputs (keep structure, ignore large files)
-work/**/video.mp4
-work/**/audio.*
-work/**/*.webm
-work/**/*.part
+# Work outputs (application data, completely ignored)
+work/*
 *.log
 
 # Claude
