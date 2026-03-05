@@ -6,6 +6,7 @@
 3. 列出主要论点（不超过 5 个）
 4. 每个主要论点下可包含少量子论点（最多一层，不超过 2 个）
 5. 用户更加关注：{{FOCUS}}
+6. 使用 OUTPUT_LANG 语言输出（OUTPUT_LANG=zh-CN 表示简体中文，OUTPUT_LANG=en 表示英文）
 
 文章位于: {{ARTICLE_PATH}}
 

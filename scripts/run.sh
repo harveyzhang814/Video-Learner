@@ -1,6 +1,6 @@
 #!/bin/bash
 # YouTube Pipeline: Download -> Transcript -> Summary
-# Usage: bash scripts/run.sh "<URL>" [LANG=auto] [MODE=full_flow_video|full_flow_audio|full_flow_transcript|download_video|download_audio|get_transcript|write_article|summarize] [FORCE=0|1] [FOCUS="..."]
+# Usage: bash scripts/run.sh "<URL>" [LANG=auto] [OUTPUT_LANG=zh-CN] [MODE=full_flow_video|full_flow_audio|full_flow_transcript|download_video|download_audio|get_transcript|write_article|summarize] [FORCE=0|1] [FOCUS="..."]
 
 # Fix locale warning
 export LC_ALL=en_US.UTF-8
@@ -9,6 +9,7 @@ export LANG=en_US.UTF-8
 # Parse arguments properly
 URL=""
 LANG="auto"
+OUTPUT_LANG="zh-CN"  # 输出语言，默认简体中文 (未来支持 settings 配置)
 MODE="full_flow_video"
 FORCE="0"
 FOCUS=""
@@ -32,6 +33,10 @@ while [[ $# -gt 0 ]]; do
             LANG="${1#*=}"
             shift
             ;;
+        OUTPUT_LANG=*)
+            OUTPUT_LANG="${1#*=}"
+            shift
+            ;;
         ID=*)
             ID="${1#*=}"
             shift
@@ -44,7 +49,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$URL" ] && [ -z "$ID" ]; then
-    echo "Usage: bash scripts/run.sh \"<URL>\" [LANG=auto] [MODE=full_flow_video|full_flow_audio|full_flow_transcript|download_video|download_audio|get_transcript|write_article|summarize] [FORCE=0|1] [FOCUS=\"...\"]"
+    echo "Usage: bash scripts/run.sh \"<URL>\" [LANG=auto] [OUTPUT_LANG=zh-CN] [MODE=full_flow_video|full_flow_audio|full_flow_transcript|download_video|download_audio|get_transcript|write_article|summarize] [FORCE=0|1] [FOCUS=\"...\"]"
+    echo "   or: bash scripts/run.sh ID=<id> [MODE=...] [FORCE=1] [FOCUS=\"...\"] [OUTPUT_LANG=zh-CN]"
     echo "   or: bash scripts/run.sh ID=<id> [MODE=...] [FORCE=1] [FOCUS=\"...\"]"
     echo ""
     echo "Examples:"
@@ -103,6 +109,7 @@ else
         --arg title "" \
         --arg duration "" \
         --arg lang "$LANG" \
+        --arg output_lang "$OUTPUT_LANG" \
         --arg download_status "pending" \
         --arg download_attempts "0" \
         --arg download_error "" \
@@ -115,7 +122,7 @@ else
         --arg ffmpeg_ver "$FFMPEG_VER" \
         --arg jq_ver "$JQ_VER" \
         '{
-            url: $url, id: $id, ts: $ts, title: $title, duration: $duration, lang: $lang,
+            url: $url, id: $id, ts: $ts, title: $title, duration: $duration, lang: $lang, output_lang: $output_lang,
             download_status: $download_status, download_attempts: ($download_attempts | tonumber),
             download_error: $download_error, transcript_source: $transcript_source,
             transcript_done: ($transcript_done == "true"), article_done: ($article_done == "true"),
@@ -485,7 +492,9 @@ if mode_has_transcript; then
 
             # Generate article using Claude CLI
             ARTICLE_PROMPT_PATH="$SCRIPT_DIR/article_prompt.txt"
-            article_prompt=$(sed "s|{{ORIGINAL_PATH}}|$transcript_file|g" "$ARTICLE_PROMPT_PATH")
+            article_prompt=$(sed -e "s|{{ORIGINAL_PATH}}|$transcript_file|g" \
+                -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
+                "$ARTICLE_PROMPT_PATH")
             echo "$article_prompt" | env -u CLAUDECODE claude -p --dangerously-skip-permissions > "$DIR/writing/article.md"
 
             if [ -f "$DIR/writing/article.md" ] && [ -s "$DIR/writing/article.md" ]; then
@@ -523,6 +532,7 @@ if mode_has_transcript; then
             SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
             summary_prompt=$(sed -e "s/{{FOCUS}}/$current_focus/g" \
                 -e "s|{{ARTICLE_PATH}}|$DIR/writing/article.md|g" \
+                -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
                 "$SCRIPT_DIR/summary_prompt.txt")
             echo "$summary_prompt" | env -u CLAUDECODE claude -p --dangerously-skip-permissions > "$DIR/writing/summary.md"
 

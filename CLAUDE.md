@@ -62,6 +62,7 @@ work/
   "title": "...",
   "duration": "...",
   "lang": "...",
+  "output_lang": "zh-CN|en",
   "download_status": "pending|success|failed|skipped_existing",
   "download_attempts": 0,
   "download_error": "...",
@@ -90,6 +91,7 @@ bash scripts/run.sh "<URL>" LANG=auto MODE=both FORCE=0 FOCUS="技术细节"
 ```
 
 - `LANG`: 语言代码，默认 auto
+- `OUTPUT_LANG`: 输出语言，默认 `zh-CN` (简体中文)，未来可通过 `settings.conf` 配置
 - `MODE`: `both` (下载+转录) | `video` (仅视频) | `audio` (仅音频) | `transcript` (仅转录+总结)
 - `FORCE`: `0` (跳过已完成的) | `1` (强制重新执行)
 - `FOCUS`: 用户想了解的重点（如 "技术细节", "主要论点", "行动项"）
