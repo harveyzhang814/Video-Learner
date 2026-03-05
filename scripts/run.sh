@@ -1,6 +1,6 @@
 #!/bin/bash
 # YouTube Pipeline: Download -> Transcript -> Summary
-# Usage: bash scripts/run.sh "<URL>" [LANG=auto] [MODE=both|video|audio|transcript] [FORCE=0|1] [FOCUS="..."]
+# Usage: bash scripts/run.sh "<URL>" [LANG=auto] [MODE=full_flow_video|full_flow_audio|full_flow_transcript|download_video|download_audio|get_transcript|write_article|summarize] [FORCE=0|1] [FOCUS="..."]
 
 # Fix locale warning
 export LC_ALL=en_US.UTF-8
@@ -44,7 +44,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$URL" ] && [ -z "$ID" ]; then
-    echo "Usage: bash scripts/run.sh \"<URL>\" [LANG=auto] [MODE=both|video|audio|transcript] [FORCE=0|1] [FOCUS=\"...\"]"
+    echo "Usage: bash scripts/run.sh \"<URL>\" [LANG=auto] [MODE=full_flow_video|full_flow_audio|full_flow_transcript|download_video|download_audio|get_transcript|write_article|summarize] [FORCE=0|1] [FOCUS=\"...\"]"
     echo "   or: bash scripts/run.sh ID=<id> [MODE=...] [FORCE=1] [FOCUS=\"...\"]"
     echo ""
     echo "Examples:"
