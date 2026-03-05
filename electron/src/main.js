@@ -31,7 +31,14 @@ app.on('activate', () => {
 // Run pipeline script
 ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo, id }) => {
   return new Promise((resolve, reject) => {
-    const mode = downloadVideo ? 'both' : 'transcript';
+    let mode;
+    if (downloadVideo === 'video') {
+      mode = 'full_flow_video';
+    } else if (downloadVideo === 'audio') {
+      mode = 'full_flow_audio';
+    } else {
+      mode = 'full_flow_transcript';
+    }
     let args;
 
     if (id) {
