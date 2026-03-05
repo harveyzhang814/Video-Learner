@@ -1,0 +1,17 @@
+{
+  "name": "video-learner",
+  "version": "1.0.0",
+  "description": "YouTube Video Pipeline - Download, Transcript & Summary",
+  "private": true,
+  "scripts": {
+    "start": "bash start-electron.sh",
+    "install-deps": "bash scripts/install.sh"
+  },
+  "keywords": [
+    "youtube",
+    "video",
+    "transcript",
+    "summary"
+  ],
+  "license": "MIT"
+}
