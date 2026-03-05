@@ -452,6 +452,16 @@
       cursor: not-allowed;
     }
 
+    .btn.danger {
+      background: #D00;
+      color: #FFF;
+      border-color: #D00;
+    }
+
+    .btn.danger:hover {
+      background: #B00;
+    }
+
     /* Output Section */
     .output-section {
       flex: 1;
@@ -1343,6 +1353,7 @@
           </div>
         </div>
         <div class="modal-actions">
+          <button class="btn danger hidden" id="modalStopBtn">■ 停止任务</button>
           <button class="btn primary" id="modalRunBtn">Run</button>
           <button class="btn hidden" id="modalSaveBtn">Save</button>
         </div>
@@ -1471,7 +1482,9 @@
     const modalFocusInput = document.getElementById('modalFocusInput');
     const modalDownloadModeRadios = document.getElementById('modalDownloadMode');
     let modalDownloadMode = 'video';
+    let isRunning = false;
     const modalRunBtn = document.getElementById('modalRunBtn');
+    const modalStopBtn = document.getElementById('modalStopBtn');
     const modalSaveBtn = document.getElementById('modalSaveBtn');
     const modalTitle = document.getElementById('modalTitle');
     const modalLogs = document.getElementById('modalLogs');
@@ -1585,6 +1598,8 @@
       modalRunBtn.textContent = 'Run';
       modalRunBtn.classList.remove('hidden');
       modalSaveBtn.classList.add('hidden');
+      isRunning = false;
+      modalStopBtn.classList.add('hidden');
       document.querySelectorAll('.modal-status .status-pill').forEach(el => {
         el.classList.remove('active', 'done', 'error');
         el.classList.add('hidden');
@@ -1722,6 +1737,22 @@
       await loadWork(currentId);
     });
 
+    // Stop button logic
+    modalStopBtn.addEventListener('click', async () => {
+      if (!isRunning) return;
+
+      // Stop the running pipeline
+      await window.api.stopPipeline(currentId);
+
+      isRunning = false;
+      modalStopBtn.classList.add('hidden');
+      modalRunBtn.disabled = false;
+      modalRunBtn.textContent = 'Run';
+
+      // Clear logs and show stopped message
+      modalLogs.innerHTML += `<div class="log-line log-err">任务已停止</div>`;
+    });
+
     // Modal Run button logic
     modalRunBtn.addEventListener('click', async () => {
       const mode = newTaskModal.getAttribute('data-mode');
@@ -1732,6 +1763,8 @@
         if (!currentId) return;
         modalRunBtn.disabled = true;
         modalRunBtn.textContent = '继续执行中...';
+        isRunning = true;
+        modalStopBtn.classList.remove('hidden');
         setModalStep('info', 'active');
         runExistingTask(currentId);
         return;
@@ -1742,6 +1775,8 @@
 
       modalRunBtn.disabled = true;
       modalRunBtn.textContent = 'Running...';
+      isRunning = true;
+      modalStopBtn.classList.remove('hidden');
 
       // Initialize status pills based on user selection
       initModalStatus();
@@ -1858,6 +1893,8 @@
         modalLogs.innerHTML += `<div class="log-line log-err">${e.message}</div>`;
       }
 
+      isRunning = false;
+      modalStopBtn.classList.add('hidden');
       modalRunBtn.disabled = false;
       modalRunBtn.textContent = 'Run';
     });
@@ -1971,6 +2008,8 @@
         modalLogs.innerHTML += `<div class="log-line log-err">${e.message}</div>`;
       }
 
+      isRunning = false;
+      modalStopBtn.classList.add('hidden');
       modalRunBtn.disabled = false;
       modalRunBtn.textContent = '继续执行';
     }

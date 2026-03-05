@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
   runPipeline: (options) => ipcRenderer.invoke('run-pipeline', options),
+  stopPipeline: (id) => ipcRenderer.invoke('stop-pipeline', id),
   readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
   writeFile: (filePath, content) => ipcRenderer.invoke('write-file', { filePath, content }),
   listWorks: () => ipcRenderer.invoke('list-works'),

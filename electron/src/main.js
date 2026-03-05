@@ -3,6 +3,8 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 let mainWindow;
+let currentProcess = null;
+let currentProcessId = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -63,6 +65,11 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
       shell: true
     });
 
+    // Store current process reference
+    currentProcess = proc;
+    const taskId = id || (output.match(/ID: ([a-f0-9]+)/) ? output.match(/ID: ([a-f0-9]+)/)[1] : null);
+    currentProcessId = taskId;
+
     let output = '';
     let error = '';
 
@@ -77,6 +84,8 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
     });
 
     proc.on('close', (code) => {
+      currentProcess = null;
+      currentProcessId = null;
       if (code === 0) {
         resolve({ success: true, output });
       } else {
@@ -84,6 +93,30 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
       }
     });
   });
+});
+
+// Stop running pipeline
+ipcMain.handle('stop-pipeline', async (event, id) => {
+  const fs = require('fs').promises;
+
+  // Kill the current process if running
+  if (currentProcess) {
+    currentProcess.kill('SIGTERM');
+    currentProcess = null;
+  }
+
+  // Delete the work directory if id provided
+  if (id) {
+    const workDir = path.join(__dirname, '../..', 'work', id);
+    try {
+      await fs.rm(workDir, { recursive: true, force: true });
+    } catch (e) {
+      // Ignore deletion errors
+    }
+  }
+
+  currentProcessId = null;
+  return { success: true };
 });
 
 // Read generated files
