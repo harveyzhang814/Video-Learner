@@ -1391,6 +1391,19 @@
       const meta = await window.api.readFile(`work/${currentId}/transcript/meta.json`);
       if (meta) {
         const j = JSON.parse(meta);
+
+        // 保存到 localStorage 缓存
+        if (j) {
+            saveTaskCache(currentId, {
+                download_status: j.download_status,
+                transcript_done: j.transcript_done,
+                article_done: j.article_done,
+                summary_done: j.summary_done,
+                focus: j.focus,
+                title: j.title
+            });
+        }
+
         modalUrlInput.value = j.url || '';
         modalFocusInput.value = j.focus || '';
         modalVideoToggle.checked = j.downloadVideo !== false;
