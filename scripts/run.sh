@@ -221,10 +221,16 @@ get_transcript() {
     status "transcript_start"
 
     # Check existing bilingual transcripts (skip only if FORCE=0)
-    if [ -f "$DIR/transcript/original.md" ] && [ "$FORCE" = "0" ]; then
-        content=$(cat "$DIR/transcript/original.md")
+    if [ "$FORCE" = "0" ]; then
+        if [ -f "$DIR/transcript/original_en.md" ] && [ -s "$DIR/transcript/original_en.md" ]; then
+            content=$(cat "$DIR/transcript/original_en.md")
+        elif [ -f "$DIR/transcript/original_zh.md" ] && [ -s "$DIR/transcript/original_zh.md" ]; then
+            content=$(cat "$DIR/transcript/original_zh.md")
+        else
+            content=""
+        fi
         if [ ${#content} -gt 100 ]; then
-            echo "original.md exists, skipping"
+            echo "Transcript exists (en/zh), skipping"
             META=$(echo "$META" | jq '.transcript_source = "existing"')
             META=$(echo "$META" | jq '.transcript_done = true')
             status "transcript_done"
@@ -366,7 +372,7 @@ get_transcript() {
         echo "Converting English: $en_subfile (type: $en_type)"
         python3 "$SCRIPT_DIR/vtt_converter.py" "$en_subfile" "$DIR/transcript/original_en.md"
         # Generate original_en.vtt for frontend display
-        python3 "$SCRIPT_DIR/md2subtitle.py" "$DIR/transcript/original_en.md" -f vtt -l en 2>/dev/null
+        python3 "$SCRIPT_DIR/md2subtitle.py" "$DIR/transcript/original_en.md" -f vtt -o "$DIR/transcript/original_en.vtt" 2>/dev/null
     fi
 
     # Convert Chinese
@@ -384,7 +390,7 @@ get_transcript() {
         echo "Converting Chinese: $zh_subfile (type: $zh_type)"
         python3 "$SCRIPT_DIR/vtt_converter.py" "$zh_subfile" "$DIR/transcript/original_zh.md"
         # Generate original_zh.vtt for frontend display
-        python3 "$SCRIPT_DIR/md2subtitle.py" "$DIR/transcript/original_zh.md" -f vtt -l zh 2>/dev/null
+        python3 "$SCRIPT_DIR/md2subtitle.py" "$DIR/transcript/original_zh.md" -f vtt -o "$DIR/transcript/original_zh.vtt" 2>/dev/null
     fi
 
     # Determine source language for article.md based on priority:
