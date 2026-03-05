@@ -1561,6 +1561,60 @@
       }
     }
 
+    // === 重置弹窗逻辑 ===
+    const resetPopup = document.getElementById('resetPopup');
+    const resetPopupClose = document.getElementById('resetPopupClose');
+    const resetPopupCancel = document.getElementById('resetPopupCancel');
+    const resetPopupConfirm = document.getElementById('resetPopupConfirm');
+    const resetStepName = document.getElementById('resetStepName');
+
+    let currentResetStep = null;
+    let currentResetTaskId = null;
+
+    // 点击已完成步骤的 tag pill 时显示重置弹窗
+    document.querySelectorAll('.modal-status .status-pill.done').forEach(pill => {
+        pill.style.cursor = 'pointer';
+        pill.addEventListener('click', () => {
+            const step = pill.dataset.step;
+            if (step === 'info' || step === 'audio') return; // info 和 audio 不可重置
+            currentResetStep = step;
+            currentResetTaskId = currentId;
+            resetStepName.textContent = {
+                video: '视频下载',
+                transcript: '转录',
+                article: '文章',
+                summary: '总结'
+            }[step];
+            resetPopup.classList.remove('hidden');
+        });
+    });
+
+    // 关闭弹窗
+    resetPopupClose.addEventListener('click', () => resetPopup.classList.add('hidden'));
+    resetPopupCancel.addEventListener('click', () => resetPopup.classList.add('hidden'));
+    resetPopup.addEventListener('click', (e) => {
+        if (e.target === resetPopup) resetPopup.classList.add('hidden');
+    });
+
+    // 确认重置
+    resetPopupConfirm.addEventListener('click', async () => {
+        if (!currentResetStep || !currentResetTaskId) return;
+
+        try {
+            await window.api.resetTaskStep(currentResetTaskId, currentResetStep);
+
+            // 更新 UI
+            setModalStep(currentResetStep, 'pending');
+
+            // 清除缓存
+            clearTaskCache(currentResetTaskId);
+
+            resetPopup.classList.add('hidden');
+        } catch (e) {
+            alert('重置失败: ' + e.message);
+        }
+    });
+
     modalCloseBtn.addEventListener('click', closeNewTaskModal);
 
     newTaskModal.addEventListener('click', (e) => {
