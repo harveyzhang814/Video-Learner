@@ -1278,6 +1278,34 @@
   </div>
 
   <script>
+    // === localStorage 辅助函数 ===
+    const LS_KEYS = {
+        PREFERENCES: 'video_learner_preferences',
+        TASK_CACHE: (id) => `video_learner_task_${id}`
+    };
+
+    function savePreferences(prefs) {
+        localStorage.setItem(LS_KEYS.PREFERENCES, JSON.stringify(prefs));
+    }
+
+    function loadPreferences() {
+        const data = localStorage.getItem(LS_KEYS.PREFERENCES);
+        return data ? JSON.parse(data) : { defaultFocus: '', defaultDownloadMode: 'video' };
+    }
+
+    function saveTaskCache(id, taskData) {
+        localStorage.setItem(LS_KEYS.TASK_CACHE(id), JSON.stringify(taskData));
+    }
+
+    function loadTaskCache(id) {
+        const data = localStorage.getItem(LS_KEYS.TASK_CACHE(id));
+        return data ? JSON.parse(data) : null;
+    }
+
+    function clearTaskCache(id) {
+        localStorage.removeItem(LS_KEYS.TASK_CACHE(id));
+    }
+
     let currentId = null;
     let downloading = true;
 
