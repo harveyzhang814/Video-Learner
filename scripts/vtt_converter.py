@@ -5,6 +5,25 @@ import glob
 import sys
 import argparse
 
+def remove_overlap_prefix(current_text, previous_text, min_overlap=3):
+    """Remove overlapping prefix from current text."""
+    if not previous_text or not current_text:
+        return current_text
+
+    # Find longest common prefix by trying different offsets
+    for i in range(len(previous_text)):
+        if current_text.startswith(previous_text[i:]):
+            overlap = previous_text[i:]
+            break
+    else:
+        overlap = ""
+
+    # Only remove if overlap is significant (>= min_overlap chars)
+    if len(overlap) >= min_overlap:
+        return current_text[len(overlap):].lstrip()
+    return current_text
+
+
 def convert_vtt_to_markdown(vtt_path, output_path, lang=None):
     """Convert VTT subtitle file to timestamped markdown."""
     with open(vtt_path, 'r', encoding='utf-8') as f:
@@ -29,26 +48,34 @@ def convert_vtt_to_markdown(vtt_path, output_path, lang=None):
 
     entries.sort(key=lambda x: x[0])
 
-    # Merge entries: two cases
+    # Merge entries with overlap removal
     # 1. Time difference < 0.5s: keep longer text, later timestamp
-    # 2. Text contains previous text: merge to longer version, later timestamp
+    # 2. Otherwise: remove overlapping prefix from current text
     if entries:
         merged = []
         current_sec, current_start, current_text = entries[0]
         for sec, start, text in entries[1:]:
             time_diff = sec - current_sec
-            text_contained = current_text in text or current_text.lower() in text.lower()
 
-            if time_diff < 0.5:  # Case 1: nearby in time
+            # Check if text is contained in current_text (duplicate or subset)
+            text_contained = text in current_text or text.lower() in current_text.lower()
+
+            if time_diff < 0.5:
+                # Case 1: nearby in time - use longer text
                 if len(text) > len(current_text):
                     current_sec, current_start, current_text = sec, start, text
-            elif text_contained:  # Case 2: text contains previous
-                # Keep longer text, use later timestamp
-                current_sec, current_start, current_text = sec, start, text
+                # else keep current (shorter) text
+            elif text_contained:
+                # Case 2: text is contained in current - skip (already covered)
+                pass
             else:
+                # Case 3: far apart in time - remove overlap and add
+                cleaned_text = remove_overlap_prefix(text, current_text)
+                # Use cleaned_text if it has content, otherwise use original text
+                final_text = cleaned_text if cleaned_text else text
                 merged.append((current_start, current_text))
-                current_sec, current_start, current_text = sec, start, text
-        merged.append((current_start, current_text))  # Last one
+                current_sec, current_start, current_text = sec, start, final_text
+        merged.append((current_start, current_text))
 
     # Write output
     with open(output_path, 'w', encoding='utf-8') as f:
