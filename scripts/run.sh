@@ -148,6 +148,16 @@ if [ "$FORCE" = "1" ] || [ "$(echo "$META" | jq -r '.title')" = "" ]; then
     fi
     echo "Title: $title, Duration: $duration"
     status "info_done"
+
+    # Update index.jsonl immediately after getting title
+    echo "$META" > "$DIR/transcript/meta.json"
+    index_line=$(echo "$META" | jq -c '{url, id, ts, title, download_status, transcript_done, article_done, summary_done}')
+    if grep -q "\"id\":\"$id\"" work/index.jsonl 2>/dev/null; then
+        # Use jq to update existing record (convert JSONL to array with -s, then back to JSONL)
+        jq -s --arg id "$id" --argjson line "$index_line" 'map(if .id == $id then $line else . end) | .[]' work/index.jsonl > work/index.jsonl.tmp && mv work/index.jsonl.tmp work/index.jsonl
+    else
+        echo "$index_line" >> work/index.jsonl
+    fi
 fi
 
 # Helper function to output standardized status
@@ -529,8 +539,11 @@ fi
 # === STEP 5: Save Meta ===
 echo "$META" > "$DIR/transcript/meta.json"
 index_line=$(echo "$META" | jq -c '{url, id, ts, title, download_status, transcript_done, article_done, summary_done}')
-# Check if this ID already exists in index.jsonl to avoid duplicates
-if ! grep -q "\"id\":\"$id\"" work/index.jsonl 2>/dev/null; then
+# Update index.jsonl - replace existing line or append new
+if grep -q "\"id\":\"$id\"" work/index.jsonl 2>/dev/null; then
+    # Use jq to update existing record (convert JSONL to array with -s, then back to JSONL)
+    jq -s --arg id "$id" --argjson line "$index_line" 'map(if .id == $id then $line else . end) | .[]' work/index.jsonl > work/index.jsonl.tmp && mv work/index.jsonl.tmp work/index.jsonl
+else
     echo "$index_line" >> work/index.jsonl
 fi
 
