@@ -157,13 +157,23 @@ status() {
 
 # Helper functions
 mode_has_video() {
-    echo "$MODE" | grep -qE "(both|video)" && return 0 || return 1
+    [[ "$MODE" == "full_flow_video" ]] || [[ "$MODE" == "download_video" ]]
 }
+
 mode_has_audio() {
-    echo "$MODE" | grep -qE "(both|audio)" && return 0 || return 1
+    [[ "$MODE" == "full_flow_audio" ]] || [[ "$MODE" == "download_audio" ]]
 }
+
 mode_has_transcript() {
-    echo "$MODE" | grep -qE "(both|transcript)" && return 0 || return 1
+    [[ "$MODE" == "get_transcript" ]] || [[ "$MODE" == full_flow_* ]]
+}
+
+mode_has_article() {
+    [[ "$MODE" == "write_article" ]] || [[ "$MODE" == "full_flow_video" ]] || [[ "$MODE" == "full_flow_audio" ]]
+}
+
+mode_has_summary() {
+    [[ "$MODE" == "summarize" ]] || [[ "$MODE" == "full_flow_video" ]] || [[ "$MODE" == "full_flow_audio" ]]
 }
 
 # === STEP 1: Video Download (Independent Background Process) ===
