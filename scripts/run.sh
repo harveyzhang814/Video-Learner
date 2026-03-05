@@ -12,6 +12,7 @@ LANG="auto"
 MODE="both"
 FORCE="0"
 FOCUS=""
+ID=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -31,6 +32,10 @@ while [[ $# -gt 0 ]]; do
             LANG="${1#*=}"
             shift
             ;;
+        ID=*)
+            ID="${1#*=}"
+            shift
+            ;;
         *)
             URL="$1"
             shift
@@ -38,18 +43,35 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [ -z "$URL" ]; then
+if [ -z "$URL" ] && [ -z "$ID" ]; then
     echo "Usage: bash scripts/run.sh \"<URL>\" [LANG=auto] [MODE=both|video|audio|transcript] [FORCE=0|1] [FOCUS=\"...\"]"
+    echo "   or: bash scripts/run.sh ID=<id> [MODE=...] [FORCE=1] [FOCUS=\"...\"]"
     echo ""
     echo "Examples:"
     echo '  bash scripts/run.sh "https://youtube.com/watch?v=..."'
     echo '  bash scripts/run.sh "https://youtube.com/watch?v=..." FOCUS="technical details, architecture"'
     echo '  bash scripts/run.sh "https://youtube.com/watch?v=..." MODE=transcript FOCUS="main arguments"'
+    echo '  bash scripts/run.sh ID=abc123 DEF=1 FOCUS="main arguments"'
     exit 1
 fi
 
-# Compute ID
-id=$(printf "%s" "$URL" | shasum | awk '{print $1}' | cut -c1-12)
+# If ID is provided, get URL from existing work directory
+if [ -n "$ID" ]; then
+    id="$ID"
+    DIR="work/$id"
+    if [ -f "$DIR/transcript/meta.json" ]; then
+        URL=$(jq -r '.url' "$DIR/transcript/meta.json")
+        echo "Resuming task: $id"
+        echo "URL: $URL"
+    else
+        echo "Error: No meta.json found for ID: $id"
+        exit 1
+    fi
+else
+    # Compute ID from URL
+    id=$(printf "%s" "$URL" | shasum | awk '{print $1}' | cut -c1-12)
+fi
+
 DIR="work/$id"
 mkdir -p "$DIR/media" "$DIR/transcript/subs" "$DIR/writing"
 
@@ -100,11 +122,20 @@ else
             summary_done: ($summary_done == "true"), download_video: ($download_video == "true"),
             tool_versions: { yt_dlp: $yt_dlp_ver, ffmpeg: $ffmpeg_ver, jq: $jq_ver }
         }')
+
+    # === IMMEDIATE SAVE: Save meta.json and index.jsonl right after initialization ===
+    # This ensures the task appears in History even if pipeline is interrupted
+    echo "$META" > "$DIR/transcript/meta.json"
+    index_line=$(echo "$META" | jq -c '{url, id, ts, title, download_status, transcript_done, article_done, summary_done}')
+    # Check if this ID already exists in index.jsonl to avoid duplicates
+    if ! grep -q "\"id\":\"$id\"" work/index.jsonl 2>/dev/null; then
+        echo "$index_line" >> work/index.jsonl
+    fi
 fi
 
 # === STEP 0: Get Video Info ===
 if [ "$FORCE" = "1" ] || [ "$(echo "$META" | jq -r '.title')" = "" ]; then
-    echo "=== Step 0: Get Video Info ==="
+    status "info_start"
     info_json=$(yt-dlp --dump-json --no-download "$URL" 2>/dev/null || echo "{}")
     title=$(echo "$info_json" | jq -r '.title // ""')
     duration=$(echo "$info_json" | jq -r '.duration // ""')
@@ -116,7 +147,13 @@ if [ "$FORCE" = "1" ] || [ "$(echo "$META" | jq -r '.title')" = "" ]; then
         META=$(echo "$META" | jq --arg lang "$lang" '.lang = $lang')
     fi
     echo "Title: $title, Duration: $duration"
+    status "info_done"
 fi
+
+# Helper function to output standardized status
+status() {
+    echo "[STATUS] $1"
+}
 
 # Helper functions
 mode_has_video() {
@@ -133,7 +170,7 @@ mode_has_transcript() {
 if mode_has_video; then
     status=$(echo "$META" | jq -r '.download_status')
     if [ "$FORCE" = "1" ] || [ "$status" = "pending" ] || [ "$status" = "failed" ]; then
-        echo "=== Step 1: Starting Video Download (background) ==="
+        status "video_start"
         # Save meta first so download script can update it
         echo "$META" > "$DIR/transcript/meta.json"
         SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -149,16 +186,19 @@ fi
 # === STEP 2: Audio Extraction ===
 if mode_has_audio; then
     if ! ls "$DIR/media/audio."* 1>/dev/null 2>&1; then
-        echo "=== Step 2: Audio Extraction ==="
+        status "audio_start"
         yt-dlp -x --audio-format m4a -o "$DIR/media/audio.%(ext)s" "$URL" 2>/dev/null || echo "Audio extraction failed (non-blocking)"
+        if ls "$DIR/media/audio."* 1>/dev/null 2>&1; then
+            status "audio_done"
+        fi
     else
-        echo "=== Skip: Audio exists ==="
+        status "audio_done"
     fi
 fi
 
 # === STEP 3: Transcript ===
 get_transcript() {
-    echo "=== Getting Bilingual Transcript ==="
+    status "transcript_start"
 
     # Check existing bilingual transcripts (skip only if FORCE=0)
     if [ -f "$DIR/transcript/original.md" ] && [ "$FORCE" = "0" ]; then
@@ -167,6 +207,7 @@ get_transcript() {
             echo "original.md exists, skipping"
             META=$(echo "$META" | jq '.transcript_source = "existing"')
             META=$(echo "$META" | jq '.transcript_done = true')
+            status "transcript_done"
             return 0
         fi
     fi
@@ -372,6 +413,7 @@ get_transcript() {
 
         META=$(echo "$META" | jq --arg src "$transcript_source_val" '.transcript_source = $src')
         META=$(echo "$META" | jq '.transcript_done = true')
+        status "transcript_done"
 
         # Update meta with transcripts info
         META=$(echo "$META" | jq --argjson en_done "$( [ -f "$DIR/transcript/original_en.md" ] && echo true || echo false )" \
@@ -413,7 +455,7 @@ if mode_has_transcript; then
     article_done=$(echo "$META" | jq -r '.article_done')
     if [ "$FORCE" = "1" ] || [ "$article_done" != "true" ]; then
         if [ -f "$DIR/transcript/original.md" ] && [ -s "$DIR/transcript/original.md" ]; then
-            echo "=== Step 3.5: Generating Article ==="
+            status "article_start"
             SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
             # Generate article using Claude CLI
@@ -424,6 +466,7 @@ if mode_has_transcript; then
             if [ -f "$DIR/writing/article.md" ] && [ -s "$DIR/writing/article.md" ]; then
                 echo "Article generated successfully"
                 META=$(echo "$META" | jq '.article_done = true')
+                status "article_done"
                 META=$(echo "$META" | jq --arg path "$ARTICLE_PROMPT_PATH" '.article_prompt_path = $path')
             else
                 echo "Failed to generate article"
@@ -449,7 +492,7 @@ if mode_has_transcript; then
             fi
 
             current_focus=$(echo "$META" | jq -r '.focus // ""')
-            echo "=== Step 4: Generating Summary (focus: ${current_focus:-none}) ==="
+            status "summary_start"
 
             # Generate summary using Claude CLI
             SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -461,6 +504,7 @@ if mode_has_transcript; then
             if [ -f "$DIR/writing/summary.md" ] && [ -s "$DIR/writing/summary.md" ]; then
                 echo "Summary generated successfully"
                 META=$(echo "$META" | jq '.summary_done = true')
+                status "summary_done"
             else
                 echo "Failed to generate summary"
             fi
@@ -475,7 +519,10 @@ fi
 # === STEP 5: Save Meta ===
 echo "$META" > "$DIR/transcript/meta.json"
 index_line=$(echo "$META" | jq -c '{url, id, ts, title, download_status, transcript_done, article_done, summary_done}')
-echo "$index_line" >> work/index.jsonl
+# Check if this ID already exists in index.jsonl to avoid duplicates
+if ! grep -q "\"id\":\"$id\"" work/index.jsonl 2>/dev/null; then
+    echo "$index_line" >> work/index.jsonl
+fi
 
 # === Self Check ===
 echo ""
@@ -497,10 +544,10 @@ SUMMARY_DONE=$(echo "$META" | jq -r '.summary_done')
 
 if [ "$TRANSCRIPT_DONE" = "true" ] || [ "$SUMMARY_DONE" = "true" ]; then
     echo ""
-    echo "=== Pipeline Complete ==="
+    status "complete"
     exit 0
 else
     echo ""
-    echo "=== Pipeline Finished (no transcript/summary) ==="
+    status "incomplete"
     exit 1
 fi

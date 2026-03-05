@@ -29,10 +29,19 @@ app.on('activate', () => {
 });
 
 // Run pipeline script
-ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo }) => {
+ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo, id }) => {
   return new Promise((resolve, reject) => {
     const mode = downloadVideo ? 'both' : 'transcript';
-    const args = ['scripts/run.sh', url, `MODE=${mode}`];
+    let args;
+
+    if (id) {
+      // Continue/resume existing task
+      args = ['scripts/run.sh', `ID=${id}`, `MODE=${mode}`];
+    } else {
+      // New task
+      args = ['scripts/run.sh', url, `MODE=${mode}`];
+    }
+
     if (focus) args.push(`FOCUS=${focus}`);
     if (force) args.push('FORCE=1');
 
@@ -72,6 +81,21 @@ ipcMain.handle('read-file', async (event, filePath) => {
     return await fs.readFile(fullPath, 'utf-8');
   } catch (e) {
     return null;
+  }
+});
+
+// Write files
+ipcMain.handle('write-file', async (event, { filePath, content }) => {
+  const fs = require('fs').promises;
+  const fullPath = path.join(__dirname, '../..', filePath);
+  try {
+    // Ensure directory exists
+    await fs.mkdir(path.dirname(fullPath), { recursive: true });
+    await fs.writeFile(fullPath, content, 'utf-8');
+    return true;
+  } catch (e) {
+    console.error('Write file error:', e);
+    return false;
   }
 });
 
@@ -127,7 +151,26 @@ ipcMain.handle('delete-work', async (event, id) => {
   }
 });
 
-// Get video file path
+// Get media file paths (video and audio)
+ipcMain.handle('get-media-path', async (event, id) => {
+  const fs = require('fs').promises;
+  const mediaDir = path.join(__dirname, '../..', 'work', id, 'media');
+
+  try {
+    const files = await fs.readdir(mediaDir);
+    const videoFile = files.find(f => f.startsWith('video.') && !f.endsWith('.log'));
+    const audioFile = files.find(f => f.startsWith('audio.') && !f.endsWith('.log'));
+
+    return {
+      video: videoFile ? path.join(mediaDir, videoFile) : null,
+      audio: audioFile ? path.join(mediaDir, audioFile) : null
+    };
+  } catch (e) {
+    return { video: null, audio: null };
+  }
+});
+
+// Get video file path (legacy)
 ipcMain.handle('get-video-path', async (event, id) => {
   const fs = require('fs').promises;
   const mediaDir = path.join(__dirname, '../..', 'work', id, 'media');
