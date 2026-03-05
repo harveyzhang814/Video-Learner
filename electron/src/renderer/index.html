@@ -1448,22 +1448,22 @@
     const modalCloseBtn = document.getElementById('modalCloseBtn');
     const modalUrlInput = document.getElementById('modalUrlInput');
     const modalFocusInput = document.getElementById('modalFocusInput');
-    const modalDownloadMode = document.getElementById('modalDownloadMode');
+    const modalDownloadModeRadios = document.getElementById('modalDownloadMode');
+    let modalDownloadMode = 'video';
     const modalRunBtn = document.getElementById('modalRunBtn');
     const modalSaveBtn = document.getElementById('modalSaveBtn');
     const modalTitle = document.getElementById('modalTitle');
     const modalLogs = document.getElementById('modalLogs');
     const modalStatus = document.getElementById('modalStatus');
-    let modalDownloadMode = 'video';
 
     // Get download mode from radio group
     function getModalDownloadMode() {
-      const selected = modalDownloadMode.querySelector('input[name="downloadMode"]:checked');
+      const selected = modalDownloadModeRadios.querySelector('input[name="downloadMode"]:checked');
       return selected ? selected.value : 'video';
     }
 
     // Update modalDownloadMode when radio changes
-    modalDownloadMode.addEventListener('change', () => {
+    modalDownloadModeRadios.addEventListener('change', () => {
       modalDownloadMode = getModalDownloadMode();
     });
 
@@ -1511,7 +1511,7 @@
         modalFocusInput.value = j.focus || '';
         // Set radio button based on downloadVideo
         const mode = j.downloadVideo || 'video';
-        const radio = modalDownloadMode.querySelector(`input[value="${mode}"]`);
+        const radio = modalDownloadModeRadios.querySelector(`input[value="${mode}"]`);
         if (radio) radio.checked = true;
         modalDownloadMode = mode;
 
@@ -1558,7 +1558,7 @@
       modalFocusInput.value = '';
       modalLogs.textContent = '';
       // Reset radio to video
-      const videoRadio = modalDownloadMode.querySelector('input[value="video"]');
+      const videoRadio = modalDownloadModeRadios.querySelector('input[value="video"]');
       if (videoRadio) videoRadio.checked = true;
       modalDownloadMode = 'video';
       modalRunBtn.textContent = 'Run';
@@ -1684,7 +1684,6 @@
       const url = modalUrlInput.value.trim();
       const focus = modalFocusInput.value.trim();
       const mode = getModalDownloadMode();
-      const downloadVideo = mode === 'video' || mode === 'audio';
 
       // Update meta.json
       const metaPath = `work/${currentId}/transcript/meta.json`;
@@ -1693,7 +1692,7 @@
         const j = JSON.parse(meta);
         j.url = url;
         j.focus = focus;
-        j.downloadVideo = downloadVideo;
+        j.downloadVideo = mode;  // Save 'video', 'audio', or 'transcript' directly
         await window.api.writeFile(metaPath, JSON.stringify(j, null, 2));
       }
 
@@ -1934,7 +1933,7 @@
           id: id,
           focus: modalFocusInput.value.trim(),
           force: false,
-          downloadVideo: modalDownloading
+          downloadVideo: modalDownloadMode
         });
 
         if (res.success) {
@@ -1943,11 +1942,11 @@
           await loadWork(id);
           await loadHistory();
         } else {
-          setModalStep(modalDownloading ? 'video' : 'transcript', 'error');
+          setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'error');
           modalLogs.innerHTML += `<div class="log-line log-err">Error: ${res.error}</div>`;
         }
       } catch (e) {
-        setModalStep(modalDownloading ? 'video' : 'transcript', 'error');
+        setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'error');
         modalLogs.innerHTML += `<div class="log-line log-err">${e.message}</div>`;
       }
 
