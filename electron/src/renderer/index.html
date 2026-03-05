@@ -1062,6 +1062,47 @@
       border-color: #fca5a5;
     }
 
+    /* 重置弹窗 */
+    .reset-popup {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .reset-popup.hidden { display: none; }
+    .reset-popup-content {
+      background: #1e1e1e;
+      border-radius: 8px;
+      padding: 20px;
+      min-width: 300px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .reset-popup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .reset-popup-title { font-size: 16px; font-weight: 600; }
+    .reset-popup-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    .reset-popup-body { margin-bottom: 20px; }
+    .reset-popup-hint { color: #888; font-size: 12px; margin-top: 8px; }
+    .reset-popup-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn.danger { background: #d32f2f; color: white; }
+    .btn.danger:hover { background: #b71c1c; }
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
@@ -1272,6 +1313,25 @@
             <span class="label">生成总结</span>
           </span>
         </div>
+
+<!-- 重置确认弹窗 -->
+<div class="reset-popup hidden" id="resetPopup">
+    <div class="reset-popup-content">
+        <div class="reset-popup-header">
+            <span class="reset-popup-title">重置步骤</span>
+            <button class="reset-popup-close" id="resetPopupClose">&times;</button>
+        </div>
+        <div class="reset-popup-body">
+            <p>确定要重置 <strong id="resetStepName"></strong> 吗？</p>
+            <p class="reset-popup-hint">重置后将可以重新执行此步骤</p>
+        </div>
+        <div class="reset-popup-actions">
+            <button class="btn" id="resetPopupCancel">取消</button>
+            <button class="btn danger" id="resetPopupConfirm">重置</button>
+        </div>
+    </div>
+</div>
+
         <div class="modal-logs" id="modalLogs"></div>
       </div>
     </div>
