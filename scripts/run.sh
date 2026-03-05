@@ -475,13 +475,17 @@ fi
 if mode_has_transcript; then
     article_done=$(echo "$META" | jq -r '.article_done')
     if [ "$FORCE" = "1" ] || [ "$article_done" != "true" ]; then
-        if [ -f "$DIR/transcript/original.md" ] && [ -s "$DIR/transcript/original.md" ]; then
+        # 读取 article_source_lang
+        article_lang=$(echo "$META" | jq -r '.article_source_lang // "en"')
+        transcript_file="$DIR/transcript/original_${article_lang}.md"
+
+        if [ -f "$transcript_file" ] && [ -s "$transcript_file" ]; then
             status "article_start"
             SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
             # Generate article using Claude CLI
             ARTICLE_PROMPT_PATH="$SCRIPT_DIR/article_prompt.txt"
-            article_prompt=$(sed "s|{{ORIGINAL_PATH}}|$DIR/transcript/original.md|g" "$ARTICLE_PROMPT_PATH")
+            article_prompt=$(sed "s|{{ORIGINAL_PATH}}|$transcript_file|g" "$ARTICLE_PROMPT_PATH")
             echo "$article_prompt" | env -u CLAUDECODE claude -p --dangerously-skip-permissions > "$DIR/writing/article.md"
 
             if [ -f "$DIR/writing/article.md" ] && [ -s "$DIR/writing/article.md" ]; then
@@ -493,7 +497,7 @@ if mode_has_transcript; then
                 echo "Failed to generate article"
             fi
         else
-            echo "=== Skip: No original.md for article ==="
+            echo "=== Skip: No ${article_lang} transcript for article ==="
         fi
     else
         echo "=== Skip: Article already done ==="
