@@ -5,27 +5,31 @@ import re
 import argparse
 
 def parse_original_md(filepath):
-    """Parse original.md format: [hh:mm:ss] or [mm:ss] text"""
+    """Parse original.md format: [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text"""
     entries = []
     with open(filepath, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
-            # Match [hh:mm:ss] or [mm:ss] text - handle both formats
-            match = re.match(r'\[(\d{2}):(\d{2}):(\d{2})\]\s*(.+)', line)
-            if match:
-                hh, mm, ss, text = match.groups()
-                seconds = int(hh) * 3600 + int(mm) * 60 + int(ss)
-                entries.append((seconds, '0', text))
-                continue
 
-            # Try [mm:ss] format
-            match = re.match(r'\[(\d{2}):(\d{2})\]\s*(.+)', line)
+            # Match [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text
+            match = re.match(r'\[\d{2}:\d{2}:\d{2}\]\s+(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*(.+)', line)
             if match:
-                mm, ss, text = match.groups()
-                seconds = int(mm) * 60 + int(ss)
-                entries.append((seconds, '0', text))
+                h1, m1, s1, ms1, h2, m2, s2, ms2, text = match.groups()
+
+                start_sec = int(h1) * 3600 + int(m1) * 60 + int(s1)
+                start_ms = int(ms1)
+                end_sec = int(h2) * 3600 + int(m2) * 60 + int(s2)
+                end_ms = int(ms2)
+
+                # Skip invalid entries: end <= start or empty text
+                if end_sec < start_sec or (end_sec == start_sec and end_ms <= start_ms):
+                    continue
+                if not text.strip():
+                    continue
+
+                entries.append((start_sec, end_sec, start_ms, end_ms, text))
     return entries
 
 def format_vtt_time(seconds, ms):
@@ -47,9 +51,9 @@ def format_srt_time(seconds, ms):
 def convert_to_vtt(entries):
     """Convert to VTT format"""
     lines = ["WEBVTT", ""]
-    for i, (seconds, ms, text) in enumerate(entries, 1):
-        start = format_vtt_time(seconds, ms)
-        end = format_vtt_time(seconds + 3, ms)  # Default 3s duration
+    for i, (start_sec, end_sec, start_ms, end_ms, text) in enumerate(entries, 1):
+        start = format_vtt_time(start_sec, start_ms)
+        end = format_vtt_time(end_sec, end_ms)
         lines.append(f"{i}")
         lines.append(f"{start} --> {end}")
         lines.append(text)
@@ -59,9 +63,9 @@ def convert_to_vtt(entries):
 def convert_to_srt(entries):
     """Convert to SRT format"""
     lines = []
-    for i, (seconds, ms, text) in enumerate(entries, 1):
-        start = format_srt_time(seconds, ms)
-        end = format_srt_time(seconds + 3, ms)
+    for i, (start_sec, end_sec, start_ms, end_ms, text) in enumerate(entries, 1):
+        start = format_srt_time(start_sec, start_ms)
+        end = format_srt_time(end_sec, end_ms)
         lines.append(f"{i}")
         lines.append(f"{start} --> {end}")
         lines.append(text)
