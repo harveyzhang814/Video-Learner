@@ -29,6 +29,12 @@ app.on('activate', () => {
 });
 
 // Run pipeline script
+/**
+ * downloadVideo 参数说明:
+ * - 'video': 下载视频 (MODE=full_flow_video)
+ * - 'audio': 下载音频 (MODE=full_flow_audio)
+ * - 其他: 不下载媒体 (MODE=full_flow_transcript)
+ */
 ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo, id }) => {
   return new Promise((resolve, reject) => {
     let mode;
