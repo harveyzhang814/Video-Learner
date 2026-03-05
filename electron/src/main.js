@@ -65,13 +65,13 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
       shell: true
     });
 
-    // Store current process reference
-    currentProcess = proc;
-    const taskId = id || (output.match(/ID: ([a-f0-9]+)/) ? output.match(/ID: ([a-f0-9]+)/)[1] : null);
-    currentProcessId = taskId;
-
+    // Initialize output and error buffers
     let output = '';
     let error = '';
+
+    // Store current process reference
+    currentProcess = proc;
+    currentProcessId = id || null;
 
     proc.stdout.on('data', (data) => {
       const text = data.toString();
