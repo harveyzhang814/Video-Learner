@@ -196,6 +196,13 @@
       padding: 0;
     }
 
+    .info-status {
+      display: flex;
+      gap: 8px;
+      padding: 12px 0;
+      flex-wrap: wrap;
+    }
+
     .info-row {
       display: flex;
       padding: 8px 0;
@@ -1209,9 +1216,23 @@
             <span class="info-label">Focus</span>
             <span class="info-value" id="infoFocus">-</span>
           </div>
-          <div class="info-row">
-            <span class="info-label">状态</span>
-            <span class="info-value" id="infoStatus">-</span>
+          <div class="info-status" id="infoStatus">
+            <span class="status-pill" data-step="video">
+              <span class="icon">○</span>
+              <span class="label">视频</span>
+            </span>
+            <span class="status-pill" data-step="transcript">
+              <span class="icon">○</span>
+              <span class="label">转录</span>
+            </span>
+            <span class="status-pill" data-step="article">
+              <span class="icon">○</span>
+              <span class="label">文章</span>
+            </span>
+            <span class="status-pill" data-step="summary">
+              <span class="icon">○</span>
+              <span class="label">总结</span>
+            </span>
           </div>
         </div>
       </div>
@@ -1433,7 +1454,7 @@
     const infoLang = document.getElementById('infoLang');
     const infoDuration = document.getElementById('infoDuration');
     const infoFocus = document.getElementById('infoFocus');
-    const infoStatus = document.getElementById('infoStatus');
+    // infoStatus removed - using status-pill instead
 
     const STEPS = ['info', 'video', 'audio', 'transcript', 'article', 'summary'];
     let currentStep = 0;
@@ -1973,10 +1994,33 @@
       infoLang.textContent = '-';
       infoDuration.textContent = '-';
       infoFocus.textContent = '-';
-      infoStatus.textContent = '-';
+      resetInfoStatusPills();
       hideVideo();
       loadHistory();
       switchTab('article');
+    }
+
+    function resetInfoStatusPills() {
+      document.querySelectorAll('#infoStatus .status-pill').forEach(pill => {
+        pill.classList.remove('active', 'done', 'error');
+        pill.querySelector('.icon').textContent = '○';
+      });
+    }
+
+    function updateInfoStatusPill(step, state) {
+      const pill = document.querySelector(`#infoStatus .status-pill[data-step="${step}"]`);
+      if (!pill) return;
+      pill.classList.remove('active', 'done', 'error');
+      if (state === 'active') {
+        pill.classList.add('active');
+        pill.querySelector('.icon').textContent = '◐';
+      } else if (state === 'done') {
+        pill.classList.add('done');
+        pill.querySelector('.icon').textContent = '●';
+      } else if (state === 'error') {
+        pill.classList.add('error');
+        pill.querySelector('.icon').textContent = '✕';
+      }
     }
 
     function updateProgress(step) {
@@ -2110,16 +2154,24 @@
         infoDuration.textContent = j.duration || '-';
         infoFocus.textContent = j.focus || '-';
 
-        // Calculate status
-        let status = [];
-        if (j.download_status === 'success') status.push('视频已下载');
-        else if (j.download_status === 'failed') status.push('视频下载失败');
-        if (j.transcript_done) status.push('转录完成');
-        if (j.article_done) status.push('文章完成');
-        if (j.summary_done) status.push('总结完成');
-        if (j.claude_summary_pending) status.push('待生成总结');
-        if (j.focus_needed) status.push('需要Focus');
-        infoStatus.textContent = status.length > 0 ? status.join(' / ') : '-';
+        // Update status pills based on meta
+        resetInfoStatusPills();
+        if (j.download_status === 'success') {
+          updateInfoStatusPill('video', 'done');
+        } else if (j.download_status === 'failed') {
+          updateInfoStatusPill('video', 'error');
+        }
+        if (j.transcript_done) {
+          updateInfoStatusPill('transcript', 'done');
+        }
+        if (j.article_done) {
+          updateInfoStatusPill('article', 'done');
+        }
+        if (j.summary_done) {
+          updateInfoStatusPill('summary', 'done');
+        } else if (j.claude_summary_pending || j.focus_needed) {
+          updateInfoStatusPill('summary', 'active');
+        }
 
         const article = await window.api.readFile(`work/${id}/writing/article.md`);
         const summary = await window.api.readFile(`work/${id}/writing/summary.md`);
@@ -2225,7 +2277,7 @@
         infoLang.textContent = '-';
         infoDuration.textContent = '-';
         infoFocus.textContent = '-';
-        infoStatus.textContent = '-';
+        resetInfoStatusPills();
       }
     });
 
