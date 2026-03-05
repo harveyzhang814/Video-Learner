@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node
+node_modules/
+electron/node_modules/
+
+# Temp
+*.tmp
+*.temp
+*.part
+
+# Work outputs (keep structure, ignore large files)
+work/**/video.mp4
+work/**/audio.*
+work/**/*.webm
+work/**/*.part
+*.log
+
+# Claude
+.claude/*.md

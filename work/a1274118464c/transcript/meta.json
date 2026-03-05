@@ -1,0 +1,35 @@
+{
+  "url": "https://www.youtube.com/watch?v=C5Cjvpfzc_0",
+  "id": "a1274118464c",
+  "ts": "2026-03-04T19:33:57Z",
+  "title": "Gemini CLI: The AI agent that lives in your terminal",
+  "duration": "332",
+  "lang": "en-US",
+  "download_status": "pending",
+  "download_attempts": 0,
+  "download_error": "",
+  "transcript_source": "subtitle",
+  "transcript_done": true,
+  "article_done": true,
+  "summary_done": true,
+  "download_video": false,
+  "tool_versions": {
+    "yt_dlp": "2026.03.03",
+    "ffmpeg": "8.0",
+    "jq": "jq-1.7.1-apple"
+  },
+  "transcripts": {
+    "en": {
+      "type": "auto",
+      "done": true,
+      "path": "origin_en.md"
+    },
+    "zh": {
+      "type": "",
+      "done": false,
+      "path": "origin_zh.md"
+    }
+  },
+  "article_source_lang": "en",
+  "article_prompt_path": "/Users/harveyzhang96/Projects/Claude/scripts/article_prompt.txt"
+}

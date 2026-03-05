@@ -1,0 +1,15 @@
+{
+  "name": "youtube-pipeline",
+  "version": "1.0.0",
+  "description": "YouTube Pipeline - Download, Transcript & Summary",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^40.6.1"
+  }
+}

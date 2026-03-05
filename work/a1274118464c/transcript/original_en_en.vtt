@@ -1,0 +1,629 @@
+WEBVTT
+
+1
+00:00:02.000 --> 00:00:05.000
+Gemini CLI is designed for any task that requires working with local files and
+
+2
+00:00:04.000 --> 00:00:07.000
+requires working with local files and multiple tools. In this lesson, you'll
+
+3
+00:00:07.000 --> 00:00:10.000
+multiple tools. In this lesson, you'll see how Gemini CLI works under the hood.
+
+4
+00:00:09.000 --> 00:00:12.000
+see how Gemini CLI works under the hood. You'll also learn why working from the
+
+5
+00:00:11.000 --> 00:00:14.000
+You'll also learn why working from the command line gives you powerful
+
+6
+00:00:12.000 --> 00:00:15.000
+command line gives you powerful advantages over web interfaces. I hope
+
+7
+00:00:15.000 --> 00:00:18.000
+advantages over web interfaces. I hope this lesson will spark ideas about
+
+8
+00:00:16.000 --> 00:00:19.000
+this lesson will spark ideas about what's possible with Gemini CLI. Let's
+
+9
+00:00:19.000 --> 00:00:22.000
+what's possible with Gemini CLI. Let's dive in. So, throughout this course, we
+
+10
+00:00:21.000 --> 00:00:24.000
+dive in. So, throughout this course, we are going to go over different use cases
+
+11
+00:00:23.000 --> 00:00:26.000
+are going to go over different use cases where you can use Gemini CLI to your
+
+12
+00:00:25.000 --> 00:00:28.000
+where you can use Gemini CLI to your advantage. And it's quite vast what
+
+13
+00:00:27.000 --> 00:00:30.000
+advantage. And it's quite vast what Gemini CLI can do. You can do it for
+
+14
+00:00:30.000 --> 00:00:33.000
+Gemini CLI can do. You can do it for software development. You can have it
+
+15
+00:00:31.000 --> 00:00:34.000
+software development. You can have it implement features. You can actually
+
+16
+00:00:33.000 --> 00:00:36.000
+implement features. You can actually have it review code as a GitHub action
+
+17
+00:00:35.000 --> 00:00:38.000
+have it review code as a GitHub action in a CI/CD pipeline. You can also use
+
+18
+00:00:38.000 --> 00:00:41.000
+in a CI/CD pipeline. You can also use Gemini CLI for content creation. So,
+
+19
+00:00:40.000 --> 00:00:43.000
+Gemini CLI for content creation. So, we're going to show you how you can
+
+20
+00:00:41.000 --> 00:00:44.000
+we're going to show you how you can actually take a podcast, break it up
+
+21
+00:00:44.000 --> 00:00:47.000
+actually take a podcast, break it up into shorts, and generate content for
+
+22
+00:00:46.000 --> 00:00:49.000
+into shorts, and generate content for social media. And we'll use some really
+
+23
+00:00:48.000 --> 00:00:51.000
+social media. And we'll use some really cool technologies such as Nano Banana.
+
+24
+00:00:50.000 --> 00:00:53.000
+cool technologies such as Nano Banana. Gemini CLI can also be used for data
+
+25
+00:00:53.000 --> 00:00:56.000
+Gemini CLI can also be used for data analysis. Later in this course, we are
+
+26
+00:00:55.000 --> 00:00:58.000
+analysis. Later in this course, we are going to take quite a large data set of
+
+27
+00:00:58.000 --> 00:01:01.000
+going to take quite a large data set of CSV files and actually have Gemini CLI
+
+28
+00:01:01.000 --> 00:01:04.000
+CSV files and actually have Gemini CLI go ahead and process it. It's going to
+
+29
+00:01:03.000 --> 00:01:06.000
+go ahead and process it. It's going to clean the data and then we're going to
+
+30
+00:01:05.000 --> 00:01:08.000
+clean the data and then we're going to have it generate some really nice
+
+31
+00:01:06.000 --> 00:01:09.000
+have it generate some really nice visualization dashboards for us. We're
+
+32
+00:01:09.000 --> 00:01:12.000
+visualization dashboards for us. We're also going to show how you can actually
+
+33
+00:01:11.000 --> 00:01:14.000
+also going to show how you can actually use Gemini CLI as a study buddy. We'll
+
+34
+00:01:14.000 --> 00:01:17.000
+use Gemini CLI as a study buddy. We'll have Gemini CLI go over course notes for
+
+35
+00:01:16.000 --> 00:01:19.000
+have Gemini CLI go over course notes for us, build summaries, and then build
+
+36
+00:01:19.000 --> 00:01:22.000
+us, build summaries, and then build interactive tests to help us make sure
+
+37
+00:01:21.000 --> 00:01:24.000
+interactive tests to help us make sure we're ready to go and have learned the
+
+38
+00:01:22.000 --> 00:01:25.000
+we're ready to go and have learned the material. So now what you've come here
+
+39
+00:01:24.000 --> 00:01:27.000
+material. So now what you've come here for, what is Gemini CLI? Gemini CLI is
+
+40
+00:01:28.000 --> 00:01:31.000
+for, what is Gemini CLI? Gemini CLI is an agent that lives in the terminal.
+
+41
+00:01:30.000 --> 00:01:33.000
+an agent that lives in the terminal. This means you can easily install it.
+
+42
+00:01:32.000 --> 00:01:35.000
+This means you can easily install it. It's very lightweight. You can just
+
+43
+00:01:33.000 --> 00:01:36.000
+It's very lightweight. You can just prompt and ask questions and the agent
+
+44
+00:01:36.000 --> 00:01:39.000
+prompt and ask questions and the agent will go off, do research on your behalf.
+
+45
+00:01:38.000 --> 00:01:41.000
+will go off, do research on your behalf. It'll find the files it needs to access
+
+46
+00:01:40.000 --> 00:01:43.000
+It'll find the files it needs to access and read the contents and then use that
+
+47
+00:01:43.000 --> 00:01:46.000
+and read the contents and then use that to give you a really clear response.
+
+48
+00:01:45.000 --> 00:01:48.000
+to give you a really clear response. It's a conversational AI agent at heart
+
+49
+00:01:47.000 --> 00:01:50.000
+It's a conversational AI agent at heart and it's meant to be an interactive
+
+50
+00:01:49.000 --> 00:01:52.000
+and it's meant to be an interactive assistant. You're supposed to go back
+
+51
+00:01:50.000 --> 00:01:53.000
+assistant. You're supposed to go back and forth with [clears throat] the agent
+
+52
+00:01:51.000 --> 00:01:54.000
+and forth with [clears throat] the agent to help you accomplish and perform the
+
+53
+00:01:53.000 --> 00:01:56.000
+to help you accomplish and perform the tasks you need. So, as we mentioned,
+
+54
+00:01:55.000 --> 00:01:58.000
+tasks you need. So, as we mentioned, Gemini CLI is open source. The community
+
+55
+00:01:58.000 --> 00:02:01.000
+Gemini CLI is open source. The community helps drive a lot of the feature
+
+56
+00:01:59.000 --> 00:02:02.000
+helps drive a lot of the feature development. You can actually go and
+
+57
+00:02:01.000 --> 00:02:04.000
+development. You can actually go and inspect every single line of code and it
+
+58
+00:02:03.000 --> 00:02:06.000
+inspect every single line of code and it means you can actually go ahead and
+
+59
+00:02:04.000 --> 00:02:07.000
+means you can actually go ahead and customize. You can fork the code, add in
+
+60
+00:02:07.000 --> 00:02:10.000
+customize. You can fork the code, add in your own features, or create your own
+
+61
+00:02:09.000 --> 00:02:12.000
+your own features, or create your own version of Gemini CLI. And finally, the
+
+62
+00:02:12.000 --> 00:02:15.000
+version of Gemini CLI. And finally, the name kind of gives it away, but it is
+
+63
+00:02:13.000 --> 00:02:16.000
+name kind of gives it away, but it is powered and backed by Gemini models. The
+
+64
+00:02:16.000 --> 00:02:19.000
+powered and backed by Gemini models. The free tier actually comes with a very
+
+65
+00:02:18.000 --> 00:02:21.000
+free tier actually comes with a very generous amount of requests. so that you
+
+66
+00:02:19.000 --> 00:02:22.000
+generous amount of requests. so that you can actually use this tool absolutely
+
+67
+00:02:21.000 --> 00:02:24.000
+can actually use this tool absolutely free of charge for your daily work. So
+
+68
+00:02:24.000 --> 00:02:27.000
+free of charge for your daily work. So let's take a step back and look under
+
+69
+00:02:26.000 --> 00:02:29.000
+let's take a step back and look under the hood of Gemini CLI so we know how it
+
+70
+00:02:29.000 --> 00:02:32.000
+the hood of Gemini CLI so we know how it actually works. You send a prompt. This
+
+71
+00:02:31.000 --> 00:02:34.000
+actually works. You send a prompt. This is sent to a large language model, the
+
+72
+00:02:33.000 --> 00:02:36.000
+is sent to a large language model, the Gemini models, and it does the reasoning
+
+73
+00:02:35.000 --> 00:02:38.000
+Gemini models, and it does the reasoning to understand what tools it needs. If it
+
+74
+00:02:37.000 --> 00:02:40.000
+to understand what tools it needs. If it needs to process any information, if it
+
+75
+00:02:40.000 --> 00:02:43.000
+needs to process any information, if it needs to request follow-up information
+
+76
+00:02:41.000 --> 00:02:44.000
+needs to request follow-up information from you, the user, then it's going to
+
+77
+00:02:43.000 --> 00:02:46.000
+from you, the user, then it's going to go ahead and actually call the tools in
+
+78
+00:02:46.000 --> 00:02:49.000
+go ahead and actually call the tools in order to generate the proper response.
+
+79
+00:02:47.000 --> 00:02:50.000
+order to generate the proper response. And it can go through this process
+
+80
+00:02:49.000 --> 00:02:52.000
+And it can go through this process multiple times. So it can iterate
+
+81
+00:02:51.000 --> 00:02:54.000
+multiple times. So it can iterate through calling different tools, getting
+
+82
+00:02:53.000 --> 00:02:56.000
+through calling different tools, getting different information sent to it and
+
+83
+00:02:54.000 --> 00:02:57.000
+different information sent to it and doing the reasoning on it until it is
+
+84
+00:02:56.000 --> 00:02:59.000
+doing the reasoning on it until it is satisfied with the response before it
+
+85
+00:02:58.000 --> 00:03:01.000
+satisfied with the response before it sends it back to you. This is really
+
+86
+00:02:59.000 --> 00:03:02.000
+sends it back to you. This is really powerful because it means Gemini CLI can
+
+87
+00:03:02.000 --> 00:03:05.000
+powerful because it means Gemini CLI can run for extended periods of time doing
+
+88
+00:03:04.000 --> 00:03:07.000
+run for extended periods of time doing reasoning and looping through different
+
+89
+00:03:06.000 --> 00:03:09.000
+reasoning and looping through different tool calls in order to build out entire
+
+90
+00:03:08.000 --> 00:03:11.000
+tool calls in order to build out entire applications or debug really tricky
+
+91
+00:03:10.000 --> 00:03:13.000
+applications or debug really tricky issues on your behalf so that you can
+
+92
+00:03:12.000 --> 00:03:15.000
+issues on your behalf so that you can spend time doing what you do best and
+
+93
+00:03:14.000 --> 00:03:17.000
+spend time doing what you do best and building. So let's take a look at the
+
+94
+00:03:17.000 --> 00:03:20.000
+building. So let's take a look at the actual advantages of using a terminal
+
+95
+00:03:19.000 --> 00:03:22.000
+actual advantages of using a terminal agent. The main one being that has
+
+96
+00:03:21.000 --> 00:03:24.000
+agent. The main one being that has direct access to your file system. So
+
+97
+00:03:23.000 --> 00:03:26.000
+direct access to your file system. So all of the files on your machine, Gemini
+
+98
+00:03:26.000 --> 00:03:29.000
+all of the files on your machine, Gemini CLI can go and read the ones it needs to
+
+99
+00:03:28.000 --> 00:03:31.000
+CLI can go and read the ones it needs to help answer your questions. This helps
+
+100
+00:03:30.000 --> 00:03:33.000
+help answer your questions. This helps it be contextaware. This makes it very
+
+101
+00:03:32.000 --> 00:03:35.000
+it be contextaware. This makes it very conversational and makes it feel like a
+
+102
+00:03:34.000 --> 00:03:37.000
+conversational and makes it feel like a partner in a task. Another one of the
+
+103
+00:03:36.000 --> 00:03:39.000
+partner in a task. Another one of the key advantages to a terminal based agent
+
+104
+00:03:38.000 --> 00:03:41.000
+key advantages to a terminal based agent like Gemini CLI is that is really a
+
+105
+00:03:40.000 --> 00:03:43.000
+like Gemini CLI is that is really a Swiss Army knife of tools. anything you
+
+106
+00:03:43.000 --> 00:03:46.000
+Swiss Army knife of tools. anything you have installed on your local computer,
+
+107
+00:03:45.000 --> 00:03:48.000
+have installed on your local computer, Gemini CLI's access to it can actually
+
+108
+00:03:47.000 --> 00:03:50.000
+Gemini CLI's access to it can actually go out and install things for you. So,
+
+109
+00:03:49.000 --> 00:03:52.000
+go out and install things for you. So, for instance, if you're deploying an
+
+110
+00:03:50.000 --> 00:03:53.000
+for instance, if you're deploying an application or you want to check logs of
+
+111
+00:03:52.000 --> 00:03:55.000
+application or you want to check logs of a deployed service, you can actually
+
+112
+00:03:54.000 --> 00:03:57.000
+a deployed service, you can actually have Gemini CLI use G-Cloud to go ahead
+
+113
+00:03:56.000 --> 00:03:59.000
+have Gemini CLI use G-Cloud to go ahead and pull those logs in. This really
+
+114
+00:03:58.000 --> 00:04:01.000
+and pull those logs in. This really helps you stop context switching because
+
+115
+00:04:00.000 --> 00:04:03.000
+helps you stop context switching because Gemini CLI can install the tools and
+
+116
+00:04:02.000 --> 00:04:05.000
+Gemini CLI can install the tools and execute them on your behalf. Some use
+
+117
+00:04:04.000 --> 00:04:07.000
+execute them on your behalf. Some use cases where this comes in handy,
+
+118
+00:04:05.000 --> 00:04:08.000
+cases where this comes in handy, automation and scripting. instead of
+
+119
+00:04:07.000 --> 00:04:10.000
+automation and scripting. instead of having to go learn about how to do
+
+120
+00:04:08.000 --> 00:04:11.000
+having to go learn about how to do something, you can actually have Gemini
+
+121
+00:04:10.000 --> 00:04:13.000
+something, you can actually have Gemini CLI just build a script and then it can
+
+122
+00:04:12.000 --> 00:04:15.000
+CLI just build a script and then it can run it for you. One of the advantages of
+
+123
+00:04:13.000 --> 00:04:16.000
+run it for you. One of the advantages of Gemini CLI is also its vast extensions
+
+124
+00:04:16.000 --> 00:04:19.000
+Gemini CLI is also its vast extensions ecosystem. And this really helps Gemini
+
+125
+00:04:18.000 --> 00:04:21.000
+ecosystem. And this really helps Gemini CLI become fully customized so that any
+
+126
+00:04:20.000 --> 00:04:23.000
+CLI become fully customized so that any task you're trying to complete can be
+
+127
+00:04:22.000 --> 00:04:25.000
+task you're trying to complete can be done through adding on extensions, MCP
+
+128
+00:04:25.000 --> 00:04:28.000
+done through adding on extensions, MCP servers or custom commands. At a base
+
+129
+00:04:27.000 --> 00:04:30.000
+servers or custom commands. At a base layer, Gemini CLI comes with a bunch of
+
+130
+00:04:29.000 --> 00:04:32.000
+layer, Gemini CLI comes with a bunch of built-in tools. These are file systems
+
+131
+00:04:31.000 --> 00:04:34.000
+built-in tools. These are file systems tools. List the directories, read files,
+
+132
+00:04:34.000 --> 00:04:37.000
+tools. List the directories, read files, write to files, do search and edits.
+
+133
+00:04:37.000 --> 00:04:40.000
+write to files, do search and edits. Another cool capability of Gemini CLI is
+
+134
+00:04:39.000 --> 00:04:42.000
+Another cool capability of Gemini CLI is that it actually has a web search tool.
+
+135
+00:04:41.000 --> 00:04:44.000
+that it actually has a web search tool. This is really helpful when Gemini CLI
+
+136
+00:04:43.000 --> 00:04:46.000
+This is really helpful when Gemini CLI needs access to things that maybe were
+
+137
+00:04:45.000 --> 00:04:48.000
+needs access to things that maybe were just released or there was things in the
+
+138
+00:04:46.000 --> 00:04:49.000
+just released or there was things in the news. You want it to do some research on
+
+139
+00:04:48.000 --> 00:04:51.000
+news. You want it to do some research on fresh data that it wasn't trained on. As
+
+140
+00:04:51.000 --> 00:04:54.000
+fresh data that it wasn't trained on. As we mentioned, it also has shell tools.
+
+141
+00:04:52.000 --> 00:04:55.000
+we mentioned, it also has shell tools. So, it can run any single application on
+
+142
+00:04:54.000 --> 00:04:57.000
+So, it can run any single application on your machine through shell commands. So
+
+143
+00:04:56.000 --> 00:04:59.000
+your machine through shell commands. So if you have GitHub CLI, it will go ahead
+
+144
+00:04:58.000 --> 00:05:01.000
+if you have GitHub CLI, it will go ahead and actually run a shell command to
+
+145
+00:05:00.000 --> 00:05:03.000
+and actually run a shell command to execute GitHub CLI and put up that pull
+
+146
+00:05:02.000 --> 00:05:05.000
+execute GitHub CLI and put up that pull request for you. There's also other
+
+147
+00:05:04.000 --> 00:05:07.000
+request for you. There's also other tools such as the ability to save memory
+
+148
+00:05:06.000 --> 00:05:09.000
+tools such as the ability to save memory so that when you use Gemini CLI often,
+
+149
+00:05:08.000 --> 00:05:11.000
+so that when you use Gemini CLI often, it can remember certain pieces of how
+
+150
+00:05:10.000 --> 00:05:13.000
+it can remember certain pieces of how you like to customize your workflow or
+
+151
+00:05:12.000 --> 00:05:15.000
+you like to customize your workflow or certain details that you don't want to
+
+152
+00:05:14.000 --> 00:05:17.000
+certain details that you don't want to have to repeat on every single session.
+
+153
+00:05:16.000 --> 00:05:19.000
+have to repeat on every single session. So, now that we've gone over the use
+
+154
+00:05:17.000 --> 00:05:20.000
+So, now that we've gone over the use cases and the tools for Gemini CLI and
+
+155
+00:05:20.000 --> 00:05:23.000
+cases and the tools for Gemini CLI and why it can be versatile, let's actually
+
+156
+00:05:23.000 --> 00:05:26.000
+why it can be versatile, let's actually show it off and get it installed on our
+
+157
+00:05:25.000 --> 00:05:28.000
+show it off and get it installed on our machines so that we can get going.

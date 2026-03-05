@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Pipeline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    :root {
+      --grid-unit: 8px;
+      --sidebar-width: 240px;
+      --video-panel-width: 400px;
+
+      /* Swiss Minimal */
+      --bg: #FFFFFF;
+      --bg-alt: #FAFAFA;
+      --text: #111111;
+      --text-secondary: #666666;
+      --text-muted: #999999;
+      --border: #E5E5E5;
+      --accent: #000000;
+
+      --radius: 0px;
+      --transition: 0.15s ease;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-alt);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: var(--sidebar-width);
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .video-panel {
+      width: var(--video-panel-width);
+      flex-shrink: 0;
+    }
+
+    /* Sidebar */
+    .sidebar-header {
+      padding: calc(var(--grid-unit) * 3);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: -0.02em;
+    }
+
+    .history-label {
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .new-btn {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 8px;
+      transition: color var(--transition);
+    }
+
+    .new-btn:hover {
+      color: var(--text-muted);
+    }
+
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+
+    .history-item:hover {
+      background: var(--bg-alt);
+    }
+
+    .history-item.active {
+      background: var(--bg-alt);
+      border-left: 2px solid var(--accent);
+      padding-left: calc(var(--grid-unit) * 3 - 2px);
+    }
+
+    .history-item .title {
+      font-weight: 500;
+      font-size: 13px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-item .meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    
+    /* Input Section */
+    .input-section {
+      padding: calc(var(--grid-unit) * 3);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .input-row {
+      display: flex;
+      gap: calc(var(--grid-unit) * 2);
+      align-items: flex-end;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-group.url {
+      flex: 1;
+    }
+
+    .input-group label {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .input-field {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+      transition: border-color var(--transition);
+      outline: none;
+    }
+
+    .input-field:focus {
+      border-color: var(--accent);
+    }
+
+    .input-field::placeholder {
+      color: var(--text-muted);
+    }
+
+    .input-field.focus {
+      min-height: 42px;
+      resize: none;
+    }
+
+    /* Toggle */
+    .toggle-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 10px;
+    }
+
+    .toggle {
+      width: 36px;
+      height: 20px;
+      background: var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background var(--transition);
+      position: relative;
+    }
+
+    .toggle.active {
+      background: var(--accent);
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      background: var(--bg);
+      border-radius: 50%;
+      transition: transform var(--transition);
+    }
+
+    .toggle.active::after {
+      transform: translateX(16px);
+    }
+
+    .toggle-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 20px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+      border-radius: var(--radius);
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+
+    .btn.primary:hover {
+      background: #333;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Output Section */
+    .output-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: calc(var(--grid-unit) * 3);
+      min-height: 0;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: calc(var(--grid-unit) * 3);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: calc(var(--grid-unit) * 2);
+    }
+
+    .tab {
+      padding: 8px 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      position: relative;
+      transition: color var(--transition);
+    }
+
+    .tab:hover {
+      color: var(--text);
+    }
+
+    .tab.active {
+      color: var(--text);
+    }
+
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -9px;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: var(--accent);
+    }
+
+    /* Progress Bar */
+    .progress-section {
+      margin-bottom: calc(var(--grid-unit) * 2);
+    }
+
+    .progress-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.3s ease;
+    }
+
+    .progress-steps {
+      display: flex;
+      gap: calc(var(--grid-unit) * 2);
+      margin-top: 8px;
+    }
+
+    .progress-step {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .progress-step.active {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .progress-step.done {
+      color: var(--text);
+    }
+
+    .progress-step .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+
+    .progress-step.active .dot {
+      background: var(--accent);
+      animation: pulse 1s infinite;
+    }
+
+    .progress-step.done .dot {
+      background: var(--accent);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      gap: calc(var(--grid-unit) * 1.5);
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toolbar .btn {
+      font-size: 12px;
+      padding: 8px 16px;
+    }
+
+    /* Content */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .pane {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: calc(var(--grid-unit) * 3);
+    }
+
+    .pane.active {
+      display: flex;
+    }
+
+    /* Empty */
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100%;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* Log */
+    .log {
+      font-family: 'SF Mono', 'Monaco', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .log .line {
+      margin-bottom: 4px;
+    }
+
+    .log .ts {
+      color: var(--text-muted);
+      margin-right: 6px;
+    }
+
+    .log .err { color: #D00; }
+    .log .ok { color: #090; }
+
+    /* Output text */
+    .output-text {
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      font-family: 'SF Mono', 'Monaco', monospace;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    /* Markdown rendered content */
+    .markdown-content {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .markdown-content h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0 0 16px 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .markdown-content h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 24px 0 12px 0;
+    }
+
+    .markdown-content h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 20px 0 8px 0;
+    }
+
+    .markdown-content p {
+      margin: 0 0 12px 0;
+    }
+
+    .markdown-content ul, .markdown-content ol {
+      margin: 0 0 12px 0;
+      padding-left: 24px;
+    }
+
+    .markdown-content li {
+      margin-bottom: 4px;
+    }
+
+    .markdown-content code {
+      font-family: 'SF Mono', 'Monaco', monospace;
+      font-size: 12px;
+      background: var(--bg-alt);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .markdown-content pre {
+      background: var(--bg-alt);
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin: 0 0 12px 0;
+    }
+
+    .markdown-content pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .markdown-content blockquote {
+      border-left: 3px solid var(--border);
+      margin: 0 0 12px 0;
+      padding-left: 12px;
+      color: var(--text-secondary);
+    }
+
+    .markdown-content a {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+
+    .markdown-content strong {
+      font-weight: 600;
+    }
+
+    .markdown-content em {
+      font-style: italic;
+    }
+
+    .markdown-content hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 24px 0;
+    }
+
+    .markdown-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 12px 0;
+    }
+
+    .markdown-content th, .markdown-content td {
+      border: 1px solid var(--border);
+      padding: 8px;
+      text-align: left;
+    }
+
+    .markdown-content th {
+      background: var(--bg-alt);
+      font-weight: 600;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #CCC;
+    }
+
+    .hidden { display: none !important; }
+
+    /* Resizer */
+    .resizer {
+      width: 1px;
+      background: var(--border);
+      cursor: col-resize;
+      transition: background 0.15s;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .resizer::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -3px;
+      right: -3px;
+    }
+
+    .resizer:hover,
+    .resizer.active {
+      background: var(--text-muted);
+    }
+
+    /* Video Panel */
+    .video-panel {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      width: var(--video-panel-width);
+      flex-shrink: 0;
+    }
+
+    .video-header {
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .video-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      position: relative;
+      height: 225px;
+      flex-shrink: 0;
+    }
+
+    .video-container video {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .video-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      gap: 8px;
+    }
+
+    .video-empty-icon {
+      font-size: 32px;
+      opacity: 0.3;
+    }
+
+    .video-controls {
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: calc(var(--grid-unit) * 2);
+      background: var(--bg);
+    }
+
+    .video-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      transition: all var(--transition);
+    }
+
+    .video-btn:hover {
+      border-color: var(--accent);
+    }
+
+    .video-progress {
+      flex: 1;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: var(--border);
+      cursor: pointer;
+    }
+
+    .video-progress::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .video-time {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'SF Mono', 'Monaco', monospace;
+      white-space: nowrap;
+    }
+
+    .video-placeholder {
+      flex: 1;
+      background: var(--bg-alt);
+      min-height: 100px;
+    }
+
+    .video-placeholder:only-child {
+      flex: 1;
+    }
+
+    .subtitle-module:not(.hidden) ~ .video-placeholder {
+      display: none !important;
+    }
+
+    /* Language Switcher */
+    .subtitle-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .subtitle-header-label {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .language-switcher {
+      display: flex;
+      background: var(--bg-alt);
+      border-radius: 4px;
+      padding: 2px;
+    }
+
+    .language-switcher button {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all var(--transition);
+    }
+
+    .language-switcher button:hover {
+      color: var(--text);
+    }
+
+    .language-switcher button.active {
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    /* Subtitle Module */
+    .subtitle-module {
+      flex: 1;
+      overflow-y: auto;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      min-height: 0;
+    }
+
+    .subtitle-module.hidden {
+      display: none;
+    }
+
+    .subtitle-list {
+      padding: calc(var(--grid-unit) * 2);
+    }
+
+    .subtitle-item {
+      padding: calc(var(--grid-unit) * 1.5) calc(var(--grid-unit) * 2);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background var(--transition);
+      margin-bottom: 4px;
+    }
+
+    .subtitle-item:hover {
+      background: var(--bg-alt);
+    }
+
+    .subtitle-item.active {
+      background: #000;
+      color: #fff;
+    }
+
+    .subtitle-item .timestamp {
+      font-size: 11px;
+      font-family: 'SF Mono', 'Monaco', monospace;
+      color: var(--text-muted);
+      margin-right: 8px;
+      cursor: pointer;
+    }
+
+    .subtitle-item.active .timestamp {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .subtitle-item .text {
+      font-size: 13px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">YouTube Pipeline</div>
+      </div>
+      <div class="history-label">
+        History
+        <button class="new-btn" id="newBtn">+ New</button>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+
+    <div class="main">
+      <div class="input-section">
+        <div class="input-row">
+          <div class="input-group url">
+            <label>URL</label>
+            <input type="text" class="input-field" id="urlInput" placeholder="https://www.youtube.com/watch?v=..." />
+          </div>
+          <div class="toggle-wrapper">
+            <div class="toggle active" id="videoToggle"></div>
+            <span class="toggle-text">Video</span>
+          </div>
+        </div>
+        <div class="input-group" style="margin-top: 12px;">
+          <label>Focus</label>
+          <input type="text" class="input-field focus" id="focusInput" placeholder="技术细节、主要论点、行动项..." />
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button class="btn primary" id="runBtn">Run</button>
+        <button class="btn" id="openBtn">Open</button>
+        <button class="btn" id="deleteBtn">Delete</button>
+      </div>
+
+      <div class="output-section">
+        <div class="tabs">
+          <div class="tab active" data-tab="log">Log</div>
+          <div class="tab" data-tab="article">Article</div>
+          <div class="tab" data-tab="summary">Summary</div>
+        </div>
+
+        <div class="progress-section hidden" id="progressSection">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+          </div>
+          <div class="progress-steps">
+            <div class="progress-step" data-step="info"><span class="dot"></span>Info</div>
+            <div class="progress-step" data-step="video"><span class="dot"></span>Video</div>
+            <div class="progress-step" data-step="audio"><span class="dot"></span>Audio</div>
+            <div class="progress-step" data-step="transcript"><span class="dot"></span>Transcript</div>
+            <div class="progress-step" data-step="article"><span class="dot"></span>Article</div>
+            <div class="progress-step" data-step="summary"><span class="dot"></span>Summary</div>
+          </div>
+        </div>
+
+        <div class="content">
+          <div id="logPane" class="pane active">
+            <div class="empty" id="emptyState">Enter a YouTube URL to begin</div>
+            <div class="log hidden" id="logOutput"></div>
+          </div>
+          <div id="articlePane" class="pane">
+            <div class="markdown-content" id="articleOutput"></div>
+          </div>
+          <div id="summaryPane" class="pane">
+            <div class="markdown-content" id="summaryOutput"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="resizer" id="resizer"></div>
+
+    <div class="video-panel">
+      <div class="video-header">Video</div>
+      <div class="video-container">
+        <video id="videoPlayer" class="hidden"></video>
+        <div class="video-empty" id="videoEmpty">
+          <div class="video-empty-icon">▶</div>
+          <div>No video</div>
+        </div>
+      </div>
+      <div class="video-controls">
+        <button class="video-btn" id="playPauseBtn">▶</button>
+        <button class="video-btn" id="stopBtn">■</button>
+        <input type="range" class="video-progress" id="progressBar" value="0" min="0" max="100">
+        <span class="video-time" id="timeDisplay">0:00 / 0:00</span>
+      </div>
+      <div class="subtitle-module hidden" id="subtitleModule">
+        <div class="subtitle-header">
+          <span class="subtitle-header-label">Subtitle</span>
+          <div class="language-switcher" id="languageSwitcher">
+            <button class="active" data-lang="zh">中文</button>
+            <button data-lang="en">English</button>
+          </div>
+        </div>
+        <div class="subtitle-list" id="subtitleList"></div>
+      </div>
+      <div class="video-placeholder"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentId = null;
+    let downloading = true;
+
+    const urlInput = document.getElementById('urlInput');
+    const focusInput = document.getElementById('focusInput');
+    const runBtn = document.getElementById('runBtn');
+    const openBtn = document.getElementById('openBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const logOutput = document.getElementById('logOutput');
+    const emptyState = document.getElementById('emptyState');
+    const articleOutput = document.getElementById('articleOutput');
+    const summaryOutput = document.getElementById('summaryOutput');
+    const historyList = document.getElementById('historyList');
+    const tabs = document.querySelectorAll('.tab');
+    const videoToggle = document.getElementById('videoToggle');
+    const newBtn = document.getElementById('newBtn');
+    const progressSection = document.getElementById('progressSection');
+    const progressFill = document.getElementById('progressFill');
+    const progressSteps = document.querySelectorAll('.progress-step');
+
+    const STEPS = ['info', 'video', 'audio', 'transcript', 'article', 'summary'];
+    let currentStep = 0;
+
+    videoToggle.addEventListener('click', () => {
+      downloading = !downloading;
+      videoToggle.classList.toggle('active', downloading);
+    });
+
+    newBtn.addEventListener('click', () => {
+      currentId = null;
+      urlInput.value = '';
+      focusInput.value = '';
+      articleOutput.innerHTML = '';
+      summaryOutput.innerHTML = '';
+      logOutput.innerHTML = '';
+      emptyState.classList.remove('hidden');
+      logOutput.classList.add('hidden');
+      videoPlayer.pause();
+      videoPlayer.src = '';
+      hideVideo();
+      loadHistory();
+      switchTab('log');
+      urlInput.focus();
+    });
+
+    function updateProgress(step) {
+      const stepIndex = STEPS.indexOf(step);
+      if (stepIndex === -1) return;
+
+      currentStep = stepIndex;
+      const percent = ((stepIndex + 1) / STEPS.length) * 100;
+      progressFill.style.width = `${percent}%`;
+
+      progressSteps.forEach((el, i) => {
+        el.classList.remove('active', 'done');
+        if (i < stepIndex) {
+          el.classList.add('done');
+        } else if (i === stepIndex) {
+          el.classList.add('active');
+        }
+      });
+    }
+
+    function parseProgress(text) {
+      if (text.includes('Step 0') || text.includes('Video Info')) {
+        updateProgress('info');
+      } else if (text.includes('Step 1') || text.includes('Video Download')) {
+        updateProgress('video');
+      } else if (text.includes('Step 2') || text.includes('Audio Extraction')) {
+        updateProgress('audio');
+      } else if (text.includes('Step 3') || text.includes('Transcript')) {
+        updateProgress('transcript');
+      } else if (text.includes('Step 3.5') || text.includes('Generating Article')) {
+        updateProgress('article');
+      } else if (text.includes('Step 4') || text.includes('Generating Summary')) {
+        updateProgress('summary');
+      } else if (text.includes('Pipeline Complete') || text.includes('Success')) {
+        updateProgress('summary');
+        progressFill.style.width = '100%';
+      }
+    }
+
+    function showProgress() {
+      progressSection.classList.remove('hidden');
+      progressFill.style.width = '0%';
+      currentStep = 0;
+      progressSteps.forEach((el, i) => {
+        el.classList.remove('active', 'done');
+        if (i === 0) el.classList.add('active');
+      });
+    }
+
+    function hideProgress() {
+      setTimeout(() => {
+        progressSection.classList.add('hidden');
+      }, 1000);
+    }
+
+    loadHistory();
+
+    async function loadHistory() {
+      const works = await window.api.listWorks();
+      if (!works.length) {
+        historyList.innerHTML = '<div style="padding: 16px; color: #999; font-size: 12px;">No history</div>';
+        return;
+      }
+      historyList.innerHTML = works.map(w => `
+        <div class="history-item ${w.id === currentId ? 'active' : ''}" data-id="${w.id}">
+          <div class="title">${w.title || 'Untitled'}</div>
+          <div class="meta">${new Date(w.ts).toLocaleDateString()}</div>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('.history-item').forEach(item => {
+        item.addEventListener('click', () => loadWork(item.dataset.id));
+      });
+    }
+
+    async function loadWork(id) {
+      currentId = id;
+      loadHistory();
+
+      const meta = await window.api.readFile(`work/${id}/transcript/meta.json`);
+
+      if (meta) {
+        const j = JSON.parse(meta);
+        urlInput.value = j.url || '';
+        focusInput.value = j.focus || '';
+        videoToggle.classList.toggle('active', j.downloadVideo !== false);
+        downloading = j.downloadVideo !== false;
+
+        const article = await window.api.readFile(`work/${id}/writing/article.md`);
+        const summary = await window.api.readFile(`work/${id}/writing/summary.md`);
+        articleOutput.innerHTML = article ? marked.parse(article) : '';
+        summaryOutput.innerHTML = summary ? marked.parse(summary) : '';
+      }
+
+      // Always load video, even if meta.json doesn't exist
+      await loadVideo(id);
+
+      switchTab('log');
+    }
+
+    tabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+    function switchTab(name) {
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+      document.getElementById('logPane').classList.toggle('active', name === 'log');
+      document.getElementById('articlePane').classList.toggle('active', name === 'article');
+      document.getElementById('summaryPane').classList.toggle('active', name === 'summary');
+    }
+
+    runBtn.addEventListener('click', async () => {
+      const url = urlInput.value.trim();
+      if (!url) return alert('Enter a URL');
+
+      runBtn.disabled = true;
+      runBtn.textContent = 'Running...';
+
+      emptyState.classList.add('hidden');
+      logOutput.classList.remove('hidden');
+      logOutput.innerHTML = '';
+      switchTab('log');
+
+      // Show progress bar
+      showProgress();
+
+      window.api.onOutput(text => {
+        // Parse and update progress
+        parseProgress(text);
+
+        const lines = text.split('\n').filter(l => l.trim());
+        const ts = new Date().toLocaleTimeString();
+        lines.forEach(line => {
+          const div = document.createElement('div');
+          div.className = 'line';
+          const cls = line.includes('Error') ? 'err' : line.includes('Success') ? 'ok' : '';
+          div.innerHTML = `<span class="ts">[${ts}]</span><span class="${cls}">${line}</span>`;
+          logOutput.appendChild(div);
+        });
+        logOutput.scrollTop = logOutput.scrollHeight;
+      });
+
+      try {
+        const res = await window.api.runPipeline({
+          url,
+          focus: focusInput.value.trim(),
+          force: false,
+          downloadVideo: downloading
+        });
+
+        if (res.success) {
+          const m = res.output.match(/ID: ([a-f0-9]+)/);
+          if (m) {
+            currentId = m[1];
+            await loadWork(currentId);
+            await loadHistory();
+          }
+        } else {
+          logOutput.innerHTML += `<div class="err">Error: ${res.error}</div>`;
+        }
+      } catch (e) {
+        logOutput.innerHTML += `<div class="err">${e.message}</div>`;
+      }
+
+      runBtn.disabled = false;
+      runBtn.textContent = 'Run';
+      hideProgress();
+    });
+
+    // Open folder
+    openBtn.addEventListener('click', () => {
+      if (currentId) {
+        window.api.openFolder(`work/${currentId}`);
+      }
+    });
+
+    // Delete current
+    deleteBtn.addEventListener('click', async () => {
+      if (!currentId) return;
+      if (confirm('Delete this item and all its files?')) {
+        await window.api.deleteWork(currentId);
+        currentId = null;
+        urlInput.value = '';
+        focusInput.value = '';
+        articleOutput.innerHTML = '';
+        summaryOutput.innerHTML = '';
+        logOutput.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        logOutput.classList.add('hidden');
+        videoPlayer.pause();
+        videoPlayer.src = '';
+        hideVideo();
+        loadHistory();
+      }
+    });
+
+    // Video Player
+    const videoPlayer = document.getElementById('videoPlayer');
+    const videoEmpty = document.getElementById('videoEmpty');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const progressBar = document.getElementById('progressBar');
+    const timeDisplay = document.getElementById('timeDisplay');
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function showVideo() {
+      videoPlayer.classList.remove('hidden');
+      videoEmpty.classList.add('hidden');
+    }
+
+    function hideVideo() {
+      videoPlayer.classList.add('hidden');
+      videoEmpty.classList.remove('hidden');
+    }
+
+    function updateTimeDisplay() {
+      const current = formatTime(videoPlayer.currentTime);
+      const duration = formatTime(videoPlayer.duration || 0);
+      timeDisplay.textContent = `${current} / ${duration}`;
+    }
+
+    function updateProgress() {
+      if (videoPlayer.duration) {
+        progressBar.value = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+      }
+      updateTimeDisplay();
+    }
+
+    playPauseBtn.addEventListener('click', () => {
+      if (videoPlayer.paused) {
+        videoPlayer.play();
+        playPauseBtn.textContent = '⏸';
+      } else {
+        videoPlayer.pause();
+        playPauseBtn.textContent = '▶';
+      }
+    });
+
+    stopBtn.addEventListener('click', () => {
+      videoPlayer.pause();
+      videoPlayer.currentTime = 0;
+      playPauseBtn.textContent = '▶';
+      updateTimeDisplay();
+    });
+
+    progressBar.addEventListener('input', () => {
+      if (videoPlayer.duration) {
+        videoPlayer.currentTime = (progressBar.value / 100) * videoPlayer.duration;
+      }
+    });
+
+    progressBar.addEventListener('change', () => {
+      if (videoPlayer.duration) {
+        videoPlayer.currentTime = (progressBar.value / 100) * videoPlayer.duration;
+      }
+    });
+
+    videoPlayer.addEventListener('loadedmetadata', () => {
+      progressBar.value = 0;
+      updateTimeDisplay();
+    });
+    videoPlayer.addEventListener('ended', () => {
+      playPauseBtn.textContent = '▶';
+    });
+
+    async function loadVideo(id) {
+      const videoPath = await window.api.getVideoPath(id);
+      if (videoPath) {
+        videoPlayer.src = `file://${videoPath}`;
+        showVideo();
+      } else {
+        videoPlayer.src = '';
+        hideVideo();
+      }
+
+      // Load subtitles
+      await loadSubtitles(id);
+    }
+
+    // Subtitle Module
+    const subtitleModule = document.getElementById('subtitleModule');
+    const subtitleList = document.getElementById('subtitleList');
+    const languageSwitcher = document.getElementById('languageSwitcher');
+    let subtitles = [];
+    let currentSubtitleLang = 'zh';  // Default to Chinese
+    let availableSubtitles = { en: null, zh: null };
+
+    function parseVTT(content) {
+      const lines = content.split('\n');
+      const result = [];
+      let i = 0;
+
+      // Skip header
+      while (i < lines.length && !lines[i].includes('-->')) {
+        i++;
+      }
+
+      while (i < lines.length) {
+        const line = lines[i].trim();
+
+        if (line.includes('-->')) {
+          const timeMatch = line.match(/(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})/);
+          if (timeMatch) {
+            const start = parseInt(timeMatch[1]) * 3600 + parseInt(timeMatch[2]) * 60 + parseInt(timeMatch[3]) + parseInt(timeMatch[4]) / 1000;
+            const end = parseInt(timeMatch[5]) * 3600 + parseInt(timeMatch[6]) * 60 + parseInt(timeMatch[7]) + parseInt(timeMatch[8]) / 1000;
+
+            // Get text (may span multiple lines)
+            i++;
+            let text = '';
+            while (i < lines.length && lines[i].trim() !== '') {
+              text += (text ? '\n' : '') + lines[i].trim();
+              i++;
+            }
+
+            if (text) {
+              result.push({ start, end, text });
+            }
+            continue;
+          }
+        }
+        i++;
+      }
+
+      return result;
+    }
+
+    function formatTimestamp(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    async function loadSubtitles(id) {
+      // Get available subtitles info
+      availableSubtitles = await window.api.getAvailableSubtitles(id);
+      console.log('Available subtitles:', availableSubtitles);
+
+      // Update language switcher visibility based on available subtitles
+      updateLanguageSwitcher();
+
+      // Load the current language subtitle
+      await loadSubtitlesForLang(id, currentSubtitleLang);
+    }
+
+    async function loadSubtitlesForLang(id, lang) {
+      const subtitleContent = await window.api.readSubtitleBilingual(id, lang);
+
+      if (subtitleContent) {
+        subtitles = parseVTT(subtitleContent);
+        renderSubtitles();
+        subtitleModule.classList.remove('hidden');
+      } else {
+        subtitles = [];
+        subtitleList.innerHTML = '';
+        // If Chinese not available, try English as fallback
+        if (lang === 'zh' && availableSubtitles.en) {
+          currentSubtitleLang = 'en';
+          updateLanguageSwitcher();
+          await loadSubtitlesForLang(id, 'en');
+          return;
+        }
+        subtitleModule.classList.add('hidden');
+      }
+    }
+
+    function updateLanguageSwitcher() {
+      const buttons = languageSwitcher.querySelectorAll('button');
+      buttons.forEach(btn => {
+        const lang = btn.dataset.lang;
+        const isAvailable = availableSubtitles[lang] && availableSubtitles[lang].done;
+        btn.classList.toggle('hidden', !isAvailable);
+        btn.classList.toggle('active', lang === currentSubtitleLang && isAvailable);
+      });
+    }
+
+    // Language switcher event listener
+    languageSwitcher.addEventListener('click', async (e) => {
+      if (e.target.tagName === 'BUTTON' && currentId) {
+        const newLang = e.target.dataset.lang;
+        if (newLang !== currentSubtitleLang && availableSubtitles[newLang]) {
+          currentSubtitleLang = newLang;
+          updateLanguageSwitcher();
+          await loadSubtitlesForLang(currentId, currentSubtitleLang);
+        }
+      }
+    });
+
+    function renderSubtitles() {
+      subtitleList.innerHTML = subtitles.map((sub, index) => `
+        <div class="subtitle-item" data-index="${index}" data-start="${sub.start}">
+          <span class="timestamp">${formatTimestamp(sub.start)}</span>
+          <span class="text">${sub.text.replace(/\n/g, '<br>')}</span>
+        </div>
+      `).join('');
+
+      // Add click handlers
+      document.querySelectorAll('.subtitle-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          const timestamp = parseFloat(item.dataset.start);
+          videoPlayer.currentTime = timestamp;
+          if (videoPlayer.paused) {
+            videoPlayer.play();
+            playPauseBtn.textContent = '⏸';
+          }
+        });
+      });
+    }
+
+    function updateSubtitleHighlight() {
+      const currentTime = videoPlayer.currentTime;
+
+      document.querySelectorAll('.subtitle-item').forEach((item, index) => {
+        const sub = subtitles[index];
+        if (sub && currentTime >= sub.start && currentTime <= sub.end) {
+          if (!item.classList.contains('active')) {
+            document.querySelectorAll('.subtitle-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      });
+    }
+
+    // Add timeupdate listener for subtitle sync
+    videoPlayer.addEventListener('timeupdate', () => {
+      updateProgress();
+      updateSubtitleHighlight();
+    });
+
+    // Resizer
+    const resizer = document.getElementById('resizer');
+    const videoPanel = document.querySelector('.video-panel');
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      resizer.classList.add('active');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+
+      const appRect = document.querySelector('.app').getBoundingClientRect();
+      const newWidth = appRect.right - e.clientX;
+
+      if (newWidth >= 200 && newWidth <= 800) {
+        document.documentElement.style.setProperty('--video-panel-width', `${newWidth}px`);
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isResizing = false;
+      resizer.classList.remove('active');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    });
+  </script>
+</body>
+</html>
