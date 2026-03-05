@@ -201,6 +201,7 @@
       gap: 8px;
       padding: 12px 0;
       flex-wrap: wrap;
+      font-size: 12px;
     }
 
     .info-row {
@@ -774,6 +775,30 @@
       background: var(--text-muted);
     }
 
+    /* Video Player Resizer (Vertical) */
+    .video-resizer {
+      height: 6px;
+      background: var(--border);
+      cursor: row-resize;
+      transition: background 0.15s;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .video-resizer::after {
+      content: '';
+      position: absolute;
+      top: -3px;
+      bottom: -3px;
+      left: 0;
+      right: 0;
+    }
+
+    .video-resizer:hover,
+    .video-resizer.active {
+      background: var(--text-muted);
+    }
+
     /* Video Panel */
     .video-panel {
       background: var(--bg);
@@ -894,6 +919,10 @@
       padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 1;
     }
 
     .subtitle-header-label {
@@ -1297,6 +1326,7 @@
           <div>No video</div>
         </div>
       </div>
+      <div class="video-resizer" id="videoResizer"></div>
       <div class="video-controls">
         <button class="video-btn" id="playPauseBtn">▶</button>
         <button class="video-btn" id="stopBtn">■</button>
@@ -2601,7 +2631,7 @@
       const appRect = document.querySelector('.app').getBoundingClientRect();
       const newWidth = appRect.right - e.clientX;
 
-      if (newWidth >= 200 && newWidth <= 800) {
+      if (newWidth >= 200) {
         document.documentElement.style.setProperty('--video-panel-width', `${newWidth}px`);
       }
     });
@@ -2609,6 +2639,36 @@
     document.addEventListener('mouseup', () => {
       isResizing = false;
       resizer.classList.remove('active');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    });
+
+    // Video Player Vertical Resizer
+    const videoResizer = document.getElementById('videoResizer');
+    const videoContainer = document.querySelector('.video-container');
+    let isVideoResizing = false;
+
+    videoResizer.addEventListener('mousedown', (e) => {
+      isVideoResizing = true;
+      videoResizer.classList.add('active');
+      document.body.style.cursor = 'row-resize';
+      document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isVideoResizing) return;
+
+      const containerRect = videoContainer.getBoundingClientRect();
+      const newHeight = e.clientY - containerRect.top;
+
+      if (newHeight >= 100 && newHeight <= 600) {
+        videoContainer.style.height = `${newHeight}px`;
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isVideoResizing = false;
+      videoResizer.classList.remove('active');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     });
