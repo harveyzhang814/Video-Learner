@@ -1,5 +1,10 @@
 # YouTube Pipeline - Claude Code 执行标准
 
+## 重要提醒
+- **每次开发功能前，必须检查当前所在分支**
+- 功能开发必须在 `staging` 分支或 `feature/*` 分支上进行
+- 禁止在 `master` 分支上直接开发
+
 ## 概述
 本仓库实现 YouTube URL → 下载/转录/总结 的自动化流水线。
 
