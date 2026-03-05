@@ -363,6 +363,56 @@
       transform: rotate(45deg);
     }
 
+    /* Radio Group */
+    .radio-group {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .radio-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .radio-label input[type="radio"] {
+      display: none;
+    }
+
+    .radio-custom {
+      width: 16px;
+      height: 16px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      position: relative;
+      transition: all var(--transition);
+    }
+
+    .radio-label:hover .radio-custom {
+      border-color: var(--accent);
+    }
+
+    .radio-label input[type="radio"]:checked + .radio-custom {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .radio-label input[type="radio"]:checked + .radio-custom::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 5px;
+      width: 4px;
+      height: 8px;
+      border: solid var(--bg);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
     /* Buttons */
     .btn {
       padding: 10px 20px;
@@ -533,7 +583,7 @@
       flex: 1;
       flex-direction: column;
       overflow-y: auto;
-      padding: calc(var(--grid-unit) * 3);
+      padding: 0;
     }
 
     .pane.active {
@@ -550,28 +600,6 @@
       color: var(--text-muted);
       font-size: 13px;
     }
-
-    /* Log */
-    .log {
-      font-family: 'SF Mono', 'Monaco', monospace;
-      font-size: 12px;
-      line-height: 1.6;
-      color: var(--text-secondary);
-      min-height: 0;
-      overflow-y: auto;
-    }
-
-    .log .line {
-      margin-bottom: 4px;
-    }
-
-    .log .ts {
-      color: var(--text-muted);
-      margin-right: 6px;
-    }
-
-    .log .err { color: #D00; }
-    .log .ok { color: #090; }
 
     /* Output text */
     .output-text {
@@ -590,6 +618,7 @@
       color: var(--text);
       min-height: 0;
       overflow-y: auto;
+      padding: calc(var(--grid-unit) * 3);
     }
 
     .markdown-content h1 {
@@ -1147,6 +1176,14 @@
     </div>
 
     <div class="main">
+      <!-- Function Bar -->
+      <div class="toolbar">
+        <button class="btn primary" id="runBtn">Run</button>
+        <button class="btn" id="openBtn">Open</button>
+        <button class="btn" id="deleteBtn">Delete</button>
+        <button class="btn" id="manageBtn">Manage</button>
+      </div>
+
       <div class="input-section" id="infoSection">
         <div class="info-empty" id="infoEmpty">
           <p>选择左侧 History 中的任务，或点击 + New 创建新任务</p>
@@ -1186,17 +1223,9 @@
         <div class="toggle" id="videoToggle"></div>
       </div>
 
-      <div class="toolbar">
-        <button class="btn primary" id="runBtn">Run</button>
-        <button class="btn" id="openBtn">Open</button>
-        <button class="btn" id="deleteBtn">Delete</button>
-        <button class="btn" id="manageBtn">Manage</button>
-      </div>
-
       <div class="output-section">
         <div class="tabs">
-          <div class="tab active" data-tab="log">Log</div>
-          <div class="tab" data-tab="article">Article</div>
+          <div class="tab active" data-tab="article">Article</div>
           <div class="tab" data-tab="summary">Summary</div>
         </div>
 
@@ -1215,11 +1244,8 @@
         </div>
 
         <div class="content">
-          <div id="logPane" class="pane active">
+          <div id="articlePane" class="pane active">
             <div class="empty" id="emptyState">Enter a YouTube URL to begin</div>
-            <div class="log hidden" id="logOutput"></div>
-          </div>
-          <div id="articlePane" class="pane">
             <div class="markdown-content" id="articleOutput"></div>
           </div>
           <div id="summaryPane" class="pane">
@@ -1277,11 +1303,23 @@
             <label>Focus</label>
             <input type="text" class="input-field focus" id="modalFocusInput" placeholder="技术细节、主要论点、行动项..." />
           </div>
-          <label class="checkbox-label">
-            <input type="checkbox" id="modalVideoToggle" checked />
-            <span class="checkbox-custom"></span>
-            <span>下载视频</span>
-          </label>
+          <div class="radio-group" id="modalDownloadMode">
+            <label class="radio-label">
+              <input type="radio" name="downloadMode" value="video" checked />
+              <span class="radio-custom"></span>
+              <span>视频</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="downloadMode" value="audio" />
+              <span class="radio-custom"></span>
+              <span>音频</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="downloadMode" value="transcript" />
+              <span class="radio-custom"></span>
+              <span>仅字幕</span>
+            </label>
+          </div>
         </div>
         <div class="modal-actions">
           <button class="btn primary" id="modalRunBtn">Run</button>
@@ -1375,7 +1413,6 @@
     const openBtn = document.getElementById('openBtn');
     const deleteBtn = document.getElementById('deleteBtn');
     const manageBtn = document.getElementById('manageBtn');
-    const logOutput = document.getElementById('logOutput');
     const emptyState = document.getElementById('emptyState');
     const articleOutput = document.getElementById('articleOutput');
     const summaryOutput = document.getElementById('summaryOutput');
@@ -1411,17 +1448,23 @@
     const modalCloseBtn = document.getElementById('modalCloseBtn');
     const modalUrlInput = document.getElementById('modalUrlInput');
     const modalFocusInput = document.getElementById('modalFocusInput');
-    const modalVideoToggle = document.getElementById('modalVideoToggle');
+    const modalDownloadMode = document.getElementById('modalDownloadMode');
     const modalRunBtn = document.getElementById('modalRunBtn');
     const modalSaveBtn = document.getElementById('modalSaveBtn');
     const modalTitle = document.getElementById('modalTitle');
     const modalLogs = document.getElementById('modalLogs');
     const modalStatus = document.getElementById('modalStatus');
-    let modalDownloading = true;
+    let modalDownloadMode = 'video';
 
-    // Modal toggle event
-    modalVideoToggle.addEventListener('change', () => {
-      modalDownloading = modalVideoToggle.checked;
+    // Get download mode from radio group
+    function getModalDownloadMode() {
+      const selected = modalDownloadMode.querySelector('input[name="downloadMode"]:checked');
+      return selected ? selected.value : 'video';
+    }
+
+    // Update modalDownloadMode when radio changes
+    modalDownloadMode.addEventListener('change', () => {
+      modalDownloadMode = getModalDownloadMode();
     });
 
     function openNewTaskModal() {
@@ -1466,8 +1509,11 @@
 
         modalUrlInput.value = j.url || '';
         modalFocusInput.value = j.focus || '';
-        modalVideoToggle.checked = j.downloadVideo !== false;
-        modalDownloading = j.downloadVideo !== false;
+        // Set radio button based on downloadVideo
+        const mode = j.downloadVideo || 'video';
+        const radio = modalDownloadMode.querySelector(`input[value="${mode}"]`);
+        if (radio) radio.checked = true;
+        modalDownloadMode = mode;
 
         // Initialize status based on current progress
         initModalStatus();
@@ -1511,8 +1557,10 @@
       modalUrlInput.value = '';
       modalFocusInput.value = '';
       modalLogs.textContent = '';
-      modalVideoToggle.checked = true;
-      modalDownloading = true;
+      // Reset radio to video
+      const videoRadio = modalDownloadMode.querySelector('input[value="video"]');
+      if (videoRadio) videoRadio.checked = true;
+      modalDownloadMode = 'video';
       modalRunBtn.textContent = 'Run';
       modalRunBtn.classList.remove('hidden');
       modalSaveBtn.classList.add('hidden');
@@ -1530,7 +1578,7 @@
       // Always show info step
       document.querySelector('.modal-status .status-pill[data-step="info"]').classList.remove('hidden');
 
-      if (modalDownloading) {
+      if (modalDownloadMode === 'video') {
         // Show video and audio steps
         document.querySelector('.modal-status .status-pill[data-step="video"]').classList.remove('hidden');
         document.querySelector('.modal-status .status-pill[data-step="audio"]').classList.remove('hidden');
@@ -1635,7 +1683,8 @@
       if (!currentId) return;
       const url = modalUrlInput.value.trim();
       const focus = modalFocusInput.value.trim();
-      const downloadVideo = modalVideoToggle.checked;
+      const mode = getModalDownloadMode();
+      const downloadVideo = mode === 'video' || mode === 'audio';
 
       // Update meta.json
       const metaPath = `work/${currentId}/transcript/meta.json`;
@@ -1690,7 +1739,7 @@
               break;
             case 'info_done':
               setModalStep('info', 'done');
-              if (modalDownloading) {
+              if (modalDownloadMode === 'video') {
                 setModalStep('video', 'active');
               } else {
                 setModalStep('transcript', 'active');
@@ -1701,7 +1750,7 @@
               break;
             case 'video_done':
               setModalStep('video', 'done');
-              if (modalDownloading) {
+              if (modalDownloadMode === 'video') {
                 setModalStep('audio', 'active');
               }
               break;
@@ -1768,7 +1817,7 @@
           url,
           focus: modalFocusInput.value.trim(),
           force: false,
-          downloadVideo: modalDownloading
+          downloadVideo: modalDownloadMode
         });
 
         if (res.success) {
@@ -1781,11 +1830,11 @@
             await loadHistory();
           }
         } else {
-          setModalStep(modalDownloading ? 'video' : 'transcript', 'error');
+          setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'error');
           modalLogs.innerHTML += `<div class="log-line log-err">Error: ${res.error}</div>`;
         }
       } catch (e) {
-        setModalStep(modalDownloading ? 'video' : 'transcript', 'error');
+        setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'error');
         modalLogs.innerHTML += `<div class="log-line log-err">${e.message}</div>`;
       }
 
@@ -1807,7 +1856,7 @@
               break;
             case 'info_done':
               setModalStep('info', 'done');
-              if (modalDownloading) {
+              if (modalDownloadMode === 'video') {
                 setModalStep('video', 'active');
               } else {
                 setModalStep('transcript', 'active');
@@ -1818,7 +1867,7 @@
               break;
             case 'video_done':
               setModalStep('video', 'done');
-              if (modalDownloading) {
+              if (modalDownloadMode === 'video') {
                 setModalStep('audio', 'active');
               }
               break;
@@ -1913,9 +1962,7 @@
       focusInput.value = '';
       articleOutput.innerHTML = '';
       summaryOutput.innerHTML = '';
-      logOutput.innerHTML = '';
       emptyState.classList.remove('hidden');
-      logOutput.classList.add('hidden');
       videoPlayer.pause();
       videoPlayer.src = '';
 
@@ -1930,7 +1977,7 @@
       infoStatus.textContent = '-';
       hideVideo();
       loadHistory();
-      switchTab('log');
+      switchTab('article');
     }
 
     function updateProgress(step) {
@@ -2088,14 +2135,13 @@
       // Always load video, even if meta.json doesn't exist
       await loadVideo(id);
 
-      switchTab('log');
+      switchTab('article');
     }
 
     tabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
 
     function switchTab(name) {
       tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-      document.getElementById('logPane').classList.toggle('active', name === 'log');
       document.getElementById('articlePane').classList.toggle('active', name === 'article');
       document.getElementById('summaryPane').classList.toggle('active', name === 'summary');
     }
@@ -2108,9 +2154,7 @@
       runBtn.textContent = 'Running...';
 
       emptyState.classList.add('hidden');
-      logOutput.classList.remove('hidden');
-      logOutput.innerHTML = '';
-      switchTab('log');
+      switchTab('article');
 
       // Show progress bar
       showProgress();
@@ -2118,17 +2162,6 @@
       window.api.onOutput(text => {
         // Parse and update progress
         parseProgress(text);
-
-        const lines = text.split('\n').filter(l => l.trim());
-        const ts = new Date().toLocaleTimeString();
-        lines.forEach(line => {
-          const div = document.createElement('div');
-          div.className = 'line';
-          const cls = line.includes('Error') ? 'err' : line.includes('Success') ? 'ok' : '';
-          div.innerHTML = `<span class="ts">[${ts}]</span><span class="${cls}">${line}</span>`;
-          logOutput.appendChild(div);
-        });
-        logOutput.scrollTop = logOutput.scrollHeight;
       });
 
       try {
@@ -2147,10 +2180,10 @@
             await loadHistory();
           }
         } else {
-          logOutput.innerHTML += `<div class="err">Error: ${res.error}</div>`;
+          alert('Error: ' + res.error);
         }
       } catch (e) {
-        logOutput.innerHTML += `<div class="err">${e.message}</div>`;
+        alert('Error: ' + e.message);
       }
 
       runBtn.disabled = false;
@@ -2175,9 +2208,7 @@
         focusInput.value = '';
         articleOutput.innerHTML = '';
         summaryOutput.innerHTML = '';
-        logOutput.innerHTML = '';
         emptyState.classList.remove('hidden');
-        logOutput.classList.add('hidden');
         videoPlayer.pause();
         videoPlayer.src = '';
         hideVideo();
