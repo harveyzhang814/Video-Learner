@@ -430,12 +430,7 @@ get_transcript() {
     fi
 
     if [ -n "$source_lang" ]; then
-        # Copy the selected source to original.md
-        cp "$DIR/transcript/original_${source_lang}.md" "$DIR/transcript/original.md"
         echo "Using ${source_lang} (${source_type}) for article generation"
-
-        # Generate original.vtt from original.md for subtitle display
-        python3 "$SCRIPT_DIR/md2subtitle.py" "$DIR/transcript/original.md" -f vtt -o "$DIR/transcript/original.vtt" 2>/dev/null
 
         META=$(echo "$META" | jq --arg src "$transcript_source_val" '.transcript_source = $src')
         META=$(echo "$META" | jq '.transcript_done = true')
