@@ -74,6 +74,24 @@
       flex-shrink: 0;
     }
 
+    .video-panel.disabled {
+      opacity: 0.5;
+      position: relative;
+    }
+
+    .video-panel.disabled::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 10;
+    }
+
+    .video-panel.disabled .video-controls {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
     /* Sidebar */
     .sidebar-header {
       padding: calc(var(--grid-unit) * 3);
@@ -160,6 +178,53 @@
       padding: calc(var(--grid-unit) * 3);
       background: var(--bg);
       border-bottom: 1px solid var(--border);
+    }
+
+    /* Info Section */
+    .info-empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .info-empty p {
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .info-content {
+      padding: 0;
+    }
+
+    .info-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      width: 60px;
+      color: var(--text-muted);
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .info-value {
+      flex: 1;
+      font-size: 13px;
+      word-break: break-all;
+      color: var(--text);
+    }
+
+    /* Hidden inputs for JS compatibility */
+    .hidden-inputs {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
     }
 
     .input-row {
@@ -252,6 +317,50 @@
     .toggle-text {
       font-size: 12px;
       color: var(--text-secondary);
+    }
+
+    /* Checkbox */
+    .checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      display: none;
+    }
+
+    .checkbox-custom {
+      width: 16px;
+      height: 16px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      position: relative;
+      transition: all var(--transition);
+    }
+
+    .checkbox-label:hover .checkbox-custom {
+      border-color: var(--accent);
+    }
+
+    .checkbox-label input[type="checkbox"]:checked + .checkbox-custom {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .checkbox-label input[type="checkbox"]:checked + .checkbox-custom::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 5px;
+      width: 4px;
+      height: 8px;
+      border: solid var(--bg);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
     }
 
     /* Buttons */
@@ -827,6 +936,160 @@
       font-size: 13px;
       line-height: 1.5;
     }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.hidden {
+      display: none;
+    }
+
+    .modal {
+      background: var(--bg);
+      width: 600px;
+      max-width: 90vw;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      color: var(--text-muted);
+      transition: color var(--transition);
+    }
+
+    .modal-close:hover {
+      color: var(--text);
+    }
+
+    .modal-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .modal-status {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: var(--bg-alt);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      transition: all var(--transition);
+    }
+
+    .status-pill .icon {
+      font-size: 11px;
+      width: 14px;
+      text-align: center;
+    }
+
+    .status-pill.hidden {
+      display: none;
+    }
+
+    .status-pill.active {
+      background: #fff;
+      color: var(--text);
+      border-color: var(--accent);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .status-pill.active .icon {
+      animation: spin 1s linear infinite;
+    }
+
+    .status-pill.done {
+      background: #f0fdf4;
+      color: #16a34a;
+      border-color: #86efac;
+    }
+
+    .status-pill.error {
+      background: #fef2f2;
+      color: #dc2626;
+      border-color: #fca5a5;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .modal-logs {
+      height: 200px;
+      overflow-y: auto;
+      background: var(--bg-alt);
+      padding: 12px;
+      font-family: 'SF Mono', 'Monaco', monospace;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      white-space: pre-wrap;
+      line-height: 1.6;
+    }
+
+    .modal-logs .log-line {
+      margin-bottom: 4px;
+    }
+
+    .modal-logs .log-ts {
+      color: var(--text-muted);
+      margin-right: 6px;
+    }
+
+    .modal-logs .log-err { color: #D00; }
+    .modal-logs .log-ok { color: #090; }
   </style>
 </head>
 <body>
@@ -843,27 +1106,50 @@
     </div>
 
     <div class="main">
-      <div class="input-section">
-        <div class="input-row">
-          <div class="input-group url">
-            <label>URL</label>
-            <input type="text" class="input-field" id="urlInput" placeholder="https://www.youtube.com/watch?v=..." />
+      <div class="input-section" id="infoSection">
+        <div class="info-empty" id="infoEmpty">
+          <p>选择左侧 History 中的任务，或点击 + New 创建新任务</p>
+        </div>
+        <div class="info-content hidden" id="infoContent">
+          <div class="info-row">
+            <span class="info-label">标题</span>
+            <span class="info-value" id="infoTitle">-</span>
           </div>
-          <div class="toggle-wrapper">
-            <div class="toggle active" id="videoToggle"></div>
-            <span class="toggle-text">Video</span>
+          <div class="info-row">
+            <span class="info-label">URL</span>
+            <span class="info-value" id="infoUrl">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">语言</span>
+            <span class="info-value" id="infoLang">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">时长</span>
+            <span class="info-value" id="infoDuration">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Focus</span>
+            <span class="info-value" id="infoFocus">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">状态</span>
+            <span class="info-value" id="infoStatus">-</span>
           </div>
         </div>
-        <div class="input-group" style="margin-top: 12px;">
-          <label>Focus</label>
-          <input type="text" class="input-field focus" id="focusInput" placeholder="技术细节、主要论点、行动项..." />
-        </div>
+      </div>
+
+      <!-- Hidden inputs for JavaScript compatibility -->
+      <div class="hidden-inputs hidden">
+        <input type="text" id="urlInput" />
+        <input type="text" id="focusInput" />
+        <div class="toggle" id="videoToggle"></div>
       </div>
 
       <div class="toolbar">
         <button class="btn primary" id="runBtn">Run</button>
         <button class="btn" id="openBtn">Open</button>
         <button class="btn" id="deleteBtn">Delete</button>
+        <button class="btn" id="manageBtn">Manage</button>
       </div>
 
       <div class="output-section">
@@ -933,6 +1219,64 @@
     </div>
   </div>
 
+  <!-- Modal -->
+  <div class="modal-overlay hidden" id="newTaskModal" data-mode="new">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="modalTitle">New Task</span>
+        <button class="modal-close" id="modalCloseBtn">&times;</button>
+      </div>
+      <div class="modal-content">
+        <div class="modal-section" id="modalInputs">
+          <div class="input-group url">
+            <label>URL</label>
+            <input type="text" class="input-field" id="modalUrlInput" placeholder="https://www.youtube.com/watch?v=..." />
+          </div>
+          <div class="input-group">
+            <label>Focus</label>
+            <input type="text" class="input-field focus" id="modalFocusInput" placeholder="技术细节、主要论点、行动项..." />
+          </div>
+          <label class="checkbox-label">
+            <input type="checkbox" id="modalVideoToggle" checked />
+            <span class="checkbox-custom"></span>
+            <span>下载视频</span>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="btn primary" id="modalRunBtn">Run</button>
+          <button class="btn hidden" id="modalSaveBtn">Save</button>
+        </div>
+        <div class="modal-status" id="modalStatus">
+          <span class="status-pill" data-step="info">
+            <span class="icon">○</span>
+            <span class="label">获取信息</span>
+          </span>
+          <span class="status-pill" data-step="video">
+            <span class="icon">○</span>
+            <span class="label">下载视频</span>
+          </span>
+          <span class="status-pill" data-step="audio">
+            <span class="icon">○</span>
+            <span class="label">提取音频</span>
+          </span>
+          <span class="status-pill" data-step="transcript">
+            <span class="icon">○</span>
+            <span class="label">生成转录</span>
+          </span>
+          <span class="status-pill" data-step="article">
+            <span class="icon">○</span>
+            <span class="label">生成文章</span>
+          </span>
+          <span class="status-pill" data-step="summary">
+            <span class="icon">○</span>
+            <span class="label">生成总结</span>
+          </span>
+        </div>
+        <div class="modal-logs" id="modalLogs"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let currentId = null;
     let downloading = true;
@@ -942,6 +1286,7 @@
     const runBtn = document.getElementById('runBtn');
     const openBtn = document.getElementById('openBtn');
     const deleteBtn = document.getElementById('deleteBtn');
+    const manageBtn = document.getElementById('manageBtn');
     const logOutput = document.getElementById('logOutput');
     const emptyState = document.getElementById('emptyState');
     const articleOutput = document.getElementById('articleOutput');
@@ -954,6 +1299,17 @@
     const progressFill = document.getElementById('progressFill');
     const progressSteps = document.querySelectorAll('.progress-step');
 
+    // Info section elements
+    const infoSection = document.getElementById('infoSection');
+    const infoEmpty = document.getElementById('infoEmpty');
+    const infoContent = document.getElementById('infoContent');
+    const infoTitle = document.getElementById('infoTitle');
+    const infoUrl = document.getElementById('infoUrl');
+    const infoLang = document.getElementById('infoLang');
+    const infoDuration = document.getElementById('infoDuration');
+    const infoFocus = document.getElementById('infoFocus');
+    const infoStatus = document.getElementById('infoStatus');
+
     const STEPS = ['info', 'video', 'audio', 'transcript', 'article', 'summary'];
     let currentStep = 0;
 
@@ -962,7 +1318,441 @@
       videoToggle.classList.toggle('active', downloading);
     });
 
+    // Modal elements
+    const newTaskModal = document.getElementById('newTaskModal');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalUrlInput = document.getElementById('modalUrlInput');
+    const modalFocusInput = document.getElementById('modalFocusInput');
+    const modalVideoToggle = document.getElementById('modalVideoToggle');
+    const modalRunBtn = document.getElementById('modalRunBtn');
+    const modalSaveBtn = document.getElementById('modalSaveBtn');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalLogs = document.getElementById('modalLogs');
+    const modalStatus = document.getElementById('modalStatus');
+    let modalDownloading = true;
+
+    // Modal toggle event
+    modalVideoToggle.addEventListener('change', () => {
+      modalDownloading = modalVideoToggle.checked;
+    });
+
+    function openNewTaskModal() {
+      newTaskModal.setAttribute('data-mode', 'new');
+      modalTitle.textContent = 'New Task';
+      modalRunBtn.classList.remove('hidden');
+      modalSaveBtn.classList.add('hidden');
+      modalStatus.classList.remove('hidden');
+      modalLogs.classList.remove('hidden');
+      newTaskModal.classList.remove('hidden');
+      modalUrlInput.focus();
+      // Initialize status pills (hidden state)
+      initModalStatus();
+    }
+
+    async function openManageModal() {
+      if (!currentId) return;
+      newTaskModal.setAttribute('data-mode', 'edit');
+      modalTitle.textContent = 'Manage Task';
+      modalRunBtn.classList.remove('hidden');
+      modalRunBtn.textContent = '继续执行';
+      modalSaveBtn.classList.remove('hidden');
+      modalStatus.classList.remove('hidden');
+      modalLogs.classList.remove('hidden');
+
+      // Load current task data
+      const meta = await window.api.readFile(`work/${currentId}/transcript/meta.json`);
+      if (meta) {
+        const j = JSON.parse(meta);
+        modalUrlInput.value = j.url || '';
+        modalFocusInput.value = j.focus || '';
+        modalVideoToggle.checked = j.downloadVideo !== false;
+        modalDownloading = j.downloadVideo !== false;
+
+        // Initialize status based on current progress
+        initModalStatus();
+
+        // Update status pills based on what has been completed
+        if (j.download_status === 'success') {
+          setModalStep('video', 'done');
+          setModalStep('audio', 'done');
+        } else if (j.download_status === 'failed') {
+          setModalStep('video', 'error');
+          setModalStep('audio', 'error');
+        }
+
+        if (j.transcript_done) {
+          setModalStep('transcript', 'done');
+        }
+
+        if (j.article_done) {
+          setModalStep('article', 'done');
+        }
+
+        if (j.summary_done) {
+          setModalStep('summary', 'done');
+        }
+      }
+
+      // Load existing logs if any
+      const logContent = await window.api.readFile(`work/${currentId}/media/video_download.log`);
+      if (logContent) {
+        modalLogs.textContent = logContent;
+        modalLogs.scrollTop = modalLogs.scrollHeight;
+      }
+
+      newTaskModal.classList.remove('hidden');
+      modalFocusInput.focus();
+    }
+
+    function closeNewTaskModal() {
+      newTaskModal.classList.add('hidden');
+      newTaskModal.setAttribute('data-mode', 'new');
+      modalUrlInput.value = '';
+      modalFocusInput.value = '';
+      modalLogs.textContent = '';
+      modalVideoToggle.checked = true;
+      modalDownloading = true;
+      modalRunBtn.textContent = 'Run';
+      modalRunBtn.classList.remove('hidden');
+      modalSaveBtn.classList.add('hidden');
+      document.querySelectorAll('.modal-status .status-pill').forEach(el => {
+        el.classList.remove('active', 'done', 'error');
+        el.classList.add('hidden');
+        el.querySelector('.icon').textContent = '○';
+      });
+    }
+
+    function initModalStatus() {
+      const pills = document.querySelectorAll('.modal-status .status-pill');
+      pills.forEach(pill => pill.classList.add('hidden'));
+
+      // Always show info step
+      document.querySelector('.modal-status .status-pill[data-step="info"]').classList.remove('hidden');
+
+      if (modalDownloading) {
+        // Show video and audio steps
+        document.querySelector('.modal-status .status-pill[data-step="video"]').classList.remove('hidden');
+        document.querySelector('.modal-status .status-pill[data-step="audio"]').classList.remove('hidden');
+      }
+
+      // Always show transcript, article, summary
+      document.querySelector('.modal-status .status-pill[data-step="transcript"]').classList.remove('hidden');
+      document.querySelector('.modal-status .status-pill[data-step="article"]').classList.remove('hidden');
+      document.querySelector('.modal-status .status-pill[data-step="summary"]').classList.remove('hidden');
+    }
+
+    function setModalStep(step, state) {
+      const pill = document.querySelector(`.modal-status .status-pill[data-step="${step}"]`);
+      if (!pill || pill.classList.contains('hidden')) return;
+
+      pill.classList.remove('active', 'done', 'error');
+      const icon = pill.querySelector('.icon');
+
+      if (state === 'active') {
+        pill.classList.add('active');
+        icon.textContent = '◐';
+      } else if (state === 'done') {
+        pill.classList.add('done');
+        icon.textContent = '✓';
+      } else if (state === 'error') {
+        pill.classList.add('error');
+        icon.textContent = '✗';
+      }
+    }
+
+    modalCloseBtn.addEventListener('click', closeNewTaskModal);
+
+    newTaskModal.addEventListener('click', (e) => {
+      if (e.target === newTaskModal) {
+        closeNewTaskModal();
+      }
+    });
+
     newBtn.addEventListener('click', () => {
+      openNewTaskModal();
+    });
+
+    manageBtn.addEventListener('click', () => {
+      openManageModal();
+    });
+
+    modalSaveBtn.addEventListener('click', async () => {
+      if (!currentId) return;
+      const url = modalUrlInput.value.trim();
+      const focus = modalFocusInput.value.trim();
+      const downloadVideo = modalVideoToggle.checked;
+
+      // Update meta.json
+      const metaPath = `work/${currentId}/transcript/meta.json`;
+      const meta = await window.api.readFile(metaPath);
+      if (meta) {
+        const j = JSON.parse(meta);
+        j.url = url;
+        j.focus = focus;
+        j.downloadVideo = downloadVideo;
+        await window.api.writeFile(metaPath, JSON.stringify(j, null, 2));
+      }
+
+      closeNewTaskModal();
+      // Reload the current work to update display
+      await loadWork(currentId);
+    });
+
+    // Modal Run button logic
+    modalRunBtn.addEventListener('click', async () => {
+      const mode = newTaskModal.getAttribute('data-mode');
+      const url = modalUrlInput.value.trim();
+
+      if (mode === 'edit') {
+        // Edit mode: continue/resume existing task
+        if (!currentId) return;
+        modalRunBtn.disabled = true;
+        modalRunBtn.textContent = '继续执行中...';
+        setModalStep('info', 'active');
+        runExistingTask(currentId);
+        return;
+      }
+
+      // New task mode
+      if (!url) return alert('Enter a URL');
+
+      modalRunBtn.disabled = true;
+      modalRunBtn.textContent = 'Running...';
+
+      // Initialize status pills based on user selection
+      initModalStatus();
+      setModalStep('info', 'active');
+
+      // Listen for output
+      window.api.onOutput((text) => {
+        // Parse progress using standardized [STATUS] format
+        const statusMatch = text.match(/\[STATUS\] (\S+)/);
+        if (statusMatch) {
+          const status = statusMatch[1];
+          switch (status) {
+            case 'info_start':
+              setModalStep('info', 'active');
+              break;
+            case 'info_done':
+              setModalStep('info', 'done');
+              if (modalDownloading) {
+                setModalStep('video', 'active');
+              } else {
+                setModalStep('transcript', 'active');
+              }
+              break;
+            case 'video_start':
+              setModalStep('video', 'active');
+              break;
+            case 'video_done':
+              setModalStep('video', 'done');
+              if (modalDownloading) {
+                setModalStep('audio', 'active');
+              }
+              break;
+            case 'video_error':
+              setModalStep('video', 'error');
+              break;
+            case 'audio_start':
+              setModalStep('audio', 'active');
+              break;
+            case 'audio_done':
+              setModalStep('audio', 'done');
+              setModalStep('transcript', 'active');
+              break;
+            case 'transcript_start':
+              setModalStep('transcript', 'active');
+              break;
+            case 'transcript_done':
+              setModalStep('transcript', 'done');
+              setModalStep('article', 'active');
+              break;
+            case 'article_start':
+              setModalStep('article', 'active');
+              break;
+            case 'article_done':
+              setModalStep('article', 'done');
+              setModalStep('summary', 'active');
+              break;
+            case 'summary_start':
+              setModalStep('summary', 'active');
+              break;
+            case 'summary_done':
+              setModalStep('summary', 'done');
+              break;
+            case 'complete':
+              setModalStep('summary', 'done');
+              break;
+          }
+        }
+
+        // Also handle error status
+        if (text.includes('[STATUS]') && text.includes('error')) {
+          const errorMatch = text.match(/\[STATUS\] (\S+_error)/);
+          if (errorMatch) {
+            const errorStep = errorMatch[1].replace('_error', '');
+            setModalStep(errorStep, 'error');
+          }
+        }
+
+        // Add to log
+        const lines = text.split('\n').filter(l => l.trim());
+        const ts = new Date().toLocaleTimeString();
+        lines.forEach(line => {
+          const div = document.createElement('div');
+          div.className = 'log-line';
+          const cls = line.includes('Error') ? 'log-err' : line.includes('Success') ? 'log-ok' : '';
+          div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${line}</span>`;
+          modalLogs.appendChild(div);
+        });
+        modalLogs.scrollTop = modalLogs.scrollHeight;
+      });
+
+      try {
+        const res = await window.api.runPipeline({
+          url,
+          focus: modalFocusInput.value.trim(),
+          force: false,
+          downloadVideo: modalDownloading
+        });
+
+        if (res.success) {
+          const m = res.output.match(/ID: ([a-f0-9]+)/);
+          if (m) {
+            const newId = m[1];
+            // Close modal and load the new task
+            closeNewTaskModal();
+            await loadWork(newId);
+            await loadHistory();
+          }
+        } else {
+          setModalStep(modalDownloading ? 'video' : 'transcript', 'error');
+          modalLogs.innerHTML += `<div class="log-line log-err">Error: ${res.error}</div>`;
+        }
+      } catch (e) {
+        setModalStep(modalDownloading ? 'video' : 'transcript', 'error');
+        modalLogs.innerHTML += `<div class="log-line log-err">${e.message}</div>`;
+      }
+
+      modalRunBtn.disabled = false;
+      modalRunBtn.textContent = 'Run';
+    });
+
+    // Run/resume existing task
+    async function runExistingTask(id) {
+      // Listen for output
+      window.api.onOutput((text) => {
+        // Parse progress using standardized [STATUS] format
+        const statusMatch = text.match(/\[STATUS\] (\S+)/);
+        if (statusMatch) {
+          const status = statusMatch[1];
+          switch (status) {
+            case 'info_start':
+              setModalStep('info', 'active');
+              break;
+            case 'info_done':
+              setModalStep('info', 'done');
+              if (modalDownloading) {
+                setModalStep('video', 'active');
+              } else {
+                setModalStep('transcript', 'active');
+              }
+              break;
+            case 'video_start':
+              setModalStep('video', 'active');
+              break;
+            case 'video_done':
+              setModalStep('video', 'done');
+              if (modalDownloading) {
+                setModalStep('audio', 'active');
+              }
+              break;
+            case 'video_error':
+              setModalStep('video', 'error');
+              break;
+            case 'audio_start':
+              setModalStep('audio', 'active');
+              break;
+            case 'audio_done':
+              setModalStep('audio', 'done');
+              setModalStep('transcript', 'active');
+              break;
+            case 'transcript_start':
+              setModalStep('transcript', 'active');
+              break;
+            case 'transcript_done':
+              setModalStep('transcript', 'done');
+              setModalStep('article', 'active');
+              break;
+            case 'article_start':
+              setModalStep('article', 'active');
+              break;
+            case 'article_done':
+              setModalStep('article', 'done');
+              setModalStep('summary', 'active');
+              break;
+            case 'summary_start':
+              setModalStep('summary', 'active');
+              break;
+            case 'summary_done':
+              setModalStep('summary', 'done');
+              break;
+            case 'complete':
+              setModalStep('summary', 'done');
+              break;
+          }
+        }
+
+        // Also handle error status
+        if (text.includes('[STATUS]') && text.includes('error')) {
+          const errorMatch = text.match(/\[STATUS\] (\S+_error)/);
+          if (errorMatch) {
+            const errorStep = errorMatch[1].replace('_error', '');
+            setModalStep(errorStep, 'error');
+          }
+        }
+
+        // Add to log
+        const lines = text.split('\n').filter(l => l.trim());
+        const ts = new Date().toLocaleTimeString();
+        lines.forEach(line => {
+          const div = document.createElement('div');
+          div.className = 'log-line';
+          const cls = line.includes('Error') ? 'log-err' : line.includes('Success') ? 'log-ok' : '';
+          div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${line}</span>`;
+          modalLogs.appendChild(div);
+        });
+        modalLogs.scrollTop = modalLogs.scrollHeight;
+      });
+
+      try {
+        const res = await window.api.runPipeline({
+          id: id,
+          focus: modalFocusInput.value.trim(),
+          force: false,
+          downloadVideo: modalDownloading
+        });
+
+        if (res.success) {
+          // Close modal and reload the task
+          closeNewTaskModal();
+          await loadWork(id);
+          await loadHistory();
+        } else {
+          setModalStep(modalDownloading ? 'video' : 'transcript', 'error');
+          modalLogs.innerHTML += `<div class="log-line log-err">Error: ${res.error}</div>`;
+        }
+      } catch (e) {
+        setModalStep(modalDownloading ? 'video' : 'transcript', 'error');
+        modalLogs.innerHTML += `<div class="log-line log-err">${e.message}</div>`;
+      }
+
+      modalRunBtn.disabled = false;
+      modalRunBtn.textContent = '继续执行';
+    }
+
+    // Original newBtn functionality for when not using modal
+    function resetMainForm() {
       currentId = null;
       urlInput.value = '';
       focusInput.value = '';
@@ -973,11 +1763,20 @@
       logOutput.classList.add('hidden');
       videoPlayer.pause();
       videoPlayer.src = '';
+
+      // Reset info section
+      infoEmpty.classList.remove('hidden');
+      infoContent.classList.add('hidden');
+      infoTitle.textContent = '-';
+      infoUrl.textContent = '-';
+      infoLang.textContent = '-';
+      infoDuration.textContent = '-';
+      infoFocus.textContent = '-';
+      infoStatus.textContent = '-';
       hideVideo();
       loadHistory();
       switchTab('log');
-      urlInput.focus();
-    });
+    }
 
     function updateProgress(step) {
       const stepIndex = STEPS.indexOf(step);
@@ -998,6 +1797,42 @@
     }
 
     function parseProgress(text) {
+      // Use standardized [STATUS] format for parsing
+      const statusMatch = text.match(/\[STATUS\] (\S+)/);
+      if (statusMatch) {
+        const status = statusMatch[1];
+        switch (status) {
+          case 'info_start':
+          case 'info_done':
+            updateProgress('info');
+            break;
+          case 'video_start':
+          case 'video_done':
+            updateProgress('video');
+            break;
+          case 'audio_start':
+          case 'audio_done':
+            updateProgress('audio');
+            break;
+          case 'transcript_start':
+          case 'transcript_done':
+            updateProgress('transcript');
+            break;
+          case 'article_start':
+          case 'article_done':
+            updateProgress('article');
+            break;
+          case 'summary_start':
+          case 'summary_done':
+          case 'complete':
+            updateProgress('summary');
+            progressFill.style.width = '100%';
+            break;
+        }
+        return;
+      }
+
+      // Fallback to old format parsing for backward compatibility
       if (text.includes('Step 0') || text.includes('Video Info')) {
         updateProgress('info');
       } else if (text.includes('Step 1') || text.includes('Video Download')) {
@@ -1065,10 +1900,34 @@
         videoToggle.classList.toggle('active', j.downloadVideo !== false);
         downloading = j.downloadVideo !== false;
 
+        // Update info section
+        infoEmpty.classList.add('hidden');
+        infoContent.classList.remove('hidden');
+        infoTitle.textContent = j.title || '-';
+        infoUrl.textContent = j.url || '-';
+        infoLang.textContent = j.lang || '-';
+        infoDuration.textContent = j.duration || '-';
+        infoFocus.textContent = j.focus || '-';
+
+        // Calculate status
+        let status = [];
+        if (j.download_status === 'success') status.push('视频已下载');
+        else if (j.download_status === 'failed') status.push('视频下载失败');
+        if (j.transcript_done) status.push('转录完成');
+        if (j.article_done) status.push('文章完成');
+        if (j.summary_done) status.push('总结完成');
+        if (j.claude_summary_pending) status.push('待生成总结');
+        if (j.focus_needed) status.push('需要Focus');
+        infoStatus.textContent = status.length > 0 ? status.join(' / ') : '-';
+
         const article = await window.api.readFile(`work/${id}/writing/article.md`);
         const summary = await window.api.readFile(`work/${id}/writing/summary.md`);
         articleOutput.innerHTML = article ? marked.parse(article) : '';
         summaryOutput.innerHTML = summary ? marked.parse(summary) : '';
+      } else {
+        // No meta.json, show empty state
+        infoEmpty.classList.remove('hidden');
+        infoContent.classList.add('hidden');
       }
 
       // Always load video, even if meta.json doesn't exist
@@ -1168,6 +2027,16 @@
         videoPlayer.src = '';
         hideVideo();
         loadHistory();
+
+        // Reset info section
+        infoEmpty.classList.remove('hidden');
+        infoContent.classList.add('hidden');
+        infoTitle.textContent = '-';
+        infoUrl.textContent = '-';
+        infoLang.textContent = '-';
+        infoDuration.textContent = '-';
+        infoFocus.textContent = '-';
+        infoStatus.textContent = '-';
       }
     });
 
@@ -1240,19 +2109,44 @@
     videoPlayer.addEventListener('loadedmetadata', () => {
       progressBar.value = 0;
       updateTimeDisplay();
+
+      // If we have a video file (not just audio), jump to 1-2 seconds and pause
+      // to show a meaningful frame instead of black screen at 0:00
+      if (videoPlayer.src && !videoPlayer.src.includes('.m4a') && !videoPlayer.src.includes('.mp3')) {
+        const duration = videoPlayer.duration;
+        if (duration > 2) {
+          videoPlayer.currentTime = 1.5; // Jump to 1.5s to show a clear frame
+        } else if (duration > 1) {
+          videoPlayer.currentTime = duration * 0.5; // Jump to middle if shorter than 2s
+        }
+        videoPlayer.pause();
+      }
     });
     videoPlayer.addEventListener('ended', () => {
       playPauseBtn.textContent = '▶';
     });
 
     async function loadVideo(id) {
-      const videoPath = await window.api.getVideoPath(id);
+      const media = await window.api.getMediaPath(id);
+      const { video: videoPath, audio: audioPath } = media;
+
+      // Clear previous state
+      videoPlayer.src = '';
+      const videoPanel = document.querySelector('.video-panel');
+
       if (videoPath) {
         videoPlayer.src = `file://${videoPath}`;
         showVideo();
+        videoPanel.classList.remove('disabled');
+      } else if (audioPath) {
+        videoPlayer.src = `file://${audioPath}`;
+        showVideo();
+        videoPanel.classList.remove('disabled');
       } else {
+        // No media available - show disabled state
         videoPlayer.src = '';
         hideVideo();
+        videoPanel.classList.add('disabled');
       }
 
       // Load subtitles
