@@ -9,7 +9,7 @@ export LANG=en_US.UTF-8
 # Parse arguments properly
 URL=""
 LANG="auto"
-MODE="both"
+MODE="full_flow_video"
 FORCE="0"
 FOCUS=""
 ID=""
