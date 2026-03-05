@@ -2125,8 +2125,12 @@
         const summary = await window.api.readFile(`work/${id}/writing/summary.md`);
         articleOutput.innerHTML = article ? marked.parse(article) : '';
         summaryOutput.innerHTML = summary ? marked.parse(summary) : '';
+
+        // Hide empty state since we have content
+        emptyState.classList.add('hidden');
       } else {
         // No meta.json, show empty state
+        emptyState.classList.remove('hidden');
         infoEmpty.classList.remove('hidden');
         infoContent.classList.add('hidden');
       }
