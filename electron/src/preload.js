@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('api', {
   readSubtitle: (id) => ipcRenderer.invoke('read-subtitle', id),
   readSubtitleBilingual: (id, lang) => ipcRenderer.invoke('read-subtitle-bilingual', { id, lang }),
   getAvailableSubtitles: (id) => ipcRenderer.invoke('get-available-subtitles', id),
+  resetTaskStep: (id, step) => ipcRenderer.invoke('reset-task-step', { id, step }),
   onOutput: (callback) => {
     ipcRenderer.on('pipeline-output', (event, text) => callback(text));
   }
