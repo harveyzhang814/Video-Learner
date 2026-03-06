@@ -172,7 +172,20 @@
       align-items: center;
     }
 
-    
+    .history-item .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+    .history-item .status-dot.running { background: #FFD700; }
+    .history-item .status-dot.completed { background: #22C55E; }
+    .history-item .status-dot.failed { background: #EF4444; }
+    .history-item .status-dot.unknown { background: #999999; }
+
+
     /* Input Section */
     .input-section {
       padding: calc(var(--grid-unit) * 3);
@@ -2194,6 +2207,7 @@
       }
       historyList.innerHTML = works.map(w => `
         <div class="history-item ${w.id === currentId ? 'active' : ''}" data-id="${w.id}">
+          <span class="status-dot ${w.status || 'completed'}"></span>
           <div class="title">${w.title || 'Untitled'}</div>
           <div class="meta">${new Date(w.ts).toLocaleDateString()}</div>
         </div>
