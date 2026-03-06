@@ -38,7 +38,30 @@ app.on('activate', () => {
  * - 其他: 不下载媒体 (MODE=full_flow_transcript)
  */
 ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo, id }) => {
+  const fs = require('fs');
+  const crypto = require('crypto');
+
   return new Promise((resolve, reject) => {
+    // 计算 taskId：如果没有传入 id，则基于 URL 计算 SHA1 前12位
+    let taskId = id;
+    if (!taskId) {
+      taskId = crypto.createHash('sha1').update(url).digest('hex').substring(0, 12);
+    }
+
+    // 设置日志目录和日志文件路径
+    const logDir = path.join(__dirname, '../..', 'work', taskId, 'media');
+    const logFile = path.join(logDir, 'task.log');
+
+    // 确保日志目录存在
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+
+    // 新任务清空日志文件
+    if (!id) {
+      fs.writeFileSync(logFile, '');
+    }
+
     let mode;
     if (downloadVideo === 'video') {
       mode = 'full_flow_video';
@@ -71,11 +94,13 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
 
     // Store current process reference
     currentProcess = proc;
-    currentProcessId = id || null;
+    currentProcessId = taskId;
 
     proc.stdout.on('data', (data) => {
       const text = data.toString();
       output += text;
+      // 实时追加日志到 task.log 文件
+      fs.appendFileSync(logFile, text);
       mainWindow.webContents.send('pipeline-output', text);
     });
 
@@ -86,10 +111,23 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
     proc.on('close', (code) => {
       currentProcess = null;
       currentProcessId = null;
+
+      // 更新 meta.json 的 task_status 字段
+      const metaPath = path.join(__dirname, '../..', 'work', taskId, 'transcript', 'meta.json');
+      try {
+        if (fs.existsSync(metaPath)) {
+          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+          meta.task_status = code === 0 ? 'completed' : 'failed';
+          fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+        }
+      } catch (e) {
+        console.error('Failed to update task status:', e);
+      }
+
       if (code === 0) {
-        resolve({ success: true, output });
+        resolve({ success: true, output, id: taskId });
       } else {
-        resolve({ success: false, error: error || output, code });
+        resolve({ success: false, error: error || output, code, id: taskId });
       }
     });
   });
