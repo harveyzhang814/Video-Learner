@@ -177,8 +177,9 @@
       height: 8px;
       border-radius: 50%;
       display: inline-block;
-      margin-right: 8px;
+      margin-right: 6px;
       flex-shrink: 0;
+      vertical-align: middle;
     }
     .history-item .status-dot.running { background: #FFD700; }
     .history-item .status-dot.completed { background: #22C55E; }
@@ -2211,9 +2212,8 @@
       }
       historyList.innerHTML = works.map(w => `
         <div class="history-item ${w.id === currentId ? 'active' : ''}" data-id="${w.id}">
-          <span class="status-dot ${w.status || 'completed'}"></span>
           <div class="title">${w.title || 'Untitled'}</div>
-          <div class="meta">${new Date(w.ts).toLocaleDateString()}</div>
+          <div class="meta"><span class="status-dot ${w.status || 'completed'}"></span>${new Date(w.ts).toLocaleDateString()}</div>
         </div>
       `).join('');
 
