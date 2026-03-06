@@ -33,28 +33,46 @@ def convert_vtt_to_markdown(vtt_path, output_path, lang=None):
     content = re.sub(r'^WEBVTT.*?\n\n', '', content, flags=re.MULTILINE)
 
     # Extract timestamped entries
+    # YouTube VTT has two parts per block:
+    # 1. Word-level timing: "00:00:00.240 --> 00:00:01.910" with HTML tags like <00:...><c>
+    # 2. Clean version: "00:00:01.910 --> 00:00:01.920" without HTML tags
+    # We prefer the clean version (without word timing tags)
     pattern = r'(\d{2}:\d{2}:\d{2}[.,]?\d*)\s*-->\s*\d{2}:\d{2}:\d{2}[.,]?\d*\s*[^\n]*\n(.+?)(?=\n\n\d{2}:\d{2}|\n*$)'
     matches = re.findall(pattern, content, re.DOTALL)
 
-    # Parse all entries and sort by timestamp
-    entries = []
-    for start, text in matches:
+    # Group by timestamp and prefer clean text (without word timing tags)
+    # Also capture end times from the VTT entries
+    timestamp_entries = {}
+    full_pattern = r'(\d{2}:\d{2}:\d{2}[.,]?\d*)\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]?\d*)\s*[^\n]*\n(.+?)(?=\n\n\d{2}:\d{2}|\n*$)'
+    full_matches = re.findall(full_pattern, content, re.DOTALL)
+
+    for start, end, text in full_matches:
+        # Check if this is a clean entry (no word timing like <00:...><c>)
+        has_word_timing = bool(re.search(r'<\d{2}:\d{2}:\d{2}', text))
         text = re.sub(r'<[^>]+>', '', text)  # Remove XML tags
         text = text.strip().replace('\n', ' ')
-        if text:
-            parts = start.replace(',', '.').split(':')
-            seconds = float(parts[0])*3600 + float(parts[1])*60 + float(parts[2])
-            entries.append((seconds, start, text))
 
+        if not text:
+            continue
+
+        parts = start.replace(',', '.').split(':')
+        seconds = float(parts[0])*3600 + float(parts[1])*60 + float(parts[2])
+
+        # Prefer clean entries (without word timing) over word-timing entries
+        if seconds not in timestamp_entries or not has_word_timing:
+            timestamp_entries[seconds] = (start, end, text)
+
+    # Convert to list and sort
+    entries = [(sec, start, end, text) for sec, (start, end, text) in timestamp_entries.items()]
     entries.sort(key=lambda x: x[0])
 
     # Merge entries with overlap removal
     # 1. Time difference < 0.5s: keep longer text, later timestamp
     # 2. Otherwise: remove overlapping prefix from current text
+    merged = []
     if entries:
-        merged = []
-        current_sec, current_start, current_text = entries[0]
-        for sec, start, text in entries[1:]:
+        current_sec, current_start, current_end, current_text = entries[0]
+        for sec, start, end, text in entries[1:]:
             time_diff = sec - current_sec
 
             # Check if text is contained in current_text (duplicate or subset)
@@ -63,26 +81,24 @@ def convert_vtt_to_markdown(vtt_path, output_path, lang=None):
             if time_diff < 0.5:
                 # Case 1: nearby in time - use longer text
                 if len(text) > len(current_text):
-                    current_sec, current_start, current_text = sec, start, text
-                # else keep current (shorter) text
+                    current_sec, current_start, current_end, current_text = sec, start, end, text
             elif text_contained:
                 # Case 2: text is contained in current - skip (already covered)
                 pass
             else:
                 # Case 3: far apart in time - remove overlap and add
                 cleaned_text = remove_overlap_prefix(text, current_text)
-                # Use cleaned_text if it has content, otherwise use original text
                 final_text = cleaned_text if cleaned_text else text
-                merged.append((current_start, current_text))
-                current_sec, current_start, current_text = sec, start, final_text
-        merged.append((current_start, current_text))
+                merged.append((current_start, current_end, current_text))
+                current_sec, current_start, current_end, current_text = sec, start, end, final_text
+        merged.append((current_start, current_end, current_text))
 
-    # Write output
+    # Write output with both start and end times
     with open(output_path, 'w', encoding='utf-8') as f:
-        for start, text in merged:
-            f.write(f"[{start.split('.')[0]}] {text}\n")
+        for start, end, text in merged:
+            f.write(f"[{start.split('.')[0]} --> {end.split('.')[0]}] {text}\n")
 
-    return len(merged), len(matches)
+    return len(merged), len(entries)
 
 
 if __name__ == '__main__':
