@@ -2355,9 +2355,9 @@
         });
 
         if (res.success) {
-          const m = res.output.match(/ID: ([a-f0-9]+)/);
-          if (m) {
-            currentId = m[1];
+          // ID is returned directly in res.id
+          if (res.id) {
+            currentId = res.id;
             await loadWork(currentId);
             await loadHistory();
           }
