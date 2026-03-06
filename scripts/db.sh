@@ -1,12 +1,17 @@
 #!/bin/bash
 # scripts/db.sh - SQLite helper functions for bash scripts
 
-DB_PATH="${1:-./work/database.sqlite}"
+DB_PATH="${1:-work/database.sqlite}"
 
 # 确保数据库路径是绝对路径
 if [[ "$DB_PATH" != /* ]]; then
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-    PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+    # 如果 SCRIPT_DIR 是 scripts/xxx，则取父目录
+    if [[ "$SCRIPT_DIR" == */scripts ]]; then
+        PROJECT_DIR="${SCRIPT_DIR%/scripts}"
+    else
+        PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+    fi
     DB_PATH="$PROJECT_DIR/$DB_PATH"
 fi
 
