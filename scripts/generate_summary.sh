@@ -48,6 +48,7 @@ echo "Output language: $OUTPUT_LANG"
 TEMP_PROMPT=$(mktemp)
 sed -e "s|{{FOCUS}}|$FOCUS|g" \
     -e "s|{{ARTICLE_PATH}}|$ARTICLE_PATH|g" \
+    -e "s|{{OUTPUT_PATH}}|$OUTPUT_PATH|g" \
     -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
     "$PROMPT_TEMPLATE" > "$TEMP_PROMPT"
 
