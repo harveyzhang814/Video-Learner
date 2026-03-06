@@ -18,6 +18,16 @@ function initOrchestrator() {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('pipeline-output', text);
         }
+    }, (task) => {
+        // 推送 task-created 事件
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('task-created', task);
+        }
+    }, (task) => {
+        // 推送 task-updated 事件
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('task-updated', task);
+        }
     });
 }
 
@@ -77,15 +87,6 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
       force: force || false,
       output_lang: 'zh-CN'
     });
-
-    // 任务开始后立即推送 task-created 事件
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('task-created', {
-        id: result.id,
-        url: url,
-        ts: new Date().toISOString()
-      });
-    }
 
     // 更新 meta.json 的 task_status 字段
     const metaPath = path.join(__dirname, '../..', 'work', result.id, 'transcript', 'meta.json');

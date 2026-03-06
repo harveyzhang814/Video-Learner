@@ -4,6 +4,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const STEPS = {
+    fetch: 'fetch_info.sh',       // task0: 获取视频元信息（标题、时长、封面等）
     video: 'download_video.sh',
     audio: 'download_audio.sh',
     subs: 'download_subs.sh',
@@ -14,14 +15,26 @@ const STEPS = {
 };
 
 class Orchestrator {
-    constructor(baseDir, onOutput = null) {
+    constructor(baseDir, onOutput = null, onTaskCreated = null, onTaskUpdated = null) {
         this.baseDir = baseDir;
-        this.onOutput = onOutput; // 回调函数，用于实时输出
+        this.onOutput = onOutput;
+        this.onTaskCreated = onTaskCreated;
+        this.onTaskUpdated = onTaskUpdated;
     }
 
     // 设置输出回调
     setOutputCallback(callback) {
         this.onOutput = callback;
+    }
+
+    // 设置任务创建回调
+    setTaskCreatedCallback(callback) {
+        this.onTaskCreated = callback;
+    }
+
+    // 设置任务更新回调
+    setTaskUpdatedCallback(callback) {
+        this.onTaskUpdated = callback;
     }
 
     // 生成任务 ID
@@ -78,6 +91,9 @@ class Orchestrator {
         const dir = path.join(this.baseDir, 'work', id);
 
         switch (step) {
+            case 'fetch':
+                // fetch 不需要前置条件
+                break;
             case 'video':
                 if (!fs.existsSync(path.join(dir, 'transcript', 'meta.json'))) {
                     errors.push('meta.json not found');
@@ -157,6 +173,9 @@ class Orchestrator {
         const enMd = path.join(dir, 'transcript', 'original_en.md');
         const zhMd = path.join(dir, 'transcript', 'original_zh.md');
         switch (stepName) {
+            case 'fetch':
+                args = [url, dir];
+                break;
             case 'video':
                 args = [url, dir, force ? '1' : '0'];
                 break;
@@ -272,7 +291,21 @@ class Orchestrator {
 
         this.saveMeta(id, meta);
 
+        // Push task-created event
+        if (this.onTaskCreated) {
+            this.onTaskCreated({ id, url, ts: meta.ts });
+        }
+
         // 依次执行步骤
+        // Step 0: 获取视频元信息
+        await this.runStep(id, 'fetch');
+
+        // Push task-updated event after fetch completes
+        if (this.onTaskUpdated) {
+            const updatedMeta = this.getMeta(id);
+            this.onTaskUpdated(updatedMeta);
+        }
+
         console.log('[DEBUG] deciding download step:', { downloadVideo, downloadAudio });
         if (downloadVideo) {
             console.log('[DEBUG] executing video step');
