@@ -16,7 +16,13 @@ fi
 
 # Create output directory
 SUBS_DIR="$DIR/transcript/subs"
-mkdir -p "$SUBS_DIR"
+if ! mkdir -p "$SUBS_DIR"; then
+    echo "Error: Failed to create directory $SUBS_DIR"
+    exit 1
+fi
+
+# Trap for cleanup on interrupt (after SUBS_DIR is defined)
+trap 'rm -f "$SUBS_DIR"/${id}.*.temp.* 2>/dev/null; exit 1' INT TERM
 
 # Generate video ID from URL
 id=$(echo "$URL" | sha1sum | cut -c1-12)
@@ -81,7 +87,7 @@ zh_downloaded=false
 echo "=== Downloading English subtitles ==="
 
 # Step 1: Try English original (en-orig)
-local_en_orig=$(echo "$available_subs" | grep -E "^en-orig$" | head -1)
+local_en_orig=$(echo "$available_subs" | grep -E "^en-orig$" | head -1) || true
 if [ -n "$local_en_orig" ]; then
     echo "  Found English original: $local_en_orig"
     if download_subtitle_for_lang "en" "$local_en_orig" "original"; then
@@ -93,7 +99,7 @@ fi
 
 # Step 2: If no original, try auto (only if original not available or failed)
 if [ "$en_downloaded" = false ]; then
-    local_en=$(echo "$available_subs" | grep -E "^en$" | head -1)
+    local_en=$(echo "$available_subs" | grep -E "^en$" | head -1) || true
     if [ -n "$local_en" ]; then
         echo "  No original, downloading English auto: $local_en"
         if download_subtitle_for_lang "en" "$local_en" "auto"; then
@@ -106,7 +112,7 @@ fi
 echo "=== Downloading Chinese subtitles ==="
 
 # Step 1: Try Chinese original (zh-Hans or zh-Hant)
-local_zh_orig=$(echo "$available_subs" | grep -E "^zh-Hans$|^zh-Hant$" | head -1)
+local_zh_orig=$(echo "$available_subs" | grep -E "^zh-Hans$|^zh-Hant$" | head -1) || true
 if [ -n "$local_zh_orig" ]; then
     echo "  Found Chinese original: $local_zh_orig"
     if download_subtitle_for_lang "zh" "$local_zh_orig" "original"; then
@@ -122,7 +128,7 @@ fi
 
 # Step 2: If no original, try auto (zh only)
 if [ "$zh_downloaded" = false ]; then
-    local_zh=$(echo "$available_subs" | grep -E "^zh$" | head -1)
+    local_zh=$(echo "$available_subs" | grep -E "^zh$" | head -1) || true
     if [ -n "$local_zh" ]; then
         echo "  No original, downloading Chinese auto: $local_zh"
         if download_subtitle_for_lang "zh" "$local_zh" "auto"; then
