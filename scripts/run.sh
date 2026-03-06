@@ -493,6 +493,7 @@ if mode_has_transcript; then
             # Generate article using Claude CLI
             ARTICLE_PROMPT_PATH="$SCRIPT_DIR/article_prompt.txt"
             article_prompt=$(sed -e "s|{{ORIGINAL_PATH}}|$transcript_file|g" \
+                -e "s|{{SOURCE_LANG}}|$article_lang|g" \
                 -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
                 "$ARTICLE_PROMPT_PATH")
             echo "$article_prompt" | env -u CLAUDECODE claude -p --dangerously-skip-permissions > "$DIR/writing/article.md"

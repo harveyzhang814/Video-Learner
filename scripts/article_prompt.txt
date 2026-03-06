@@ -10,5 +10,9 @@
 7. 使用 OUTPUT_LANG 语言输出（OUTPUT_LANG=zh-CN 表示简体中文，OUTPUT_LANG=en 表示英文）
 
 原文位于: {{ORIGINAL_PATH}}
+原文语言: {{SOURCE_LANG}} (en=英文, zh=中文)
+目标语言: OUTPUT_LANG (zh-CN=简体中文, en=英文)
 
-请直接生成 article.md 内容，不需要额外解释。
+请先将原文整理成结构化的 article.md，然后再翻译成 OUTPUT_LANG。
+
+注意：专业名词、技术术语、代码、API 名称等可以保留原文，不需要翻译。
