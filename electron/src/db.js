@@ -7,6 +7,7 @@ class DatabaseManager {
         this.dbPath = dbPath;
         this.db = new Database(dbPath);
         this.db.pragma('journal_mode = WAL');
+        this.db.pragma('foreign_keys = ON');
         this.initTables();
     }
 
@@ -78,6 +79,12 @@ class DatabaseManager {
 
     // 步骤操作
     updateStep(taskId, stepName, status, error = null) {
+        // Ensure task exists first (to satisfy foreign key)
+        const taskExists = this.db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
+        if (!taskExists) {
+            this.db.prepare('INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime("now"))').run(taskId, '');
+        }
+
         const existing = this.db.prepare(
             'SELECT * FROM steps WHERE task_id = ? AND step_name = ?'
         ).get(taskId, stepName);
@@ -107,6 +114,12 @@ class DatabaseManager {
 
     // 下载操作
     updateDownload(taskId, status, error = null, filePath = null) {
+        // Ensure task exists first (to satisfy foreign key)
+        const taskExists = this.db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
+        if (!taskExists) {
+            this.db.prepare('INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime("now"))').run(taskId, '');
+        }
+
         const existing = this.db.prepare('SELECT * FROM downloads WHERE task_id = ?').get(taskId);
 
         if (existing) {
