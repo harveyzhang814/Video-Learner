@@ -100,6 +100,26 @@ function createWindow() {
   wsServer.onCommand = async (data) => {
       console.log('[WS] Received command:', data);
       switch (data.type) {
+          case 'task:run':
+              // Handle run - start pipeline
+              const { url, focus, downloadVideo, force } = data.payload || {};
+              if (!url) {
+                  wsServer.send('task:error', { error: 'URL is required' });
+                  return;
+              }
+              try {
+                  const result = await orchestrator.run(url, {
+                      downloadVideo: downloadVideo === 'video',
+                      downloadAudio: downloadVideo === 'audio',
+                      focus: focus || '',
+                      force: force || false,
+                      output_lang: 'zh-CN'
+                  });
+                  wsServer.send('task:complete', result);
+              } catch (err) {
+                  wsServer.send('task:error', { error: err.message });
+              }
+              break;
           case 'task:cancel':
               // Handle cancel - stop current pipeline
               if (currentProcess) {
