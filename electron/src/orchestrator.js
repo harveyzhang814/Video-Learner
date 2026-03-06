@@ -44,9 +44,9 @@ class Orchestrator {
         this.onTaskUpdated = callback;
     }
 
-    // 生成任务 ID
+    // 生成任务 ID (需要与 bash 脚本一致，使用换行符)
     generateId(url) {
-        return crypto.createHash('sha1').update(url).digest('hex').substring(0, 12);
+        return crypto.createHash('sha1').update(url + '\n').digest('hex').substring(0, 12);
     }
 
     // 从数据库读取任务
