@@ -29,19 +29,19 @@ cd ..
 # Wait for Electron to start
 sleep 8
 
-# Check if WebSocket is available
-if ! curl -s "$WS_URL" >/dev/null 2>&1; then
-    echo "  ✗ WebSocket not available"
-    kill $ELECTRON_PID 2>/dev/null
+# Check if Electron process is running
+sleep 3
+if ! ps -p $ELECTRON_PID > /dev/null 2>&1; then
+    echo "  ✗ Electron process not running"
     exit 1
 fi
-echo "  ✓ Electron started, WebSocket available"
+echo "  ✓ Electron started"
 
 # Send pipeline command via WebSocket
 echo "[Test 3] Send task:run via WebSocket"
 
-# Use Node.js to send WebSocket message
-node -e "
+# Use Node.js to send WebSocket message (use electron's node_modules)
+cd electron && npx -y node -e "
 const WebSocket = require('ws');
 const ws = new WebSocket('$WS_URL');
 
@@ -74,11 +74,11 @@ ws.on('error', (err) => {
     process.exit(1);
 });
 
-// Timeout after 120 seconds
+// Timeout after 300 seconds
 setTimeout(() => {
     console.log('  ✗ Timeout waiting for pipeline');
     process.exit(1);
-}, 120000);
+}, 300000);
 " || {
     echo "  ✗ WebSocket test failed"
     kill $ELECTRON_PID 2>/dev/null

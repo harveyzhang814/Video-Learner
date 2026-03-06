@@ -339,6 +339,15 @@ class Orchestrator {
 
         this.saveMeta(id, meta);
 
+        // 创建/更新数据库任务记录
+        this.db.createTask(id, url);
+        this.db.updateTask(id, {
+            url: url,
+            title: '',
+            focus: focus,
+            output_lang: options.output_lang || 'zh-CN'
+        });
+
         // Push task-created event
         if (this.onTaskCreated) {
             this.onTaskCreated({ id, url, ts: meta.ts });
