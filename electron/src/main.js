@@ -24,11 +24,19 @@ function initOrchestrator() {
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('pipeline-output', text);
             }
+            // Also broadcast to WebSocket clients
+            if (wsServer) {
+                wsServer.broadcast('task:output', { text });
+            }
         },
         (task) => {
             // 推送 task-created 事件
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('task-created', task);
+            }
+            // Also broadcast to WebSocket clients
+            if (wsServer) {
+                wsServer.broadcast('task:created', task);
             }
         },
         (task) => {

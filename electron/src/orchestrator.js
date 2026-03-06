@@ -253,6 +253,14 @@ class Orchestrator {
             meta.steps[stepName].status = result.code === 0 ? 'completed' : 'failed';
             if (result.code !== 0) {
                 meta.steps[stepName].error = result.output;
+                // Emit task:error event on step failure
+                if (this.onStepEvent) {
+                    this.onStepEvent('task:error', {
+                        id,
+                        step: stepName,
+                        error: result.output || 'Step failed'
+                    });
+                }
             }
         } else {
             // vtt2md 和 md2vtt 已经内部执行完成
