@@ -25,7 +25,7 @@ fi
 trap 'rm -f "$SUBS_DIR"/${id}.*.temp.* 2>/dev/null; exit 1' INT TERM
 
 # Generate video ID from URL
-id=$(echo "$URL" | sha1sum | cut -c1-12)
+id=$(echo "$URL" | sha1sum | cut -c1-12) || true
 
 echo "[STATUS] subs_start"
 
@@ -59,10 +59,10 @@ download_subtitle_for_lang() {
 
     if [ "$sub_type" = "original" ]; then
         # Use --write-subs for original subtitles
-        yt-dlp --skip-download --write-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null
+        yt-dlp --skip-download --write-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null || return 1
     else
         # Use --write-auto-subs for auto-generated subtitles
-        yt-dlp --skip-download --write-auto-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null
+        yt-dlp --skip-download --write-auto-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null || return 1
     fi
 
     # Find and rename the downloaded file
@@ -71,7 +71,7 @@ download_subtitle_for_lang() {
     if [ -n "$downloaded" ] && [ -s "$downloaded" ]; then
         # Rename to .vtt if not already
         if [ "$downloaded" != "${outfile_base}.vtt" ]; then
-            mv "$downloaded" "${outfile_base}.vtt" 2>/dev/null
+            mv "$downloaded" "${outfile_base}.vtt" 2>/dev/null || return 1
         fi
         return 0
     else
