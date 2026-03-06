@@ -552,6 +552,16 @@ if mode_has_transcript; then
 fi
 
 # === STEP 5: Save Meta ===
+# Merge with existing meta.json to preserve download_status updated by background download_video.sh
+if [ -f "$DIR/transcript/meta.json" ]; then
+    EXISTING_META=$(cat "$DIR/transcript/meta.json")
+    # Preserve download_status and download_attempts from existing meta (updated by background process)
+    META=$(echo "$META" | jq --argjson existing "$EXISTING_META" '
+        .download_status = ($existing.download_status // "pending") |
+        .download_attempts = ($existing.download_attempts // 0) |
+        .download_error = ($existing.download_error // "")
+    ')
+fi
 echo "$META" > "$DIR/transcript/meta.json"
 index_line=$(echo "$META" | jq -c '{url, id, ts, title, download_status, transcript_done, article_done, summary_done}')
 # Update index.jsonl - replace existing line or append new
