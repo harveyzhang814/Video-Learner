@@ -1840,9 +1840,11 @@
           const status = statusMatch[1];
           switch (status) {
             case 'info_start':
+            case 'fetch_start':
               setModalStep('info', 'active');
               break;
             case 'info_done':
+            case 'fetch_done':
               setModalStep('info', 'done');
               if (modalDownloadMode === 'video') {
                 setModalStep('video', 'active');
@@ -1961,9 +1963,11 @@
           const status = statusMatch[1];
           switch (status) {
             case 'info_start':
+            case 'fetch_start':
               setModalStep('info', 'active');
               break;
             case 'info_done':
+            case 'fetch_done':
               setModalStep('info', 'done');
               if (modalDownloadMode === 'video') {
                 setModalStep('video', 'active');
@@ -2139,7 +2143,9 @@
         const status = statusMatch[1];
         switch (status) {
           case 'info_start':
+          case 'fetch_start':
           case 'info_done':
+          case 'fetch_done':
             updateProgress('info');
             break;
           case 'video_start':
