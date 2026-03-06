@@ -116,6 +116,9 @@ class Orchestrator {
         }
 
         const meta = this.getMeta(id);
+        if (!meta) {
+            return { success: false, error: 'Task not found' };
+        }
         const dir = path.join(this.baseDir, 'work', id);
         const url = meta.url;
 
@@ -148,18 +151,38 @@ class Orchestrator {
                 // 自动找到所有 VTT 文件并转换
                 const subsDir = path.join(dir, 'transcript', 'subs');
                 const vttFiles = fs.readdirSync(subsDir).filter(f => f.endsWith('.vtt'));
+                const errors = [];
                 for (const vtt of vttFiles) {
-                    const lang = vtt.match(/\.([^.]+)\./)?.[1] || 'en';
-                    const outPath = path.join(dir, 'transcript', `original_${lang}.md`);
-                    await this.runStepScript('vtt2md', [path.join(subsDir, vtt), outPath]);
+                    try {
+                        const lang = vtt.match(/\.([^.]+)\./)?.[1] || 'en';
+                        const outPath = path.join(dir, 'transcript', `original_${lang}.md`);
+                        await this.runStepScript('vtt2md', [path.join(subsDir, vtt), outPath]);
+                    } catch (e) {
+                        errors.push(`${vtt}: ${e.message}`);
+                    }
+                }
+                if (errors.length > 0) {
+                    meta.steps[stepName].error = errors.join('\n');
                 }
                 break;
             case 'md2vtt':
+                const mdErrors = [];
                 if (fs.existsSync(enMd)) {
-                    await this.runStepScript('md2vtt', [enMd, enMd.replace('.md', '.vtt')]);
+                    try {
+                        await this.runStepScript('md2vtt', [enMd, enMd.replace('.md', '.vtt')]);
+                    } catch (e) {
+                        mdErrors.push(`original_en.md: ${e.message}`);
+                    }
                 }
                 if (fs.existsSync(zhMd)) {
-                    await this.runStepScript('md2vtt', [zhMd, zhMd.replace('.md', '.vtt')]);
+                    try {
+                        await this.runStepScript('md2vtt', [zhMd, zhMd.replace('.md', '.vtt')]);
+                    } catch (e) {
+                        mdErrors.push(`original_zh.md: ${e.message}`);
+                    }
+                }
+                if (mdErrors.length > 0) {
+                    meta.steps[stepName].error = mdErrors.join('\n');
                 }
                 break;
             case 'article':
@@ -201,18 +224,25 @@ class Orchestrator {
         const id = this.generateId(url);
         const dir = path.join(this.baseDir, 'work', id);
 
-        // 初始化 meta.json
-        const meta = {
-            id,
-            url,
-            ts: new Date().toISOString(),
-            title: '',
-            download_status: 'pending',
-            transcript_done: false,
-            article_done: false,
-            summary_done: false,
-            output_lang: options.output_lang || 'zh-CN'
-        };
+        // 检查 meta 是否已存在
+        const existingMeta = this.getMeta(id);
+        if (existingMeta) {
+            // 复用现有 meta，更新必要字段
+            var meta = { ...existingMeta, ...{ id, url }, ts: new Date().toISOString(), output_lang: options.output_lang || existingMeta.output_lang || 'zh-CN' };
+        } else {
+            // 初始化 meta.json
+            var meta = {
+                id,
+                url,
+                ts: new Date().toISOString(),
+                title: '',
+                download_status: 'pending',
+                transcript_done: false,
+                article_done: false,
+                summary_done: false,
+                output_lang: options.output_lang || 'zh-CN'
+            };
+        }
 
         // 创建目录
         fs.mkdirSync(path.join(dir, 'media'), { recursive: true });
@@ -246,6 +276,9 @@ class Orchestrator {
         }
 
         meta.steps = meta.steps || {};
+        if (!meta.steps[stepName]) {
+            return { success: false, error: 'Step not found in task history' };
+        }
         meta.steps[stepName].error = null;
 
         return this.runStep(id, stepName);
@@ -260,6 +293,7 @@ class Orchestrator {
 
         meta.steps = meta.steps || {};
         meta.steps[stepName] = { status: 'skipped', attempts: 0, error: null };
+        meta.step_status = 'skipped';
         this.saveMeta(id, meta);
 
         return { success: true };
