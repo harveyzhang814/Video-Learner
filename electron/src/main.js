@@ -2,6 +2,10 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
+// 引入编排层
+const Orchestrator = require('./orchestrator');
+const orchestrator = new Orchestrator(path.join(__dirname, '../..'));
+
 let mainWindow;
 let currentProcess = null;
 let currentProcessId = null;
@@ -30,107 +34,82 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-// Run pipeline script
+// Run pipeline script using orchestrator
 /**
  * downloadVideo 参数说明:
- * - 'video': 下载视频 (MODE=full_flow_video)
- * - 'audio': 下载音频 (MODE=full_flow_audio)
- * - 其他: 不下载媒体 (MODE=full_flow_transcript)
+ * - 'video': 下载视频
+ * - 'audio': 下载音频
+ * - 其他: 不下载媒体
  */
 ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo, id }) => {
-  const fs = require('fs');
-  const crypto = require('crypto');
-
-  return new Promise((resolve, reject) => {
-    // 计算 taskId：如果没有传入 id，则基于 URL 计算 SHA1 前12位
-    let taskId = id;
-    if (!taskId) {
-      taskId = crypto.createHash('sha1').update(url).digest('hex').substring(0, 12);
-    }
-
-    // 设置日志目录和日志文件路径
-    const logDir = path.join(__dirname, '../..', 'work', taskId, 'media');
-    const logFile = path.join(logDir, 'task.log');
-
-    // 确保日志目录存在
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
-    }
-
-    // 新任务清空日志文件
-    if (!id) {
-      fs.writeFileSync(logFile, '');
-    }
-
-    let mode;
+  try {
+    // 确定是否下载视频
+    let shouldDownloadVideo = false;
     if (downloadVideo === 'video') {
-      mode = 'full_flow_video';
-    } else if (downloadVideo === 'audio') {
-      mode = 'full_flow_audio';
-    } else {
-      mode = 'full_flow_transcript';
-    }
-    let args;
-
-    if (id) {
-      // Continue/resume existing task
-      args = ['scripts/run.sh', `ID=${id}`, `MODE=${mode}`];
-    } else {
-      // New task
-      args = ['scripts/run.sh', url, `MODE=${mode}`];
+      shouldDownloadVideo = true;
     }
 
-    if (focus) args.push(`FOCUS=${focus}`);
-    if (force) args.push('FORCE=1');
-
-    const proc = spawn('bash', args, {
-      cwd: path.join(__dirname, '../..'),
-      shell: true
+    // 使用编排层执行
+    const result = await orchestrator.run(url, {
+      downloadVideo: shouldDownloadVideo,
+      focus,
+      force: force || false,
+      output_lang: 'zh-CN'
     });
 
-    // Initialize output and error buffers
-    let output = '';
-    let error = '';
+    // 更新 meta.json 的 task_status 字段
+    const metaPath = path.join(__dirname, '../..', 'work', result.id, 'transcript', 'meta.json');
+    const fs = require('fs');
+    if (fs.existsSync(metaPath)) {
+      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+      meta.task_status = 'completed';
+      fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+    }
 
-    // Store current process reference
-    currentProcess = proc;
-    currentProcessId = taskId;
+    return { success: true, id: result.id };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
 
-    proc.stdout.on('data', (data) => {
-      const text = data.toString();
-      output += text;
-      // 实时追加日志到 task.log 文件
-      fs.appendFileSync(logFile, text);
-      mainWindow.webContents.send('pipeline-output', text);
-    });
+// 单步执行
+ipcMain.handle('run-step', async (event, { id, step, options = {} }) => {
+  try {
+    const result = await orchestrator.runStep(id, step, options);
+    return result;
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
 
-    proc.stderr.on('data', (data) => {
-      error += data.toString();
-    });
+// 重试步骤
+ipcMain.handle('retry-step', async (event, { id, step }) => {
+  try {
+    const result = await orchestrator.retryStep(id, step);
+    return result;
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
 
-    proc.on('close', (code) => {
-      currentProcess = null;
-      currentProcessId = null;
+// 跳过步骤
+ipcMain.handle('skip-step', async (event, { id, step }) => {
+  try {
+    const result = orchestrator.skipStep(id, step);
+    return result;
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
 
-      // 更新 meta.json 的 task_status 字段
-      const metaPath = path.join(__dirname, '../..', 'work', taskId, 'transcript', 'meta.json');
-      try {
-        if (fs.existsSync(metaPath)) {
-          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-          meta.task_status = code === 0 ? 'completed' : 'failed';
-          fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
-        }
-      } catch (e) {
-        console.error('Failed to update task status:', e);
-      }
-
-      if (code === 0) {
-        resolve({ success: true, output, id: taskId });
-      } else {
-        resolve({ success: false, error: error || output, code, id: taskId });
-      }
-    });
-  });
+// 获取任务状态
+ipcMain.handle('get-task-status', async (event, id) => {
+  try {
+    const status = orchestrator.getStatus(id);
+    return status;
+  } catch (e) {
+    return null;
+  }
 });
 
 // Stop running pipeline
