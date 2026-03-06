@@ -1,11 +1,27 @@
 #!/bin/bash
 # scripts/db.sh - SQLite helper functions for bash scripts
 
-DB_PATH="${1:-work/database.sqlite}"
+# 检查 $1 是否看起来像 URL（如果是，说明是被 sourced，参数是继承的）
+if [[ "$1" == http://* ]] || [[ "$1" == https://* ]]; then
+    # 被 sourced 了，使用默认值
+    DB_PATH="work/database.sqlite"
+else
+    DB_PATH="${1:-work/database.sqlite}"
+fi
+
+# 获取脚本所在目录（处理 sourced 的情况）
+_get_script_dir() {
+    if [ -n "${BASH_SOURCE[0]}" ]; then
+        local script="${BASH_SOURCE[0]}"
+    else
+        local script="$0"
+    fi
+    cd "$(dirname "$script")" && pwd
+}
 
 # 确保数据库路径是绝对路径
 if [[ "$DB_PATH" != /* ]]; then
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    SCRIPT_DIR="$(_get_script_dir)"
     # 如果 SCRIPT_DIR 是 scripts/xxx，则取父目录
     if [[ "$SCRIPT_DIR" == */scripts ]]; then
         PROJECT_DIR="${SCRIPT_DIR%/scripts}"
