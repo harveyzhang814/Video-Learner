@@ -21,5 +21,11 @@ contextBridge.exposeInMainWorld('api', {
   getTaskStatus: (id) => ipcRenderer.invoke('get-task-status', id),
   onOutput: (callback) => {
     ipcRenderer.on('pipeline-output', (event, text) => callback(text));
+  },
+  onTaskCreated: (callback) => {
+    ipcRenderer.on('task-created', (event, task) => callback(task));
+  },
+  onTaskUpdated: (callback) => {
+    ipcRenderer.on('task-updated', (event, task) => callback(task));
   }
 });
