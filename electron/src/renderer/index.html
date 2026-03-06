@@ -2626,54 +2626,6 @@
       // Get available subtitles info
       availableSubtitles = await window.api.getAvailableSubtitles(id);
       console.log('Available subtitles:', availableSubtitles);
-      const lines = content.split('\n');
-      const result = [];
-      let i = 0;
-
-      // Skip header
-      while (i < lines.length && !lines[i].includes('-->')) {
-        i++;
-      }
-
-      while (i < lines.length) {
-        const line = lines[i].trim();
-
-        if (line.includes('-->')) {
-          const timeMatch = line.match(/(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})/);
-          if (timeMatch) {
-            const start = parseInt(timeMatch[1]) * 3600 + parseInt(timeMatch[2]) * 60 + parseInt(timeMatch[3]) + parseInt(timeMatch[4]) / 1000;
-            const end = parseInt(timeMatch[5]) * 3600 + parseInt(timeMatch[6]) * 60 + parseInt(timeMatch[7]) + parseInt(timeMatch[8]) / 1000;
-
-            // Get text (may span multiple lines)
-            i++;
-            let text = '';
-            while (i < lines.length && lines[i].trim() !== '') {
-              text += (text ? '\n' : '') + lines[i].trim();
-              i++;
-            }
-
-            if (text) {
-              result.push({ start, end, text });
-            }
-            continue;
-          }
-        }
-        i++;
-      }
-
-      return result;
-    }
-
-    function formatTimestamp(seconds) {
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    async function loadSubtitles(id) {
-      // Get available subtitles info
-      availableSubtitles = await window.api.getAvailableSubtitles(id);
-      console.log('Available subtitles:', availableSubtitles);
 
       // Update language switcher visibility based on available subtitles
       updateLanguageSwitcher();
