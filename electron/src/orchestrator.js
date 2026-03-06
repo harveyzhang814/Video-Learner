@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+const DatabaseManager = require('./db');
+
 const STEPS = {
     fetch: 'fetch_info.sh',       // task0: 获取视频元信息（标题、时长、封面等）
     video: 'download_video.sh',
@@ -21,6 +23,10 @@ class Orchestrator {
         this.onTaskCreated = onTaskCreated;
         this.onTaskUpdated = onTaskUpdated;
         this.onStepEvent = onStepEvent;
+
+        // 初始化数据库
+        const dbPath = path.join(baseDir, 'work', 'database.sqlite');
+        this.db = new DatabaseManager(dbPath);
     }
 
     // 设置输出回调
@@ -45,16 +51,20 @@ class Orchestrator {
 
     // 读取 meta.json
     getMeta(id) {
-        const metaPath = path.join(this.baseDir, 'work', id, 'transcript', 'meta.json');
-        if (!fs.existsSync(metaPath)) return null;
-        return JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+        return this.db.getTask(id);
     }
 
     // 写入 meta.json
     saveMeta(id, meta) {
-        const metaPath = path.join(this.baseDir, 'work', id, 'transcript', 'meta.json');
-        fs.mkdirSync(path.dirname(metaPath), { recursive: true });
-        fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+        // 更新任务表
+        this.db.updateTask(id, {
+            url: meta.url,
+            title: meta.title,
+            lang: meta.lang,
+            duration: meta.duration,
+            output_lang: meta.output_lang,
+            focus: meta.focus
+        });
     }
 
     // 执行步骤脚本
@@ -169,6 +179,12 @@ class Orchestrator {
         };
         this.saveMeta(id, meta);
 
+        // 更新数据库中的步骤状态
+        this.db.updateStep(id, stepName, 'running');
+        if (this.onStepEvent) {
+            this.onStepEvent('task:status', { id, currentStep: stepName, stepStatus: 'running' });
+        }
+
         // 推送步骤开始事件
         if (this.onStepEvent) {
             this.onStepEvent('task:status', {
@@ -253,18 +269,25 @@ class Orchestrator {
             meta.steps[stepName].status = result.code === 0 ? 'completed' : 'failed';
             if (result.code !== 0) {
                 meta.steps[stepName].error = result.output;
-                // Emit task:error event on step failure
+                const errorMsg = result.output || 'Step failed';
+                // 更新数据库中的步骤状态为失败
+                this.db.updateStep(id, stepName, 'failed', errorMsg);
                 if (this.onStepEvent) {
                     this.onStepEvent('task:error', {
                         id,
                         step: stepName,
-                        error: result.output || 'Step failed'
+                        error: errorMsg
                     });
                 }
+            } else {
+                // 更新数据库中的步骤状态为完成
+                this.db.updateStep(id, stepName, 'completed');
             }
         } else {
             // vtt2md 和 md2vtt 已经内部执行完成
             meta.steps[stepName].status = 'completed';
+            // 更新数据库中的步骤状态为完成
+            this.db.updateStep(id, stepName, 'completed');
         }
 
         meta.step_status = meta.steps[stepName].status;
