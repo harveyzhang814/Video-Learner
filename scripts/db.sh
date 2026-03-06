@@ -1,9 +1,13 @@
 #!/bin/bash
 # scripts/db.sh - SQLite helper functions for bash scripts
 
-# 检查 $1 是否看起来像 URL（如果是，说明是被 sourced，参数是继承的）
-if [[ "$1" == http://* ]] || [[ "$1" == https://* ]]; then
-    # 被 sourced 了，使用默认值
+# 检查是否被 sourced（如果是，参数是继承的，不使用 $1）
+_is_sourced() {
+    [[ "${BASH_SOURCE[0]}" != "${0}" ]]
+}
+
+if _is_sourced; then
+    # 被 sourced，使用默认值
     DB_PATH="work/database.sqlite"
 else
     DB_PATH="${1:-work/database.sqlite}"
