@@ -198,14 +198,29 @@ ipcMain.handle('list-works', async () => {
         try {
           const metaContent = await fs.readFile(metaPath, 'utf-8');
           const meta = JSON.parse(metaContent);
+
+          // Determine status based on meta.json
+          let status = 'completed';
+          if (meta.task_status) {
+            status = meta.task_status;
+          } else if (meta.summary_done === false && meta.download_status !== 'success') {
+            // No explicit task_status, infer from progress
+            status = 'running';
+          } else if (meta.summary_done === true) {
+            status = 'completed';
+          } else if (meta.download_status === 'failed') {
+            status = 'failed';
+          }
+
           dirs.push({
             id: entry.name,
             title: meta.title || 'Untitled',
             ts: meta.ts,
+            status: status,
             done: meta.summary_done
           });
         } catch (e) {
-          dirs.push({ id: entry.name, title: 'Unknown', done: false });
+          dirs.push({ id: entry.name, title: 'Unknown', done: false, status: 'unknown' });
         }
       }
     }
