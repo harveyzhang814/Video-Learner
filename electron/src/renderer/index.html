@@ -1635,6 +1635,9 @@
         el.classList.add('hidden');
         el.querySelector('.icon').textContent = '○';
       });
+
+      // Refresh history list when modal closes
+      loadHistory();
     }
 
     function initModalStatus() {
