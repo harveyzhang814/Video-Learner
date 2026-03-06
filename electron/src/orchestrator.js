@@ -354,20 +354,8 @@ class Orchestrator {
         }
 
         // 依次执行步骤
-        // Step 0: 获取视频元信息
+        // Step 0: 获取视频元信息 (fetch_info.sh 会直接更新数据库)
         await this.runStep(id, 'fetch');
-
-        // 从 meta.json 读取最新信息并更新数据库
-        const fetchMeta = this.getMeta(id);
-        if (fetchMeta) {
-            this.db.updateTask(id, {
-                title: fetchMeta.title || '',
-                lang: fetchMeta.lang || '',
-                duration: fetchMeta.duration || '',
-                focus: fetchMeta.focus || '',
-                output_lang: fetchMeta.output_lang || 'zh-CN'
-            });
-        }
 
         // Push task-updated event after fetch completes
         if (this.onTaskUpdated) {

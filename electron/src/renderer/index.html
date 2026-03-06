@@ -384,7 +384,12 @@
       transform: rotate(45deg);
     }
 
-    /* Radio Group */
+    /* Radio Group inside input-group */
+    .input-group .radio-group {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
     .radio-group {
       display: flex;
       gap: 16px;
@@ -1377,7 +1382,9 @@
             <label>Focus</label>
             <input type="text" class="input-field focus" id="modalFocusInput" placeholder="技术细节、主要论点、行动项..." />
           </div>
-          <div class="radio-group" id="modalDownloadMode">
+          <div class="input-group">
+            <label>Resource</label>
+            <div class="radio-group" id="modalDownloadMode">
             <label class="radio-label">
               <input type="radio" name="downloadMode" value="video" checked />
               <span class="radio-custom"></span>
