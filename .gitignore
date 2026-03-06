@@ -24,6 +24,9 @@ electron/node_modules/
 *.temp
 *.part
 
+# Worktree
+.worktrees/
+
 # Work outputs (application data, completely ignored)
 work/*
 *.log
