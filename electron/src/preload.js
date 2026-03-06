@@ -15,6 +15,10 @@ contextBridge.exposeInMainWorld('api', {
   readSubtitleBilingual: (id, lang) => ipcRenderer.invoke('read-subtitle-bilingual', { id, lang }),
   getAvailableSubtitles: (id) => ipcRenderer.invoke('get-available-subtitles', id),
   resetTaskStep: (id, step) => ipcRenderer.invoke('reset-task-step', { id, step }),
+  runStep: (id, step, options) => ipcRenderer.invoke('run-step', { id, step, options }),
+  retryStep: (id, step) => ipcRenderer.invoke('retry-step', { id, step }),
+  skipStep: (id, step) => ipcRenderer.invoke('skip-step', { id, step }),
+  getTaskStatus: (id) => ipcRenderer.invoke('get-task-status', id),
   onOutput: (callback) => {
     ipcRenderer.on('pipeline-output', (event, text) => callback(text));
   }
