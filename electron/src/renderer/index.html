@@ -1508,6 +1508,15 @@
     const infoLang = document.getElementById('infoLang');
     const infoDuration = document.getElementById('infoDuration');
     const infoFocus = document.getElementById('infoFocus');
+
+    // Video player elements
+    const videoPlayer = document.getElementById('videoPlayer');
+    const videoEmpty = document.getElementById('videoEmpty');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const progressBar = document.getElementById('progressBar');
+    const timeDisplay = document.getElementById('timeDisplay');
+
     // infoStatus removed - using status-pill instead
 
     const STEPS = ['info', 'video', 'audio', 'transcript', 'article', 'summary'];
@@ -2201,6 +2210,10 @@
 
     loadHistory();
 
+    // WebSocket connection for realtime updates (must be defined before connectWebSocket)
+    let ws = null;
+    let wsReconnectInterval = null;
+
     // Connect to WebSocket for realtime updates
     connectWebSocket();
 
@@ -2218,10 +2231,6 @@
       // 刷新列表以更新标题
       loadHistory();
     });
-
-    // WebSocket connection for realtime updates
-    let ws = null;
-    let wsReconnectInterval = null;
 
     function connectWebSocket() {
         if (ws && ws.readyState === WebSocket.OPEN) return;
@@ -2499,14 +2508,7 @@
       }
     });
 
-    // Video Player
-    const videoPlayer = document.getElementById('videoPlayer');
-    const videoEmpty = document.getElementById('videoEmpty');
-    const playPauseBtn = document.getElementById('playPauseBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const progressBar = document.getElementById('progressBar');
-    const timeDisplay = document.getElementById('timeDisplay');
-
+    // Video Player functions
     function formatTime(seconds) {
       const mins = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
@@ -2612,7 +2614,7 @@
       await loadSubtitles(id);
     }
 
-    // Subtitle Module
+    // Subtitle Module - must be defined before loadVideo/loadSubtitles
     const subtitleModule = document.getElementById('subtitleModule');
     const subtitleList = document.getElementById('subtitleList');
     const languageSwitcher = document.getElementById('languageSwitcher');
@@ -2620,7 +2622,10 @@
     let currentSubtitleLang = 'zh';  // Default to Chinese
     let availableSubtitles = { en: null, zh: null };
 
-    function parseVTT(content) {
+    async function loadSubtitles(id) {
+      // Get available subtitles info
+      availableSubtitles = await window.api.getAvailableSubtitles(id);
+      console.log('Available subtitles:', availableSubtitles);
       const lines = content.split('\n');
       const result = [];
       let i = 0;

@@ -60,6 +60,17 @@ echo "[Test 7] Delete work"
 
 # Cleanup
 kill $ELECTRON_PID 2>/dev/null
+cd ..
+
+# Clean up database and work files
+echo ""
+echo "=== Cleaning up test artifacts ==="
+rm -f work/database.sqlite*
+# Clean work directory but keep .gitkeep
+find work -mindepth 1 -not -name '.gitkeep' -delete
+# Clean up test-created folders in root (from fetch_info.sh running with ".")
+rm -rf media transcript writing
+echo "  ✓ Cleanup complete"
 
 echo ""
 echo "=== All tests passed ==="

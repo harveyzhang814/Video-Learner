@@ -15,7 +15,8 @@ let orchestrator;
 let wsServer;
 
 let db;
-const baseDir = path.join(__dirname, '..', '..');
+const baseDir = path.resolve(__dirname, '..', '..');
+console.log('[DEBUG] baseDir:', baseDir);
 const DB_PATH = path.join(baseDir, 'work', 'database.sqlite');
 
 let mainWindow;
@@ -72,6 +73,18 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  // 捕获渲染进程的 console 消息 (旧 API，有警告但兼容性好)
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    const levelMap = { 0: 'debug', 1: 'info', 2: 'warn', 3: 'error' };
+    const levelName = levelMap[level] || 'log';
+    if (message) console.log(`[Renderer ${levelName}] ${message}`);
+  });
+
+  // 捕获渲染进程未处理的错误
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('[Renderer] Process gone:', details.reason);
+  });
 
   // 初始化编排层（在 mainWindow 创建之后）
   initOrchestrator();

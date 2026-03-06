@@ -6,6 +6,32 @@
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
 
+# Helper function to output standardized status
+status() {
+    echo "[STATUS] $1"
+}
+
+# Helper functions
+mode_has_video() {
+    [[ "$MODE" == "full_flow_video" ]] || [[ "$MODE" == "download_video" ]]
+}
+
+mode_has_audio() {
+    [[ "$MODE" == "full_flow_audio" ]] || [[ "$MODE" == "download_audio" ]]
+}
+
+mode_has_transcript() {
+    [[ "$MODE" == "get_transcript" ]] || [[ "$MODE" == full_flow_* ]]
+}
+
+mode_has_article() {
+    [[ "$MODE" == "write_article" ]] || [[ "$MODE" == full_flow_* ]]
+}
+
+mode_has_summary() {
+    [[ "$MODE" == "summarize" ]] || [[ "$MODE" == full_flow_* ]]
+}
+
 # Parse arguments properly
 URL=""
 LANG="auto"
@@ -166,32 +192,6 @@ if [ "$FORCE" = "1" ] || [ "$(echo "$META" | jq -r '.title')" = "" ]; then
         echo "$index_line" >> work/index.jsonl
     fi
 fi
-
-# Helper function to output standardized status
-status() {
-    echo "[STATUS] $1"
-}
-
-# Helper functions
-mode_has_video() {
-    [[ "$MODE" == "full_flow_video" ]] || [[ "$MODE" == "download_video" ]]
-}
-
-mode_has_audio() {
-    [[ "$MODE" == "full_flow_audio" ]] || [[ "$MODE" == "download_audio" ]]
-}
-
-mode_has_transcript() {
-    [[ "$MODE" == "get_transcript" ]] || [[ "$MODE" == full_flow_* ]]
-}
-
-mode_has_article() {
-    [[ "$MODE" == "write_article" ]] || [[ "$MODE" == "full_flow_video" ]] || [[ "$MODE" == "full_flow_audio" ]]
-}
-
-mode_has_summary() {
-    [[ "$MODE" == "summarize" ]] || [[ "$MODE" == "full_flow_video" ]] || [[ "$MODE" == "full_flow_audio" ]]
-}
 
 # === STEP 1: Video Download (Independent Background Process) ===
 if mode_has_video; then
