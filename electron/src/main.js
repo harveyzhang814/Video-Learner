@@ -151,8 +151,7 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
       output_lang: 'zh-CN'
     });
 
-    // 更新 meta.json 的 task_status 字段
-    // 更新任务完成状态
+    // 更新任务完成状态到数据库
     if (db) {
       db.updateStep(result.id, 'summary', 'completed');
       db.updateDownload(result.id, 'completed');
@@ -269,6 +268,56 @@ ipcMain.handle('list-works', async () => {
   } catch (e) {
     console.error('list-works error:', e);
     return [];
+  }
+});
+
+// Get task details from database
+ipcMain.handle('get-task-details', async (event, id) => {
+  try {
+    if (!db) return null;
+    const task = db.getTask(id);
+    if (!task) return null;
+
+    const steps = db.getSteps(id);
+    const download = db.getDownload(id);
+
+    // Convert steps array to object
+    const stepStatus = {};
+    steps.forEach(s => {
+      stepStatus[s.step_name] = s.status;
+    });
+
+    return {
+      id: task.id,
+      url: task.url,
+      title: task.title,
+      lang: task.lang,
+      duration: task.duration,
+      output_lang: task.output_lang,
+      focus: task.focus,
+      download_status: download ? download.status : 'pending',
+      download_attempts: download ? download.attempts : 0,
+      download_error: download ? download.error : null,
+      step_status: stepStatus,
+      transcript_done: stepStatus.subs === 'completed',
+      article_done: stepStatus.article === 'completed',
+      summary_done: stepStatus.summary === 'completed'
+    };
+  } catch (e) {
+    console.error('get-task-details error:', e);
+    return null;
+  }
+});
+
+// Update task details in database
+ipcMain.handle('update-task-details', async (event, { id, data }) => {
+  try {
+    if (!db) return { success: false, error: 'Database not initialized' };
+    db.updateTask(id, data);
+    return { success: true };
+  } catch (e) {
+    console.error('update-task-details error:', e);
+    return { success: false, error: e.message };
   }
 });
 
@@ -468,35 +517,29 @@ ipcMain.handle('get-available-subtitles', async (event, id) => {
 
 // Reset task step
 ipcMain.handle('reset-task-step', async (event, { id, step }) => {
-  const fs = require('fs');
-  const path = require('path');
-  const metaPath = path.join(__dirname, '../..', 'work', id, 'transcript', 'meta.json');
-
-  if (!fs.existsSync(metaPath)) {
+  // Check if task exists in database
+  const task = db.getTask(id);
+  if (!task) {
     throw new Error('任务不存在');
   }
-
-  const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
 
   // 根据步骤更新状态
   switch (step) {
     case 'video':
-      meta.download_status = 'pending';
-      meta.download_attempts = 0;
+      db.updateDownload(id, 'pending', null, null);
       break;
     case 'transcript':
-      meta.transcript_done = false;
+      db.updateStep(id, 'subs', 'pending');
       break;
     case 'article':
-      meta.article_done = false;
+      db.updateStep(id, 'article', 'pending');
       break;
     case 'summary':
-      meta.summary_done = false;
+      db.updateStep(id, 'summary', 'pending');
       break;
     default:
       throw new Error('未知步骤: ' + step);
   }
 
-  fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
   return { success: true };
 });

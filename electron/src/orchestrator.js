@@ -49,12 +49,12 @@ class Orchestrator {
         return crypto.createHash('sha1').update(url).digest('hex').substring(0, 12);
     }
 
-    // 读取 meta.json
+    // 从数据库读取任务
     getMeta(id) {
         return this.db.getTask(id);
     }
 
-    // 写入 meta.json
+    // 保存任务到数据库
     saveMeta(id, meta) {
         // 更新任务表
         this.db.updateTask(id, {
@@ -101,24 +101,20 @@ class Orchestrator {
         const errors = [];
         const dir = path.join(this.baseDir, 'work', id);
 
+        // 检查任务是否存在于数据库
+        const task = this.db.getTask(id);
+        if (!task) {
+            errors.push('Task not found in database');
+        }
+
         switch (step) {
             case 'fetch':
                 // fetch 不需要前置条件
                 break;
             case 'video':
-                if (!fs.existsSync(path.join(dir, 'transcript', 'meta.json'))) {
-                    errors.push('meta.json not found');
-                }
-                break;
             case 'audio':
-                if (!fs.existsSync(path.join(dir, 'transcript', 'meta.json'))) {
-                    errors.push('meta.json not found');
-                }
-                break;
             case 'subs':
-                if (!fs.existsSync(path.join(dir, 'transcript', 'meta.json'))) {
-                    errors.push('meta.json not found');
-                }
+                // 需要任务已创建
                 break;
             case 'vtt2md':
                 const subsDir = path.join(dir, 'transcript', 'subs');
@@ -316,13 +312,13 @@ class Orchestrator {
         const id = this.generateId(url);
         const dir = path.join(this.baseDir, 'work', id);
 
-        // 检查 meta 是否已存在
+        // 检查任务是否已存在数据库中
         const existingMeta = this.getMeta(id);
         if (existingMeta) {
-            // 复用现有 meta，更新必要字段
+            // 复用现有任务，更新必要字段
             var meta = { ...existingMeta, ...{ id, url }, ts: new Date().toISOString(), output_lang: options.output_lang || existingMeta.output_lang || 'zh-CN' };
         } else {
-            // 初始化 meta.json
+            // 初始化新任务
             var meta = {
                 id,
                 url,

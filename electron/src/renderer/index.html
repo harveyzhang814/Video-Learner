@@ -1567,27 +1567,23 @@
       modalStatus.classList.remove('hidden');
       modalLogs.classList.remove('hidden');
 
-      // Load current task data
-      const meta = await window.api.readFile(`work/${currentId}/transcript/meta.json`);
-      if (meta) {
-        const j = JSON.parse(meta);
-
+      // Load current task data from database
+      const j = await window.api.getTaskDetails(currentId);
+      if (j) {
         // 保存到 localStorage 缓存
-        if (j) {
-            saveTaskCache(currentId, {
-                download_status: j.download_status,
-                transcript_done: j.transcript_done,
-                article_done: j.article_done,
-                summary_done: j.summary_done,
-                focus: j.focus,
-                title: j.title
-            });
-        }
+        saveTaskCache(currentId, {
+            download_status: j.download_status,
+            transcript_done: j.transcript_done,
+            article_done: j.article_done,
+            summary_done: j.summary_done,
+            focus: j.focus,
+            title: j.title
+        });
 
         modalUrlInput.value = j.url || '';
         modalFocusInput.value = j.focus || '';
         // Set radio button based on downloadVideo
-        const mode = j.downloadVideo || 'video';
+        const mode = 'video';
         const radio = modalDownloadModeRadios.querySelector(`input[value="${mode}"]`);
         if (radio) radio.checked = true;
         modalDownloadMode = mode;
@@ -1771,16 +1767,11 @@
       const focus = modalFocusInput.value.trim();
       const mode = getModalDownloadMode();
 
-      // Update meta.json
-      const metaPath = `work/${currentId}/transcript/meta.json`;
-      const meta = await window.api.readFile(metaPath);
-      if (meta) {
-        const j = JSON.parse(meta);
-        j.url = url;
-        j.focus = focus;
-        j.downloadVideo = mode;  // Save 'video', 'audio', or 'transcript' directly
-        await window.api.writeFile(metaPath, JSON.stringify(j, null, 2));
-      }
+      // Update task in database
+      await window.api.updateTaskDetails(currentId, {
+        url: url,
+        focus: focus
+      });
 
       closeNewTaskModal();
       // Reload the current work to update display
@@ -2364,14 +2355,14 @@
       currentId = id;
       loadHistory();
 
-      const meta = await window.api.readFile(`work/${id}/transcript/meta.json`);
+      // Load task data from database
+      const j = await window.api.getTaskDetails(id);
 
-      if (meta) {
-        const j = JSON.parse(meta);
+      if (j) {
         urlInput.value = j.url || '';
         focusInput.value = j.focus || '';
-        videoToggle.classList.toggle('active', j.downloadVideo !== false);
-        downloading = j.downloadVideo !== false;
+        videoToggle.classList.toggle('active', true);
+        downloading = true;
 
         // Update info section
         infoEmpty.classList.add('hidden');
@@ -2382,7 +2373,7 @@
         infoDuration.textContent = j.duration || '-';
         infoFocus.textContent = j.focus || '-';
 
-        // Update status pills based on meta
+        // Update status pills based on database
         resetInfoStatusPills();
         if (j.download_status === 'success') {
           updateInfoStatusPill('video', 'done');
@@ -2397,7 +2388,7 @@
         }
         if (j.summary_done) {
           updateInfoStatusPill('summary', 'done');
-        } else if (j.claude_summary_pending || j.focus_needed) {
+        } else if (j.step_status && (j.step_status.summary === 'pending' || j.step_status.summary === 'running')) {
           updateInfoStatusPill('summary', 'active');
         }
 
@@ -2409,13 +2400,13 @@
         // Hide empty state since we have content
         emptyState.classList.add('hidden');
       } else {
-        // No meta.json, show empty state
+        // No task in database, show empty state
         emptyState.classList.remove('hidden');
         infoEmpty.classList.remove('hidden');
         infoContent.classList.add('hidden');
       }
 
-      // Always load video, even if meta.json doesn't exist
+      // Always load video
       await loadVideo(id);
 
       switchTab('article');

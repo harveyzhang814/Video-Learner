@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('api', {
   retryStep: (id, step) => ipcRenderer.invoke('retry-step', { id, step }),
   skipStep: (id, step) => ipcRenderer.invoke('skip-step', { id, step }),
   getTaskStatus: (id) => ipcRenderer.invoke('get-task-status', id),
+  getTaskDetails: (id) => ipcRenderer.invoke('get-task-details', id),
+  updateTaskDetails: (id, data) => ipcRenderer.invoke('update-task-details', { id, data }),
   onOutput: (callback) => {
     ipcRenderer.on('pipeline-output', (event, text) => callback(text));
   },
