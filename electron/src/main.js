@@ -200,12 +200,9 @@ ipcMain.handle('list-works', async () => {
           const meta = JSON.parse(metaContent);
 
           // Determine status based on meta.json
-          let status = 'completed';
+          let status = 'running';  // Default to running
           if (meta.task_status) {
             status = meta.task_status;
-          } else if (meta.summary_done === false && meta.download_status !== 'success') {
-            // No explicit task_status, infer from progress
-            status = 'running';
           } else if (meta.summary_done === true) {
             status = 'completed';
           } else if (meta.download_status === 'failed') {
