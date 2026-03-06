@@ -6,8 +6,19 @@ _is_sourced() {
     [[ "${BASH_SOURCE[0]}" != "${0}" ]]
 }
 
+# 检查参数是否为命令
+_is_command() {
+    local cmd="$1"
+    [[ "$cmd" == "init" ]] || [[ "$cmd" == "create-task" ]] || \
+    [[ "$cmd" == "update-step" ]] || [[ "$cmd" == "update-download" ]] || \
+    [[ "$cmd" == "get-task" ]] || [[ "$cmd" == "get-steps" ]]
+}
+
 if _is_sourced; then
     # 被 sourced，使用默认值
+    DB_PATH="work/database.sqlite"
+elif _is_command "${1:-}"; then
+    # 第一个参数是命令，使用默认值
     DB_PATH="work/database.sqlite"
 else
     DB_PATH="${1:-work/database.sqlite}"
