@@ -197,16 +197,16 @@ class Orchestrator {
         const zhMd = path.join(dir, 'transcript', 'original_zh.md');
         switch (stepName) {
             case 'fetch':
-                args = [url, dir];
+                args = [url, dir, id];
                 break;
             case 'video':
-                args = [url, dir, force ? '1' : '0'];
+                args = [url, dir, id, force ? '1' : '0'];
                 break;
             case 'audio':
-                args = [url, dir, force ? '1' : '0'];
+                args = [url, dir, id, force ? '1' : '0'];
                 break;
             case 'subs':
-                args = [url, dir];
+                args = [url, dir, id];
                 break;
             case 'vtt2md':
                 // 自动找到所有 VTT 文件并转换

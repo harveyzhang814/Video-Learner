@@ -1,17 +1,23 @@
 #!/bin/bash
 #
 # Fetch video metadata (title, duration, thumbnail, etc.)
-# Usage: bash scripts/fetch_info.sh "URL" "DIR"
+# Usage: bash scripts/fetch_info.sh "URL" "DIR" [ID]
 #
 
 set -e
 
 URL="$1"
 DIR="$2"
+ID="$3"
 
 if [ -z "$URL" ] || [ -z "$DIR" ]; then
-    echo "Usage: $0 <URL> <DIR>"
+    echo "Usage: $0 <URL> <DIR> [ID]"
     exit 1
+fi
+
+# Use provided ID or generate from URL
+if [ -z "$ID" ]; then
+    ID=$(echo "$URL" | sha1sum | cut -c1-12)
 fi
 
 # Database path
@@ -22,9 +28,6 @@ DB_PATH="$PROJECT_DIR/work/database.sqlite"
 # Initialize database
 source "$SCRIPT_DIR/db.sh"
 init_db
-
-# Generate video ID from URL
-ID=$(echo "$URL" | sha1sum | cut -c1-12)
 
 # Create task in database
 create_task "$ID" "$URL"

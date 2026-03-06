@@ -1,14 +1,20 @@
 #!/bin/bash
 # Video downloader - runs as independent background process
-# Usage: bash scripts/download_video.sh <URL> <DIR> [FORCE]
+# Usage: bash scripts/download_video.sh <URL> <DIR> [ID] [FORCE]
 
 URL="$1"
 DIR="$2"
-FORCE="${3:-0}"
+ID="${3:-}"
+FORCE="${4:-0}"
 
 if [ -z "$URL" ] || [ -z "$DIR" ]; then
-    echo "Usage: download_video.sh <URL> <DIR> [FORCE]"
+    echo "Usage: download_video.sh <URL> <DIR> [ID] [FORCE]"
     exit 1
+fi
+
+# Use provided ID or generate from URL
+if [ -z "$ID" ]; then
+    ID=$(echo "$URL" | sha1sum | cut -c1-12)
 fi
 
 # Database path
@@ -18,9 +24,6 @@ DB_PATH="$PROJECT_DIR/work/database.sqlite"
 
 # Initialize database
 source "$SCRIPT_DIR/db.sh"
-
-# Generate video ID from URL
-ID=$(echo "$URL" | sha1sum | cut -c1-12)
 
 mkdir -p "$DIR"
 
