@@ -2,6 +2,9 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
+// 引入数据库管理
+const DatabaseManager = require('./db');
+
 // 引入编排层
 const Orchestrator = require('./orchestrator');
 
@@ -10,6 +13,9 @@ const WebSocketServer = require('./websocket-server');
 
 let orchestrator;
 let wsServer;
+
+let db;
+const DB_PATH = path.join(__dirname, '../..', 'work', 'database.sqlite');
 
 let mainWindow;
 let currentProcess = null;
@@ -69,6 +75,9 @@ function createWindow() {
 
   // 初始化编排层（在 mainWindow 创建之后）
   initOrchestrator();
+
+  // 初始化数据库
+  db = new DatabaseManager(DB_PATH);
 
   // 启动 WebSocket 服务器
   wsServer = new WebSocketServer(8765);
@@ -143,12 +152,10 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
     });
 
     // 更新 meta.json 的 task_status 字段
-    const metaPath = path.join(__dirname, '../..', 'work', result.id, 'transcript', 'meta.json');
-    const fs = require('fs');
-    if (fs.existsSync(metaPath)) {
-      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-      meta.task_status = 'completed';
-      fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+    // 更新任务完成状态
+    if (db) {
+      db.updateStep(result.id, 'summary', 'completed');
+      db.updateDownload(result.id, 'completed');
     }
 
     return { success: true, id: result.id };
@@ -249,45 +256,18 @@ ipcMain.handle('write-file', async (event, { filePath, content }) => {
 
 // List work directories
 ipcMain.handle('list-works', async () => {
-  const fs = require('fs').promises;
-  const workDir = path.join(__dirname, '../..', 'work');
-
   try {
-    const entries = await fs.readdir(workDir, { withFileTypes: true });
-    const dirs = [];
-
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const metaPath = path.join(workDir, entry.name, 'transcript', 'meta.json');
-        try {
-          const metaContent = await fs.readFile(metaPath, 'utf-8');
-          const meta = JSON.parse(metaContent);
-
-          // Determine status based on meta.json
-          let status = 'running';  // Default to running
-          if (meta.task_status) {
-            status = meta.task_status;
-          } else if (meta.summary_done === true) {
-            status = 'completed';
-          } else if (meta.download_status === 'failed') {
-            status = 'failed';
-          }
-
-          dirs.push({
-            id: entry.name,
-            title: meta.title || 'Untitled',
-            ts: meta.ts,
-            status: status,
-            done: meta.summary_done
-          });
-        } catch (e) {
-          dirs.push({ id: entry.name, title: 'Unknown', done: false, status: 'unknown' });
-        }
-      }
-    }
-
-    return dirs.sort((a, b) => new Date(b.ts) - new Date(a.ts));
+    if (!db) return [];
+    const tasks = db.listTasks();
+    return tasks.map(t => ({
+      id: t.id,
+      title: t.title || 'Untitled',
+      ts: t.ts,
+      status: t.download_status === 'success' ? 'completed' :
+              t.download_status === 'failed' ? 'failed' : 'running'
+    }));
   } catch (e) {
+    console.error('list-works error:', e);
     return [];
   }
 });
