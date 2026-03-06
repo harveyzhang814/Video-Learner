@@ -379,9 +379,9 @@ class Orchestrator {
         await this.runStep(id, 'md2vtt');
         await this.runStep(id, 'article');
 
-        if (focus || meta.focus) {
-            await this.runStep(id, 'summary', { focus });
-        }
+        // Always run summary (use default focus if not provided)
+        const summaryFocus = focus || meta.focus || '视频的主要内容和要点';
+        await this.runStep(id, 'summary', { focus: summaryFocus });
 
         // 推送任务完成事件
         if (this.onStepEvent) {
