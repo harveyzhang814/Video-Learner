@@ -1617,8 +1617,12 @@
         }
       }
 
-      // Load existing logs if any
-      const logContent = await window.api.readFile(`work/${currentId}/media/video_download.log`);
+      // Load existing logs from task.log
+      let logContent = await window.api.readFile(`work/${currentId}/media/task.log`);
+      if (!logContent) {
+        // Fallback to old video_download.log
+        logContent = await window.api.readFile(`work/${currentId}/media/video_download.log`);
+      }
       if (logContent) {
         modalLogs.textContent = logContent;
         modalLogs.scrollTop = modalLogs.scrollHeight;
@@ -2217,6 +2221,20 @@
         item.addEventListener('click', () => loadWork(item.dataset.id));
       });
     }
+
+    // Auto-refresh every 5 seconds when page is active
+    if (!window.historyRefreshInterval) {
+      window.historyRefreshInterval = setInterval(() => {
+        loadHistory();
+      }, 5000);
+    }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      if (window.historyRefreshInterval) {
+        clearInterval(window.historyRefreshInterval);
+      }
+    });
 
     async function loadWork(id) {
       currentId = id;
