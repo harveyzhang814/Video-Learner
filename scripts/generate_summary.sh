@@ -9,7 +9,12 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+DB_PATH="$PROJECT_DIR/work/database.sqlite"
 PROMPT_TEMPLATE="$SCRIPT_DIR/summary_prompt.txt"
+
+# Initialize database
+source "$SCRIPT_DIR/db.sh"
 
 # Check arguments
 if [ $# -lt 3 ]; then
@@ -22,6 +27,9 @@ ARTICLE_PATH="$1"
 FOCUS="$2"
 OUTPUT_PATH="$3"
 OUTPUT_LANG="${4:-zh-CN}"  # Default to zh-CN
+
+# Extract task ID from article path (e.g., work/<id>/writing/article.md)
+TASK_ID=$(echo "$ARTICLE_PATH" | sed -E 's|.*/work/([^/]+)/writing.*|\1|')
 
 # Validate input file exists
 if [ ! -f "$ARTICLE_PATH" ]; then
@@ -44,6 +52,9 @@ echo "Generating summary from: $ARTICLE_PATH"
 echo "Focus: $FOCUS"
 echo "Output language: $OUTPUT_LANG"
 
+# Update step to running
+update_step "$TASK_ID" "summary" "running"
+
 # Create temporary prompt file with replaced placeholders
 TEMP_PROMPT=$(mktemp)
 sed -e "s|{{FOCUS}}|$FOCUS|g" \
@@ -60,9 +71,13 @@ claude -p --dangerously-skip-permissions < "$TEMP_PROMPT" > "$OUTPUT_PATH"
 rm -f "$TEMP_PROMPT"
 
 if [ $? -eq 0 ]; then
+    # Update database
+    update_step "$TASK_ID" "summary" "completed"
     echo "[STATUS] summary_done"
     exit 0
 else
+    # Update database
+    update_step "$TASK_ID" "summary" "failed" "generation failed"
     echo "[STATUS] summary_error: Summary generation failed"
     exit 1
 fi

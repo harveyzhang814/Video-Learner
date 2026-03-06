@@ -11,9 +11,23 @@ if [ -z "$URL" ] || [ -z "$DIR" ]; then
     exit 1
 fi
 
+# Database path
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+DB_PATH="$PROJECT_DIR/work/database.sqlite"
+
+# Initialize database
+source "$SCRIPT_DIR/db.sh"
+
+# Generate video ID from URL
+ID=$(echo "$URL" | sha1sum | cut -c1-12)
+
 mkdir -p "$DIR"
 
 echo "[STATUS] video_start"
+
+# Update step to running
+update_step "$ID" "video" "running"
 
 # Check if already exists
 if [ "$FORCE" = "0" ] && [ -f "$DIR/media/video.mp4" ]; then
@@ -22,6 +36,9 @@ if [ "$FORCE" = "0" ] && [ -f "$DIR/media/video.mp4" ]; then
         echo "[STATUS] video_done"
         jq '.download_status = "skipped_existing"' > "$DIR/media/meta_temp.json" < "$DIR/transcript/meta.json"
         mv "$DIR/media/meta_temp.json" "$DIR/transcript/meta.json" 2>/dev/null || true
+        # Update database
+        update_step "$ID" "video" "skipped"
+        update_download "$ID" "skipped_existing"
         exit 0
     fi
 fi
@@ -38,6 +55,9 @@ if [ -f "$DIR/media/video.temp.mp4" ]; then
     echo "[STATUS] video_done"
     jq '.download_status = "success"' > "$DIR/media/meta_temp.json" < "$DIR/transcript/meta.json"
     mv "$DIR/media/meta_temp.json" "$DIR/transcript/meta.json" 2>/dev/null || true
+    # Update database
+    update_step "$ID" "video" "completed"
+    update_download "$ID" "success" "" "$DIR/media/video.mp4"
     exit 0
 fi
 
@@ -52,6 +72,9 @@ if [ -f "$DIR/media/v_tempvideo.mp4" ] && [ -f "$DIR/media/v_tempaudio.m4a" ]; t
         echo "[STATUS] video_done"
         jq '.download_status = "success"' > "$DIR/media/meta_temp.json" < "$DIR/transcript/meta.json"
         mv "$DIR/media/meta_temp.json" "$DIR/transcript/meta.json" 2>/dev/null || true
+        # Update database
+        update_step "$ID" "video" "completed"
+        update_download "$ID" "success" "" "$DIR/media/video.mp4"
         exit 0
     fi
 fi
@@ -61,4 +84,7 @@ echo "[STATUS] video_error: download failed"
 rm -f "$DIR/media/v_tempvideo.mp4" "$DIR/media/v_tempaudio.m4a" "$DIR/media/video.temp.mp4" 2>/dev/null || true
 jq '.download_status = "failed"' > "$DIR/media/meta_temp.json" < "$DIR/transcript/meta.json"
 mv "$DIR/media/meta_temp.json" "$DIR/transcript/meta.json" 2>/dev/null || true
+# Update database
+update_step "$ID" "video" "failed" "download failed"
+update_download "$ID" "failed" "download failed"
 exit 1

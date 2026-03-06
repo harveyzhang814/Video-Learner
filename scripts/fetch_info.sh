@@ -14,6 +14,21 @@ if [ -z "$URL" ] || [ -z "$DIR" ]; then
     exit 1
 fi
 
+# Database path
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+DB_PATH="$PROJECT_DIR/work/database.sqlite"
+
+# Initialize database
+source "$SCRIPT_DIR/db.sh"
+init_db
+
+# Generate video ID from URL
+ID=$(echo "$URL" | sha1sum | cut -c1-12)
+
+# Create task in database
+create_task "$ID" "$URL"
+
 # Create output directories
 mkdir -p "$DIR/transcript"
 mkdir -p "$DIR/media"
@@ -22,6 +37,9 @@ mkdir -p "$DIR/writing"
 META_FILE="$DIR/transcript/meta.json"
 
 echo "[STATUS] fetch_start"
+
+# Update step to running
+update_step "$ID" "fetch" "running"
 
 # Get video info as JSON
 video_info=$(yt-dlp --dump-json --no-download "$URL" 2>/dev/null)
@@ -54,7 +72,7 @@ if [ -f "$META_FILE" ]; then
        "$META_FILE" > "${META_FILE}.tmp" && mv "${META_FILE}.tmp" "$META_FILE"
 else
     # Create new meta.json
-    echo "{}" | jq --arg id "$(echo "$URL" | sha1sum | cut -c1-12)" \
+    echo "{}" | jq --arg id "$ID" \
                   --arg url "$URL" \
                   --arg title "$title" \
                   --argjson duration "$duration" \
@@ -65,6 +83,12 @@ else
                   '.id = $id | .url = $url | .title = $title | .duration = $duration | .thumbnail = $thumbnail | .description = $description | .uploader = $uploader | .ts = $ts' \
                   > "$META_FILE"
 fi
+
+# Update task in database with metadata
+sqlite3 "$DB_PATH" "UPDATE tasks SET title = '$title', duration = '$duration', updated_at = datetime('now') WHERE id = '$ID';"
+
+# Update step to completed
+update_step "$ID" "fetch" "completed"
 
 echo "[STATUS] fetch_done"
 exit 0

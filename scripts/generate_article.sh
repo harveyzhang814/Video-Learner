@@ -8,7 +8,12 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+DB_PATH="$PROJECT_DIR/work/database.sqlite"
 PROMPT_TEMPLATE="$SCRIPT_DIR/article_prompt.txt"
+
+# Initialize database
+source "$SCRIPT_DIR/db.sh"
 
 # Check arguments
 if [ $# -lt 2 ]; then
@@ -20,6 +25,10 @@ fi
 ORIGINAL_PATH="$1"
 OUTPUT_PATH="$2"
 OUTPUT_LANG="${3:-zh-CN}"  # Default to zh-CN
+
+# Extract task ID from original path (e.g., work/<id>/transcript/original.md)
+# Get the directory containing the transcript folder
+TASK_ID=$(echo "$ORIGINAL_PATH" | sed -E 's|.*/work/([^/]+)/transcript.*|\1|')
 
 # Validate input file exists
 if [ ! -f "$ORIGINAL_PATH" ]; then
@@ -56,6 +65,9 @@ echo "Generating article from: $ORIGINAL_PATH"
 echo "Output language: $OUTPUT_LANG"
 echo "Source language: $SOURCE_LANG"
 
+# Update step to running
+update_step "$TASK_ID" "article" "running"
+
 # Create temporary prompt file with replaced placeholders
 TEMP_PROMPT=$(mktemp)
 sed -e "s|{{ORIGINAL_PATH}}|$ORIGINAL_PATH|g" \
@@ -72,9 +84,13 @@ claude -p --dangerously-skip-permissions < "$TEMP_PROMPT" > "$OUTPUT_PATH"
 rm -f "$TEMP_PROMPT"
 
 if [ $? -eq 0 ]; then
+    # Update database
+    update_step "$TASK_ID" "article" "completed"
     echo "[STATUS] article_done"
     exit 0
 else
+    # Update database
+    update_step "$TASK_ID" "article" "failed" "generation failed"
     echo "[STATUS] article_error: Article generation failed"
     exit 1
 fi

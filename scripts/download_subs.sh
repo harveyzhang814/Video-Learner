@@ -14,6 +14,17 @@ if [ -z "$URL" ] || [ -z "$DIR" ]; then
     exit 1
 fi
 
+# Database path
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+DB_PATH="$PROJECT_DIR/work/database.sqlite"
+
+# Initialize database
+source "$SCRIPT_DIR/db.sh"
+
+# Generate video ID from URL
+ID=$(echo "$URL" | sha1sum | cut -c1-12) || true
+
 # Create output directory
 SUBS_DIR="$DIR/transcript/subs"
 if ! mkdir -p "$SUBS_DIR"; then
@@ -22,12 +33,12 @@ if ! mkdir -p "$SUBS_DIR"; then
 fi
 
 # Trap for cleanup on interrupt (after SUBS_DIR is defined)
-trap 'rm -f "$SUBS_DIR"/${id}.*.temp.* 2>/dev/null; exit 1' INT TERM
-
-# Generate video ID from URL
-id=$(echo "$URL" | sha1sum | cut -c1-12) || true
+trap 'rm -f "$SUBS_DIR"/${ID}.*.temp.* 2>/dev/null; exit 1' INT TERM
 
 echo "[STATUS] subs_start"
+
+# Update step to running
+update_step "$ID" "subs" "running"
 
 # Detect available subtitles
 echo "Detecting available subtitles..."
@@ -44,7 +55,7 @@ download_subtitle_for_lang() {
     local subs_lang="$2"
     local sub_type="$3"
 
-    local outfile_base="$SUBS_DIR/${id}.${target_lang}.${sub_type}"
+    local outfile_base="$SUBS_DIR/${ID}.${target_lang}.${sub_type}"
 
     # Skip if already exists
     if [ -f "${outfile_base}.vtt" ]; then
@@ -139,13 +150,17 @@ fi
 
 # List downloaded files
 echo "=== Downloaded subtitles ==="
-ls -la "$SUBS_DIR"/${id}.*.vtt 2>/dev/null || echo "No subtitles downloaded"
+ls -la "$SUBS_DIR"/${ID}.*.vtt 2>/dev/null || echo "No subtitles downloaded"
 
 # Output status
 if [ "$en_downloaded" = true ] || [ "$zh_downloaded" = true ]; then
+    # Update database
+    update_step "$ID" "subs" "completed"
     echo "[STATUS] subs_done"
     exit 0
 else
+    # Update database
+    update_step "$ID" "subs" "failed" "no subtitles available"
     echo "[STATUS] subs_error"
     exit 1
 fi
