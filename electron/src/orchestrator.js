@@ -47,6 +47,7 @@ class Orchestrator {
     runStepScript(step, args) {
         return new Promise((resolve, reject) => {
             const script = path.join(this.baseDir, 'scripts', STEPS[step]);
+            console.log('[DEBUG] runStepScript:', step, args);
             const proc = spawn('bash', [script, ...args], { cwd: this.baseDir });
 
             let output = '';
@@ -236,7 +237,9 @@ class Orchestrator {
 
     // 全部执行
     async run(url, options = {}) {
-        const { downloadVideo = false, focus = '', force = false } = options;
+        const { downloadVideo = false, downloadAudio = false, focus = '', force = false } = options;
+
+        console.log('[DEBUG] orchestrator.run called with:', { downloadVideo, downloadAudio, focus, force });
 
         // 生成 ID
         const id = this.generateId(url);
@@ -270,8 +273,15 @@ class Orchestrator {
         this.saveMeta(id, meta);
 
         // 依次执行步骤
+        console.log('[DEBUG] deciding download step:', { downloadVideo, downloadAudio });
         if (downloadVideo) {
+            console.log('[DEBUG] executing video step');
             await this.runStep(id, 'video', { force });
+        } else if (downloadAudio) {
+            console.log('[DEBUG] executing audio step');
+            await this.runStep(id, 'audio', { force });
+        } else {
+            console.log('[DEBUG] no media download, skipping to subs');
         }
 
         await this.runStep(id, 'subs');

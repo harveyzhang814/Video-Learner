@@ -57,15 +57,22 @@ app.on('activate', () => {
  */
 ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo, id }) => {
   try {
+    console.log('[DEBUG] run-pipeline called with:', { url, focus, force, downloadVideo, id });
+
     // 确定是否下载视频
     let shouldDownloadVideo = false;
+    let shouldDownloadAudio = false;
     if (downloadVideo === 'video') {
       shouldDownloadVideo = true;
+    } else if (downloadVideo === 'audio') {
+      shouldDownloadAudio = true;
     }
+    console.log('[DEBUG] resolved download options:', { shouldDownloadVideo, shouldDownloadAudio });
 
     // 使用编排层执行
     const result = await orchestrator.run(url, {
       downloadVideo: shouldDownloadVideo,
+      downloadAudio: shouldDownloadAudio,
       focus,
       force: force || false,
       output_lang: 'zh-CN'
