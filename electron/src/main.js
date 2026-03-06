@@ -15,7 +15,7 @@ let orchestrator;
 let wsServer;
 
 let db;
-const DB_PATH = path.join(__dirname, '../..', 'work', 'database.sqlite');
+const DB_PATH = path.join(__dirname, '../../..', 'work', 'database.sqlite');
 
 let mainWindow;
 let currentProcess = null;
@@ -23,7 +23,7 @@ let currentProcessId = null;
 
 // 初始化编排层（延迟到 createWindow 后获取 mainWindow）
 function initOrchestrator() {
-    const baseDir = path.join(__dirname, '../..');
+    const baseDir = path.join(__dirname, '../../..');
     orchestrator = new Orchestrator(baseDir,
         (text) => {
             // 实时推送输出到前端
