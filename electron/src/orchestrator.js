@@ -15,11 +15,12 @@ const STEPS = {
 };
 
 class Orchestrator {
-    constructor(baseDir, onOutput = null, onTaskCreated = null, onTaskUpdated = null) {
+    constructor(baseDir, onOutput = null, onTaskCreated = null, onTaskUpdated = null, onStepEvent = null) {
         this.baseDir = baseDir;
         this.onOutput = onOutput;
         this.onTaskCreated = onTaskCreated;
         this.onTaskUpdated = onTaskUpdated;
+        this.onStepEvent = onStepEvent;
     }
 
     // 设置输出回调
@@ -168,6 +169,16 @@ class Orchestrator {
         };
         this.saveMeta(id, meta);
 
+        // 推送步骤开始事件
+        if (this.onStepEvent) {
+            this.onStepEvent('task:status', {
+                id,
+                currentStep: stepName,
+                stepStatus: 'running',
+                steps: meta.steps || {}
+            });
+        }
+
         // 构建参数并执行
         let args = [];
         const enMd = path.join(dir, 'transcript', 'original_en.md');
@@ -251,6 +262,16 @@ class Orchestrator {
         meta.step_status = meta.steps[stepName].status;
         this.saveMeta(id, meta);
 
+        // 推送步骤完成事件
+        if (this.onStepEvent) {
+            this.onStepEvent('task:status', {
+                id,
+                currentStep: stepName,
+                stepStatus: meta.steps[stepName].status,
+                steps: meta.steps
+            });
+        }
+
         return { success: meta.steps[stepName].status === 'completed', output: meta.steps[stepName].error || 'done' };
     }
 
@@ -324,6 +345,11 @@ class Orchestrator {
 
         if (focus || meta.focus) {
             await this.runStep(id, 'summary', { focus });
+        }
+
+        // 推送任务完成事件
+        if (this.onStepEvent) {
+            this.onStepEvent('task:complete', { id });
         }
 
         return { id, status: 'completed' };
