@@ -4,11 +4,22 @@ const { spawn } = require('child_process');
 
 // 引入编排层
 const Orchestrator = require('./orchestrator');
-const orchestrator = new Orchestrator(path.join(__dirname, '../..'));
+let orchestrator;
 
 let mainWindow;
 let currentProcess = null;
 let currentProcessId = null;
+
+// 初始化编排层（延迟到 createWindow 后获取 mainWindow）
+function initOrchestrator() {
+    const baseDir = path.join(__dirname, '../..');
+    orchestrator = new Orchestrator(baseDir, (text) => {
+        // 实时推送输出到前端
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('pipeline-output', text);
+        }
+    });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -22,6 +33,9 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  // 初始化编排层（在 mainWindow 创建之后）
+  initOrchestrator();
 }
 
 app.whenReady().then(createWindow);

@@ -14,8 +14,14 @@ const STEPS = {
 };
 
 class Orchestrator {
-    constructor(baseDir) {
+    constructor(baseDir, onOutput = null) {
         this.baseDir = baseDir;
+        this.onOutput = onOutput; // 回调函数，用于实时输出
+    }
+
+    // 设置输出回调
+    setOutputCallback(callback) {
+        this.onOutput = callback;
     }
 
     // 生成任务 ID
@@ -44,8 +50,20 @@ class Orchestrator {
             const proc = spawn('bash', [script, ...args], { cwd: this.baseDir });
 
             let output = '';
-            proc.stdout.on('data', (data) => { output += data.toString(); });
-            proc.stderr.on('data', (data) => { output += data.toString(); });
+            proc.stdout.on('data', (data) => {
+                const text = data.toString();
+                output += text;
+                if (this.onOutput) {
+                    this.onOutput(text);
+                }
+            });
+            proc.stderr.on('data', (data) => {
+                const text = data.toString();
+                output += text;
+                if (this.onOutput) {
+                    this.onOutput(text);
+                }
+            });
 
             proc.on('close', (code) => {
                 resolve({ code, output });
