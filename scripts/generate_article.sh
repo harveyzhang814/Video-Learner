@@ -59,6 +59,7 @@ echo "Source language: $SOURCE_LANG"
 # Create temporary prompt file with replaced placeholders
 TEMP_PROMPT=$(mktemp)
 sed -e "s|{{ORIGINAL_PATH}}|$ORIGINAL_PATH|g" \
+    -e "s|{{OUTPUT_PATH}}|$OUTPUT_PATH|g" \
     -e "s|{{SOURCE_LANG}}|$SOURCE_LANG|g" \
     -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
     "$PROMPT_TEMPLATE" > "$TEMP_PROMPT"
