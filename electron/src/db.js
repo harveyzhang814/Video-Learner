@@ -82,7 +82,7 @@ class DatabaseManager {
         // Ensure task exists first (to satisfy foreign key)
         const taskExists = this.db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
         if (!taskExists) {
-            this.db.prepare('INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime("now"))').run(taskId, '');
+            this.db.prepare('INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime(\'now\'))').run(taskId, '');
         }
 
         const existing = this.db.prepare(
@@ -117,7 +117,7 @@ class DatabaseManager {
         // Ensure task exists first (to satisfy foreign key)
         const taskExists = this.db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
         if (!taskExists) {
-            this.db.prepare('INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime("now"))').run(taskId, '');
+            this.db.prepare('INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime(\'now\'))').run(taskId, '');
         }
 
         const existing = this.db.prepare('SELECT * FROM downloads WHERE task_id = ?').get(taskId);

@@ -1919,9 +1919,8 @@
         });
 
         if (res.success) {
-          const m = res.output.match(/ID: ([a-f0-9]+)/);
-          if (m) {
-            const newId = m[1];
+          const newId = res.id;
+          if (newId) {
             // Close modal and load the new task
             closeNewTaskModal();
             await loadWork(newId);
