@@ -52,6 +52,58 @@ class Orchestrator {
             });
         });
     }
+
+    // 前置条件检查
+    checkPrerequisites(id, step) {
+        const errors = [];
+        const dir = path.join(this.baseDir, 'work', id);
+
+        switch (step) {
+            case 'video':
+                if (!fs.existsSync(path.join(dir, 'transcript', 'meta.json'))) {
+                    errors.push('meta.json not found');
+                }
+                break;
+            case 'audio':
+                if (!fs.existsSync(path.join(dir, 'transcript', 'meta.json'))) {
+                    errors.push('meta.json not found');
+                }
+                break;
+            case 'subs':
+                if (!fs.existsSync(path.join(dir, 'transcript', 'meta.json'))) {
+                    errors.push('meta.json not found');
+                }
+                break;
+            case 'vtt2md':
+                const subsDir = path.join(dir, 'transcript', 'subs');
+                const hasSubs = fs.existsSync(subsDir) &&
+                    fs.readdirSync(subsDir).some(f => f.endsWith('.vtt'));
+                if (!hasSubs) errors.push('No subtitle files found in subs/');
+                break;
+            case 'md2vtt':
+                const enMd = path.join(dir, 'transcript', 'original_en.md');
+                const zhMd = path.join(dir, 'transcript', 'original_zh.md');
+                if (!fs.existsSync(enMd) && !fs.existsSync(zhMd)) {
+                    errors.push('No transcript file found (original_en.md or original_zh.md)');
+                }
+                break;
+            case 'article':
+                const transcriptFile = fs.existsSync(path.join(dir, 'transcript', 'original_en.md'))
+                    ? path.join(dir, 'transcript', 'original_en.md')
+                    : fs.existsSync(path.join(dir, 'transcript', 'original_zh.md'))
+                        ? path.join(dir, 'transcript', 'original_zh.md')
+                        : null;
+                if (!transcriptFile) errors.push('No transcript file found');
+                break;
+            case 'summary':
+                if (!fs.existsSync(path.join(dir, 'writing', 'article.md'))) {
+                    errors.push('article.md not found');
+                }
+                break;
+        }
+
+        return errors;
+    }
 }
 
 module.exports = Orchestrator;
