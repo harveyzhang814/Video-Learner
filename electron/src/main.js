@@ -324,16 +324,22 @@ ipcMain.handle('update-task-details', async (event, { id, data }) => {
 // Open folder in Finder
 ipcMain.handle('open-folder', async (event, folderPath) => {
   const { shell } = require('electron');
-  const fullPath = path.join(__dirname, '../..', folderPath);
+  const fullPath = path.join(baseDir, folderPath);
   shell.openPath(fullPath);
 });
 
 // Delete work directory
 ipcMain.handle('delete-work', async (event, id) => {
   const fs = require('fs').promises;
-  const workDir = path.join(__dirname, '../..', 'work', id);
+  const workDir = path.join(baseDir, 'work', id);
   try {
     await fs.rm(workDir, { recursive: true, force: true });
+    // Also delete from database
+    if (db) {
+      db.db.prepare('DELETE FROM steps WHERE task_id = ?').run(id);
+      db.db.prepare('DELETE FROM downloads WHERE task_id = ?').run(id);
+      db.db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
+    }
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message };
