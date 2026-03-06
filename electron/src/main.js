@@ -4,7 +4,12 @@ const { spawn } = require('child_process');
 
 // 引入编排层
 const Orchestrator = require('./orchestrator');
+
+// 引入 WebSocket 服务器
+const WebSocketServer = require('./websocket-server');
+
 let orchestrator;
+let wsServer;
 
 let mainWindow;
 let currentProcess = null;
@@ -13,22 +18,40 @@ let currentProcessId = null;
 // 初始化编排层（延迟到 createWindow 后获取 mainWindow）
 function initOrchestrator() {
     const baseDir = path.join(__dirname, '../..');
-    orchestrator = new Orchestrator(baseDir, (text) => {
-        // 实时推送输出到前端
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('pipeline-output', text);
+    orchestrator = new Orchestrator(baseDir,
+        (text) => {
+            // 实时推送输出到前端
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('pipeline-output', text);
+            }
+            // Also broadcast to WebSocket clients
+            if (wsServer) {
+                wsServer.broadcast('task:output', { text });
+            }
+        },
+        (task) => {
+            // 推送 task-created 事件
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('task-created', task);
+            }
+            // Also broadcast to WebSocket clients
+            if (wsServer) {
+                wsServer.broadcast('task:created', task);
+            }
+        },
+        (task) => {
+            // 推送 task-updated 事件
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('task-updated', task);
+            }
+        },
+        (type, payload) => {
+            // 推送步骤事件到 WebSocket 客户端
+            if (wsServer) {
+                wsServer.broadcast(type, payload);
+            }
         }
-    }, (task) => {
-        // 推送 task-created 事件
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('task-created', task);
-        }
-    }, (task) => {
-        // 推送 task-updated 事件
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('task-updated', task);
-        }
-    });
+    );
 }
 
 function createWindow() {
@@ -46,6 +69,37 @@ function createWindow() {
 
   // 初始化编排层（在 mainWindow 创建之后）
   initOrchestrator();
+
+  // 启动 WebSocket 服务器
+  wsServer = new WebSocketServer(8765);
+  wsServer.start();
+
+  // 设置命令处理回调
+  wsServer.onCommand = async (data) => {
+      console.log('[WS] Received command:', data);
+      switch (data.type) {
+          case 'task:cancel':
+              // Handle cancel - stop current pipeline
+              if (currentProcess) {
+                  currentProcess.kill('SIGTERM');
+                  currentProcess = null;
+              }
+              break;
+          case 'task:pause':
+              // TODO: Handle pause - implement pause mechanism if needed
+              break;
+          case 'task:resume':
+              // TODO: Handle resume - implement resume mechanism if needed
+              break;
+          case 'task:refresh':
+              // Handle refresh - send current status
+              if (orchestrator) {
+                  const status = orchestrator.getStatus(data.payload.id);
+                  wsServer.send('task:status', status);
+              }
+              break;
+      }
+  };
 }
 
 app.whenReady().then(createWindow);

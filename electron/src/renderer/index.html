@@ -2211,6 +2211,9 @@
 
     loadHistory();
 
+    // Connect to WebSocket for realtime updates
+    connectWebSocket();
+
     // 监听任务创建事件 - 立即刷新列表
     window.api.onTaskCreated((task) => {
       loadHistory();
@@ -2225,6 +2228,104 @@
       // 刷新列表以更新标题
       loadHistory();
     });
+
+    // WebSocket connection for realtime updates
+    let ws = null;
+    let wsReconnectInterval = null;
+
+    function connectWebSocket() {
+        if (ws && ws.readyState === WebSocket.OPEN) return;
+
+        ws = new WebSocket('ws://localhost:8765');
+
+        ws.onopen = () => {
+            console.log('[WS] Connected');
+            if (wsReconnectInterval) {
+                clearInterval(wsReconnectInterval);
+                wsReconnectInterval = null;
+            }
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            handleWsMessage(data);
+        };
+
+        ws.onclose = () => {
+            console.log('[WS] Disconnected');
+            // Reconnect if tasks are running
+            if (!wsReconnectInterval) {
+                wsReconnectInterval = setInterval(connectWebSocket, 5000);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('[WS] Error:', error);
+        };
+    }
+
+    function handleWsMessage(data) {
+        switch (data.type) {
+            case 'task:status':
+                updateTaskStatus(data.payload);
+                break;
+            case 'task:output':
+                appendOutput(data.payload.text);
+                break;
+            case 'task:complete':
+                handleTaskComplete(data.payload);
+                break;
+            case 'task:error':
+                handleTaskError(data.payload);
+                break;
+        }
+    }
+
+    function updateTaskStatus(status) {
+        if (status.id === currentId) {
+            loadWork(status.id);
+        }
+        loadHistory();
+    }
+
+    function handleTaskComplete(payload) {
+        if (payload.id === currentId) {
+            loadWork(payload.id);
+        }
+        loadHistory();
+    }
+
+    function handleTaskError(payload) {
+        if (payload.id === currentId) {
+            loadWork(payload.id);
+        }
+        loadHistory();
+    }
+
+    function sendWsCommand(type, payload) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type, payload }));
+        }
+    }
+
+    function appendOutput(text) {
+        const modalLogs = document.getElementById('modalLogs');
+        if (!modalLogs) return;
+        const lines = text.split('\n').filter(l => l.trim());
+        const ts = new Date().toLocaleTimeString();
+        lines.forEach(line => {
+            const div = document.createElement('div');
+            div.className = 'log-line';
+            const cls = line.includes('Error') ? 'log-err' : line.includes('Success') ? 'log-ok' : '';
+            div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${line}</span>`;
+            modalLogs.appendChild(div);
+        });
+        modalLogs.scrollTop = modalLogs.scrollHeight;
+    }
+
+    function refreshTask(id) {
+        sendWsCommand('task:refresh', { id });
+    }
 
     async function loadHistory() {
       const works = await window.api.listWorks();
@@ -2245,11 +2346,11 @@
       });
     }
 
-    // Auto-refresh every 5 seconds when page is active
+    // Auto-refresh every 30 seconds when page is active (fallback for WebSocket)
     if (!window.historyRefreshInterval) {
       window.historyRefreshInterval = setInterval(() => {
         loadHistory();
-      }, 5000);
+      }, 30000);
     }
 
     // Cleanup on page unload
