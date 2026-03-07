@@ -56,12 +56,22 @@ class Orchestrator {
 
     // 保存任务到数据库
     saveMeta(id, meta) {
+        // If title or duration is empty in meta, preserve existing values from DB
+        let title = meta.title;
+        let duration = meta.duration;
+        if (!title || !duration) {
+            const existing = this.db.getTask(id);
+            if (existing) {
+                title = title || existing.title;
+                duration = duration || existing.duration;
+            }
+        }
         // 更新任务表
         this.db.updateTask(id, {
             url: meta.url,
-            title: meta.title,
+            title: title,
             lang: meta.lang,
-            duration: meta.duration,
+            duration: duration,
             output_lang: meta.output_lang,
             focus: meta.focus
         });
@@ -71,7 +81,6 @@ class Orchestrator {
     runStepScript(step, args) {
         return new Promise((resolve, reject) => {
             const script = path.join(this.baseDir, 'scripts', STEPS[step]);
-            console.log('[DEBUG] runStepScript:', step, args);
             const proc = spawn('bash', [script, ...args], { cwd: this.baseDir });
 
             let output = '';
@@ -92,6 +101,10 @@ class Orchestrator {
 
             proc.on('close', (code) => {
                 resolve({ code, output });
+            });
+            proc.on('error', (err) => {
+                console.error('[DEBUG] runStepScript error:', step, err);
+                reject(err);
             });
         });
     }
@@ -357,10 +370,12 @@ class Orchestrator {
         // Step 0: 获取视频元信息 (fetch_info.sh 会直接更新数据库)
         await this.runStep(id, 'fetch');
 
+        // Re-fetch meta from DB after fetch step (since fetch updates DB with title/duration)
+        meta = this.getMeta(id);
+
         // Push task-updated event after fetch completes
         if (this.onTaskUpdated) {
-            const updatedMeta = this.getMeta(id);
-            this.onTaskUpdated(updatedMeta);
+            this.onTaskUpdated(meta);
         }
 
         console.log('[DEBUG] deciding download step:', { downloadVideo, downloadAudio });

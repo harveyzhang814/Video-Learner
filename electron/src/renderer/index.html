@@ -403,6 +403,15 @@
       cursor: pointer;
       font-size: 13px;
       color: var(--text);
+      padding: 10px 12px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      transition: all var(--transition);
+    }
+
+    .radio-label:hover {
+      background: var(--bg-hover);
+      border-color: var(--border);
     }
 
     .radio-label input[type="radio"] {
@@ -1241,8 +1250,7 @@
 
     <div class="main">
       <!-- Function Bar -->
-      <div class="toolbar">
-        <button class="btn primary" id="runBtn">Run</button>
+      <div class="toolbar hidden" id="toolbar">
         <button class="btn" id="openBtn">Open</button>
         <button class="btn" id="deleteBtn">Delete</button>
         <button class="btn" id="manageBtn">Manage</button>
@@ -1491,10 +1499,10 @@
 
     const urlInput = document.getElementById('urlInput');
     const focusInput = document.getElementById('focusInput');
-    const runBtn = document.getElementById('runBtn');
     const openBtn = document.getElementById('openBtn');
     const deleteBtn = document.getElementById('deleteBtn');
     const manageBtn = document.getElementById('manageBtn');
+    const toolbar = document.getElementById('toolbar');
     const emptyState = document.getElementById('emptyState');
     const articleOutput = document.getElementById('articleOutput');
     const summaryOutput = document.getElementById('summaryOutput');
@@ -2079,6 +2087,7 @@
     // Original newBtn functionality for when not using modal
     function resetMainForm() {
       currentId = null;
+      toolbar.classList.add('hidden');
       urlInput.value = '';
       focusInput.value = '';
       articleOutput.innerHTML = '';
@@ -2368,6 +2377,7 @@
 
     async function loadWork(id) {
       currentId = id;
+      toolbar.classList.remove('hidden');
       loadHistory();
 
       // Load task data from database
@@ -2493,6 +2503,7 @@
       if (confirm('Delete this item and all its files?')) {
         await window.api.deleteWork(currentId);
         currentId = null;
+        toolbar.classList.add('hidden');
         urlInput.value = '';
         focusInput.value = '';
         articleOutput.innerHTML = '';
