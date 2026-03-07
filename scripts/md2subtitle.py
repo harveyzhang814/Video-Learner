@@ -15,15 +15,33 @@ def parse_original_md(filepath):
             if not line:
                 continue
 
-            # Try dual timestamp format first
-            match = re.match(r'\[(\d{2}):(\d{2}):(\d{2})\]\s+(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*(.+)', line)
+            # Try dual timestamp format with milliseconds
+            # Format: [00:00:00 --> 00:00:01.000] text
+            match = re.match(r'\[(\d{2}):(\d{2}):(\d{2})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})\]\s*(.+)', line)
             if match:
-                h1, m1, s1, ms1, h2, m2, s2, ms2, text = match.groups()
+                h1, m1, s1, h2, m2, s2, ms2, text = match.groups()
                 start_sec = int(h1) * 3600 + int(m1) * 60 + int(s1)
-                start_ms = int(ms1)
+                start_ms = 0
                 end_sec = int(h2) * 3600 + int(m2) * 60 + int(s2)
                 end_ms = int(ms2)
                 if end_sec < start_sec or (end_sec == start_sec and end_ms <= start_ms):
+                    continue
+                if not text.strip():
+                    continue
+                entries.append((start_sec, end_sec, start_ms, end_ms, text))
+                timestamps.append((start_sec, end_sec))
+                continue
+
+            # Try dual timestamp format without milliseconds
+            # Format: [00:00:00 --> 00:00:01] text
+            match = re.match(r'\[(\d{2}):(\d{2}):(\d{2})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\]\s*(.+)', line)
+            if match:
+                h1, m1, s1, h2, m2, s2, text = match.groups()
+                start_sec = int(h1) * 3600 + int(m1) * 60 + int(s1)
+                start_ms = 0
+                end_sec = int(h2) * 3600 + int(m2) * 60 + int(s2)
+                end_ms = 0
+                if end_sec < start_sec:
                     continue
                 if not text.strip():
                     continue
