@@ -2640,33 +2640,6 @@
       playPauseBtn.textContent = '▶';
     });
 
-    async function loadVideo(id) {
-      const media = await window.api.getMediaPath(id);
-      const { video: videoPath, audio: audioPath } = media;
-
-      // Clear previous state
-      videoPlayer.src = '';
-      const videoPanel = document.querySelector('.video-panel');
-
-      if (videoPath) {
-        videoPlayer.src = `file://${videoPath}`;
-        showVideo();
-        videoPanel.classList.remove('disabled');
-      } else if (audioPath) {
-        videoPlayer.src = `file://${audioPath}`;
-        showVideo();
-        videoPanel.classList.remove('disabled');
-      } else {
-        // No media available - show disabled state
-        videoPlayer.src = '';
-        hideVideo();
-        videoPanel.classList.add('disabled');
-      }
-
-      // Load subtitles
-      await loadSubtitles(id);
-    }
-
     // Subtitle Module - must be defined before loadVideo/loadSubtitles
     const subtitleModule = document.getElementById('subtitleModule');
     const subtitleList = document.getElementById('subtitleList');
@@ -2771,6 +2744,33 @@
       updateProgress();
       updateSubtitleHighlight();
     });
+
+    async function loadVideo(id) {
+      const media = await window.api.getMediaPath(id);
+      const { video: videoPath, audio: audioPath } = media;
+
+      // Clear previous state
+      videoPlayer.src = '';
+      const videoPanel = document.querySelector('.video-panel');
+
+      if (videoPath) {
+        videoPlayer.src = `file://${videoPath}`;
+        showVideo();
+        videoPanel.classList.remove('disabled');
+      } else if (audioPath) {
+        videoPlayer.src = `file://${audioPath}`;
+        showVideo();
+        videoPanel.classList.remove('disabled');
+      } else {
+        // No media available - show disabled state
+        videoPlayer.src = '';
+        hideVideo();
+        videoPanel.classList.add('disabled');
+      }
+
+      // Load subtitles
+      await loadSubtitles(id);
+    }
 
     // Resizer
     const resizer = document.getElementById('resizer');
