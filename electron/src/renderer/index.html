@@ -2324,6 +2324,11 @@
         switch (data.type) {
             case 'task:status':
                 updateTaskStatus(data.payload);
+                // 如果弹窗打开且任务匹配，更新弹窗状态
+                if (modalTaskId && data.payload.id === modalTaskId && newTaskModal.classList.contains('hidden') === false) {
+                    console.log('[DEBUG] updating modal status for:', modalTaskId);
+                    loadWork(modalTaskId);
+                }
                 break;
             case 'task:output':
                 // Parse [STATUS] from WebSocket for progress updates
@@ -2390,6 +2395,9 @@
                 break;
             case 'task:complete':
                 handleTaskComplete(data.payload);
+                if (modalTaskId && data.payload.id === modalTaskId) {
+                    console.log('[DEBUG] task complete for modal:', modalTaskId);
+                }
                 break;
             case 'task:error':
                 handleTaskError(data.payload);
