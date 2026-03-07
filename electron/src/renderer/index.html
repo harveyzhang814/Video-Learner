@@ -2536,8 +2536,7 @@
       const works = await window.api.listWorks();
       if (!works.length) {
         historyList.innerHTML = '<div style="padding: 16px; color: #999; font-size: 12px;">No history</div>';
-        // Hide toolbar when there's no history
-        toolbar.classList.add('hidden');
+        // Keep toolbar visible even when there's no history
         return;
       }
       historyList.innerHTML = works.map(w => `
