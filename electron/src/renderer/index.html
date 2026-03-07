@@ -1641,7 +1641,21 @@
         // Initialize status based on current progress
         initModalStatus();
 
-        // Update status pills based on what has been completed
+        // Update status pills based on step_status from database
+        const stepStatus = j.step_status || {};
+        const stepOrder = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
+        stepOrder.forEach(step => {
+          const status = stepStatus[step];
+          if (status === 'completed') {
+            setModalStep(step, 'done');
+          } else if (status === 'running') {
+            setModalStep(step, 'active');
+          } else if (status === 'failed') {
+            setModalStep(step, 'error');
+          }
+        });
+
+        // Also check legacy fields as fallback
         if (j.download_status === 'success') {
           setModalStep('video', 'done');
           setModalStep('audio', 'done');
@@ -1856,6 +1870,8 @@
       if (mode === 'edit') {
         // Edit mode: continue/resume existing task
         if (!currentId) return;
+        // 设置 modalTaskId 用于 WebSocket 状态更新
+        modalTaskId = currentId;
         modalRunBtn.disabled = true;
         modalRunBtn.textContent = '继续执行中...';
         isRunning = true;
@@ -2303,7 +2319,7 @@
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            console.log('[WS] Received:', data.type, data.payload?.text?.substring(0, 50));
+            console.log('[WS] Received:', data.type, 'payload:', JSON.stringify(data.payload).substring(0, 100));
             handleWsMessage(data);
         };
 
@@ -2326,8 +2342,19 @@
                 updateTaskStatus(data.payload);
                 // 如果弹窗打开且任务匹配，更新弹窗状态
                 if (modalTaskId && data.payload.id === modalTaskId && newTaskModal.classList.contains('hidden') === false) {
-                    console.log('[DEBUG] updating modal status for:', modalTaskId);
-                    loadWork(modalTaskId);
+                    console.log('[DEBUG] updating modal status for:', modalTaskId, data.payload);
+                    // 直接使用 payload 中的步骤状态更新弹窗
+                    const steps = data.payload.steps || {};
+                    const currentStep = data.payload.currentStep;
+                    // 更新当前步骤
+                    if (currentStep) {
+                        setModalStep(currentStep, data.payload.stepStatus === 'completed' ? 'done' : data.payload.stepStatus === 'running' ? 'active' : 'pending');
+                    }
+                    // 更新所有步骤状态
+                    Object.keys(steps).forEach(step => {
+                        const status = steps[step].status;
+                        setModalStep(step, status === 'completed' ? 'done' : status === 'running' ? 'active' : status === 'failed' ? 'error' : 'pending');
+                    });
                 }
                 break;
             case 'task:output':
