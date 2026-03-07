@@ -29,6 +29,17 @@ class DatabaseManager {
             )
         `);
 
+        // 迁移：为旧数据库添加缺失的列
+        try {
+            const columnExists = this.db.prepare("PRAGMA table_info(tasks)").all()
+                .some(col => col.name === 'transcripts');
+            if (!columnExists) {
+                this.db.exec(`ALTER TABLE tasks ADD COLUMN transcripts TEXT DEFAULT '{}'`);
+            }
+        } catch (e) {
+            // 忽略迁移错误（列可能已存在）
+        }
+
         // 创建步骤状态表
         this.db.exec(`
             CREATE TABLE IF NOT EXISTS steps (
