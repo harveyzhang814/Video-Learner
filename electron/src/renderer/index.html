@@ -2298,6 +2298,7 @@
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            console.log('[WS] Received:', data.type, data.payload?.text?.substring(0, 50));
             handleWsMessage(data);
         };
 
@@ -2320,7 +2321,67 @@
                 updateTaskStatus(data.payload);
                 break;
             case 'task:output':
-                appendOutput(data.payload.text);
+                // Parse [STATUS] from WebSocket for progress updates
+                const text = data.payload.text;
+                if (text.includes('[STATUS]')) {
+                    const statusMatch = text.match(/\[STATUS\] (\S+)/);
+                    if (statusMatch) {
+                        const status = statusMatch[1];
+                        // Handle error status
+                        if (status.includes('_error')) {
+                            const errorStep = status.replace('_error', '');
+                            setModalStep(errorStep, 'error');
+                        }
+                        // Handle normal status
+                        switch (status) {
+                            case 'info_start':
+                            case 'fetch_start':
+                                setModalStep('info', 'active');
+                                break;
+                            case 'info_done':
+                            case 'fetch_done':
+                                setModalStep('info', 'done');
+                                setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'active');
+                                break;
+                            case 'video_start':
+                                setModalStep('video', 'active');
+                                break;
+                            case 'video_done':
+                                setModalStep('video', 'done');
+                                if (modalDownloadMode === 'video') setModalStep('audio', 'active');
+                                break;
+                            case 'audio_start':
+                                setModalStep('audio', 'active');
+                                break;
+                            case 'audio_done':
+                                setModalStep('audio', 'done');
+                                setModalStep('transcript', 'active');
+                                break;
+                            case 'transcript_start':
+                                setModalStep('transcript', 'active');
+                                break;
+                            case 'transcript_done':
+                                setModalStep('transcript', 'done');
+                                setModalStep('article', 'active');
+                                break;
+                            case 'article_start':
+                                setModalStep('article', 'active');
+                                break;
+                            case 'article_done':
+                                setModalStep('article', 'done');
+                                setModalStep('summary', 'active');
+                                break;
+                            case 'summary_start':
+                                setModalStep('summary', 'active');
+                                break;
+                            case 'summary_done':
+                            case 'complete':
+                                setModalStep('summary', 'done');
+                                break;
+                        }
+                    }
+                }
+                appendOutput(text);
                 break;
             case 'task:complete':
                 handleTaskComplete(data.payload);
@@ -2379,7 +2440,10 @@
         }
     }
 
+    let appendCounter = 0;
     function appendOutput(text) {
+        appendCounter++;
+        console.log('[DEBUG] appendOutput #', appendCounter, ':', text.substring(0, 80));
         const modalLogs = document.getElementById('modalLogs');
         if (!modalLogs) return;
         const lines = text.split('\n').filter(l => l.trim());

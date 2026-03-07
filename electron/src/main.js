@@ -25,13 +25,15 @@ let currentProcessId = null;
 
 // 初始化编排层（延迟到 createWindow 后获取 mainWindow）
 function initOrchestrator() {
+    let outputCounter = 0;
     orchestrator = new Orchestrator(baseDir,
         (text) => {
-            // 实时推送输出到前端
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('pipeline-output', text);
+            outputCounter++;
+            // Debug: log first few outputs to trace duplicates
+            if (outputCounter <= 20 || text.includes('[STATUS]')) {
+                console.log(`[DEBUG] output #${outputCounter}:`, text.substring(0, 100));
             }
-            // Also broadcast to WebSocket clients
+            // Broadcast to WebSocket clients for log display
             if (wsServer) {
                 wsServer.broadcast('task:output', { text });
             }
@@ -54,6 +56,7 @@ function initOrchestrator() {
         },
         (type, payload) => {
             // 推送步骤事件到 WebSocket 客户端
+            console.log(`[WS] onStepEvent: ${type}`, payload);
             if (wsServer) {
                 wsServer.broadcast(type, payload);
             }

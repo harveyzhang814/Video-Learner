@@ -22,12 +22,15 @@ contextBridge.exposeInMainWorld('api', {
   getTaskDetails: (id) => ipcRenderer.invoke('get-task-details', id),
   updateTaskDetails: (id, data) => ipcRenderer.invoke('update-task-details', { id, data }),
   onOutput: (callback) => {
+    ipcRenderer.removeAllListeners('pipeline-output');
     ipcRenderer.on('pipeline-output', (event, text) => callback(text));
   },
   onTaskCreated: (callback) => {
+    ipcRenderer.removeAllListeners('task-created');
     ipcRenderer.on('task-created', (event, task) => callback(task));
   },
   onTaskUpdated: (callback) => {
+    ipcRenderer.removeAllListeners('task-updated');
     ipcRenderer.on('task-updated', (event, task) => callback(task));
   }
 });
