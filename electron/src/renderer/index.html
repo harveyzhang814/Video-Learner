@@ -2518,21 +2518,34 @@
     // Delete current
     deleteBtn.addEventListener('click', async () => {
       if (!currentId) return;
-      if (confirm('Delete this item and all its files?')) {
-        await window.api.deleteWork(currentId);
-        currentId = null;
-        toolbar.classList.add('hidden');
-        urlInput.value = '';
-        focusInput.value = '';
-        articleOutput.innerHTML = '';
-        summaryOutput.innerHTML = '';
-        emptyState.classList.remove('hidden');
-        videoPlayer.pause();
-        videoPlayer.src = '';
-        hideVideo();
-        loadHistory();
+      showConfirmDelete();
+    });
 
-        // Reset info section
+    confirmDeleteOk.addEventListener('click', async () => {
+      hideConfirmDelete();
+      if (!currentId) return;
+
+      await window.api.deleteWork(currentId);
+      const works = await window.api.listWorks();
+
+      currentId = null;
+      toolbar.classList.add('hidden');
+      urlInput.value = '';
+      focusInput.value = '';
+      articleOutput.innerHTML = '';
+      summaryOutput.innerHTML = '';
+      emptyState.classList.remove('hidden');
+      videoPlayer.pause();
+      videoPlayer.src = '';
+      hideVideo();
+      loadHistory();
+
+      // 尝试加载最后一个项目
+      if (works.length > 0) {
+        const lastWork = works[works.length - 1];
+        await loadWork(lastWork.id);
+      } else {
+        // 重置 info section
         infoEmpty.classList.remove('hidden');
         infoContent.classList.add('hidden');
         infoTitle.textContent = '-';
