@@ -369,9 +369,9 @@ ipcMain.handle('delete-work', async (event, id) => {
     await fs.rm(workDir, { recursive: true, force: true });
     // Also delete from database (in correct order for foreign keys)
     if (db) {
-      db.db.exec('DELETE FROM steps WHERE task_id = ?', [id]);
-      db.db.exec('DELETE FROM downloads WHERE task_id = ?', [id]);
-      db.db.exec('DELETE FROM tasks WHERE id = ?', [id]);
+      db.db.prepare('DELETE FROM steps WHERE task_id = ?').run(id);
+      db.db.prepare('DELETE FROM downloads WHERE task_id = ?').run(id);
+      db.db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
     }
     return { success: true };
   } catch (e) {
