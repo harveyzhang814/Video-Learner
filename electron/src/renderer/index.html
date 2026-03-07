@@ -2433,24 +2433,27 @@
         infoDuration.textContent = j.duration || '-';
         infoFocus.textContent = j.focus || '-';
 
-        // Update status pills based on database
+        // Update status pills based on step_status
         resetInfoStatusPills();
-        if (j.download_status === 'success') {
-          updateInfoStatusPill('video', 'done');
-        } else if (j.download_status === 'failed') {
-          updateInfoStatusPill('video', 'error');
+        const stepStatus = j.step_status || {};
+
+        // 状态映射函数
+        function mapStepStatusToUI(status) {
+          switch (status) {
+            case 'running': return 'active';
+            case 'completed': return 'done';
+            case 'failed': return 'error';
+            default: return 'pending';
+          }
         }
-        if (j.transcript_done) {
-          updateInfoStatusPill('subs', 'done');
-        }
-        if (j.article_done) {
-          updateInfoStatusPill('article', 'done');
-        }
-        if (j.summary_done) {
-          updateInfoStatusPill('summary', 'done');
-        } else if (j.step_status && (j.step_status.summary === 'pending' || j.step_status.summary === 'running')) {
-          updateInfoStatusPill('summary', 'active');
-        }
+
+        // 更新所有 8 个 steps
+        const steps = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
+        steps.forEach(step => {
+          const status = stepStatus[step] || 'pending';
+          const uiState = mapStepStatusToUI(status);
+          updateInfoStatusPill(step, uiState);
+        });
 
         const article = await window.api.readFile(`work/${id}/writing/article.md`);
         const summary = await window.api.readFile(`work/${id}/writing/summary.md`);
