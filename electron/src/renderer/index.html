@@ -2603,6 +2603,53 @@
     let currentSubtitleLang = 'zh';  // Default to Chinese
     let availableSubtitles = { en: null, zh: null };
 
+    function parseVTT(vttContent) {
+      const lines = vttContent.trim().split('\n');
+      const result = [];
+      let i = 0;
+
+      // Skip header
+      while (i < lines.length && !lines[i].includes('-->')) {
+        i++;
+      }
+
+      while (i < lines.length) {
+        const line = lines[i].trim();
+        if (line.includes('-->')) {
+          const [start, end] = line.split('-->').map(t => t.trim());
+          const startSec = parseTimestamp(start);
+          const endSec = parseTimestamp(end);
+
+          i++;
+          let text = '';
+          while (i < lines.length && lines[i].trim() !== '') {
+            text += (text ? '\n' : '') + lines[i].trim();
+            i++;
+          }
+
+          if (text) {
+            result.push({ start: startSec, end: endSec, text });
+          }
+        } else {
+          i++;
+        }
+      }
+
+      return result;
+    }
+
+    function parseTimestamp(ts) {
+      // Handle both HH:MM:SS.mmm and MM:SS.mmm formats
+      const parts = ts.split(':');
+      let seconds = 0;
+      if (parts.length === 3) {
+        seconds = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
+      } else if (parts.length === 2) {
+        seconds = parseInt(parts[0]) * 60 + parseFloat(parts[1]);
+      }
+      return seconds;
+    }
+
     async function loadSubtitles(id) {
       // Get available subtitles info
       availableSubtitles = await window.api.getAvailableSubtitles(id);
