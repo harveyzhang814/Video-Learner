@@ -1707,17 +1707,21 @@
       const pills = document.querySelectorAll('.modal-status .status-pill');
       pills.forEach(pill => pill.classList.add('hidden'));
 
-      // Always show info step
-      document.querySelector('.modal-status .status-pill[data-step="info"]').classList.remove('hidden');
+      // Always show fetch step
+      document.querySelector('.modal-status .status-pill[data-step="fetch"]').classList.remove('hidden');
 
-      if (modalDownloadMode === 'video') {
-        // Show video and audio steps
+      // Show video/audio based on mode
+      if (modalDownloadMode === 'video' || modalDownloadMode === 'both') {
         document.querySelector('.modal-status .status-pill[data-step="video"]').classList.remove('hidden');
+        document.querySelector('.modal-status .status-pill[data-step="audio"]').classList.remove('hidden');
+      } else if (modalDownloadMode === 'audio') {
         document.querySelector('.modal-status .status-pill[data-step="audio"]').classList.remove('hidden');
       }
 
-      // Always show transcript, article, summary
-      document.querySelector('.modal-status .status-pill[data-step="transcript"]').classList.remove('hidden');
+      // Always show subs and subsequent steps
+      document.querySelector('.modal-status .status-pill[data-step="subs"]').classList.remove('hidden');
+      document.querySelector('.modal-status .status-pill[data-step="vtt2md"]').classList.remove('hidden');
+      document.querySelector('.modal-status .status-pill[data-step="md2vtt"]').classList.remove('hidden');
       document.querySelector('.modal-status .status-pill[data-step="article"]').classList.remove('hidden');
       document.querySelector('.modal-status .status-pill[data-step="summary"]').classList.remove('hidden');
     }
