@@ -2183,11 +2183,9 @@
       if (statusMatch) {
         const status = statusMatch[1];
         switch (status) {
-          case 'info_start':
           case 'fetch_start':
-          case 'info_done':
           case 'fetch_done':
-            updateProgress('info');
+            updateProgress('fetch');
             break;
           case 'video_start':
           case 'video_done':
@@ -2197,9 +2195,17 @@
           case 'audio_done':
             updateProgress('audio');
             break;
-          case 'transcript_start':
-          case 'transcript_done':
-            updateProgress('transcript');
+          case 'subs_start':
+          case 'subs_done':
+            updateProgress('subs');
+            break;
+          case 'vtt2md_start':
+          case 'vtt2md_done':
+            updateProgress('vtt2md');
+            break;
+          case 'md2vtt_start':
+          case 'md2vtt_done':
+            updateProgress('md2vtt');
             break;
           case 'article_start':
           case 'article_done':
