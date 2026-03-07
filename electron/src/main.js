@@ -178,22 +178,37 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
     }
     console.log('[DEBUG] resolved download options:', { shouldDownloadVideo, shouldDownloadAudio });
 
-    // 使用编排层执行
-    const result = await orchestrator.run(url, {
+    // 立即生成 task ID 并返回，让前端可以立即更新 UI
+    const taskId = orchestrator.generateId(url);
+    console.log('[DEBUG] generated task ID:', taskId);
+
+    // 在后台启动任务执行（不等待完成）
+    orchestrator.run(url, {
       downloadVideo: shouldDownloadVideo,
       downloadAudio: shouldDownloadAudio,
       focus,
       force: force || false,
       output_lang: 'zh-CN'
+    }).then(result => {
+      // 任务完成后广播 task:complete 消息
+      console.log('[DEBUG] background task completed:', result.id);
+      if (wsServer) {
+        wsServer.broadcast('task:complete', { id: result.id, success: true });
+      }
+      // 更新数据库中的任务完成状态
+      if (db) {
+        db.updateStep(result.id, 'summary', 'completed');
+        db.updateDownload(result.id, 'completed');
+      }
+    }).catch(err => {
+      console.error('[DEBUG] background task error:', err);
+      if (wsServer) {
+        wsServer.broadcast('task:error', { id: taskId, error: err.message });
+      }
     });
 
-    // 更新任务完成状态到数据库
-    if (db) {
-      db.updateStep(result.id, 'summary', 'completed');
-      db.updateDownload(result.id, 'completed');
-    }
-
-    return { success: true, id: result.id };
+    // 立即返回 ID 给前端
+    return { success: true, id: taskId };
   } catch (e) {
     return { success: false, error: e.message };
   }
