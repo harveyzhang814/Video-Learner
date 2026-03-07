@@ -5,72 +5,31 @@ import re
 import argparse
 
 def parse_original_md(filepath):
-    """Parse original.md format: [hh:mm:ss] text or [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text"""
+    """Parse original.md format: [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text"""
     entries = []
-    timestamps = []  # Store all timestamps first
-
     with open(filepath, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
 
-            # Try dual timestamp format with milliseconds
-            # Format: [00:00:00 --> 00:00:01.000] text
-            match = re.match(r'\[(\d{2}):(\d{2}):(\d{2})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})\]\s*(.+)', line)
+            # Match [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text
+            match = re.match(r'\[\d{2}:\d{2}:\d{2}\]\s+(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s+(.+)', line)
             if match:
-                h1, m1, s1, h2, m2, s2, ms2, text = match.groups()
+                h1, m1, s1, ms1, h2, m2, s2, ms2, text = match.groups()
+
                 start_sec = int(h1) * 3600 + int(m1) * 60 + int(s1)
-                start_ms = 0
+                start_ms = int(ms1)
                 end_sec = int(h2) * 3600 + int(m2) * 60 + int(s2)
                 end_ms = int(ms2)
+
+                # Skip invalid entries: end <= start or empty text
                 if end_sec < start_sec or (end_sec == start_sec and end_ms <= start_ms):
                     continue
                 if not text.strip():
                     continue
+
                 entries.append((start_sec, end_sec, start_ms, end_ms, text))
-                timestamps.append((start_sec, end_sec))
-                continue
-
-            # Try dual timestamp format without milliseconds
-            # Format: [00:00:00 --> 00:00:01] text
-            match = re.match(r'\[(\d{2}):(\d{2}):(\d{2})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\]\s*(.+)', line)
-            if match:
-                h1, m1, s1, h2, m2, s2, text = match.groups()
-                start_sec = int(h1) * 3600 + int(m1) * 60 + int(s1)
-                start_ms = 0
-                end_sec = int(h2) * 3600 + int(m2) * 60 + int(s2)
-                end_ms = 0
-                if end_sec < start_sec:
-                    continue
-                if not text.strip():
-                    continue
-                entries.append((start_sec, end_sec, start_ms, end_ms, text))
-                timestamps.append((start_sec, end_sec))
-                continue
-
-            # Try single timestamp format
-            match = re.match(r'\[(\d{2}):(\d{2}):(\d{2})\]\s*(.+)', line)
-            if match:
-                h, m, s, text = match.groups()
-                start_sec = int(h) * 3600 + int(m) * 60 + int(s)
-                start_ms = 0
-                if not text.strip():
-                    continue
-                timestamps.append((start_sec, None))  # None means not determined yet
-                entries.append((start_sec, 0, start_ms, 0, text))
-
-    # Fix end times for single timestamp entries
-    for i, entry in enumerate(entries):
-        start_sec, end_sec, start_ms, end_ms, text = entry
-        if end_sec == 0 and i < len(entries) - 1:
-            # Use next entry's start time as end time
-            next_entry = entries[i + 1]
-            entries[i] = (start_sec, next_entry[0], start_ms, 0, text)
-        elif end_sec == 0:
-            # Last entry: default to 3 seconds
-            entries[i] = (start_sec, start_sec + 3, start_ms, 0, text)
-
     return entries
 
 def format_vtt_time(seconds, ms):

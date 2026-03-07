@@ -2653,6 +2653,12 @@
       return seconds;
     }
 
+    function formatTimestamp(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
     async function loadSubtitles(id) {
       // Get available subtitles info
       availableSubtitles = await window.api.getAvailableSubtitles(id);
