@@ -1711,9 +1711,8 @@
       document.querySelector('.modal-status .status-pill[data-step="fetch"]').classList.remove('hidden');
 
       // Show video/audio based on mode
-      if (modalDownloadMode === 'video' || modalDownloadMode === 'both') {
+      if (modalDownloadMode === 'video') {
         document.querySelector('.modal-status .status-pill[data-step="video"]').classList.remove('hidden');
-        document.querySelector('.modal-status .status-pill[data-step="audio"]').classList.remove('hidden');
       } else if (modalDownloadMode === 'audio') {
         document.querySelector('.modal-status .status-pill[data-step="audio"]').classList.remove('hidden');
       }
