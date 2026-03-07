@@ -2331,10 +2331,25 @@
         }
     }
 
-    function updateTaskStatus(status) {
-        if (status.id === currentId) {
-            loadWork(status.id);
+    function updateTaskStatus(payload) {
+        // 更新进度条
+        if (payload.currentStep) {
+            updateProgress(payload.currentStep);
         }
+
+        // 直接更新 Status Pills
+        if (payload.steps) {
+            Object.keys(payload.steps).forEach(step => {
+                const stepState = payload.steps[step];
+                let uiState = 'pending';
+                if (stepState === 'running') uiState = 'active';
+                else if (stepState === 'completed') uiState = 'done';
+                else if (stepState === 'failed') uiState = 'error';
+
+                updateInfoStatusPill(step, uiState);
+            });
+        }
+
         loadHistory();
     }
 
