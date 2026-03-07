@@ -37,8 +37,6 @@ if [ "$FORCE" = "0" ] && [ -f "$DIR/media/video.mp4" ]; then
     size=$(stat -f%z "$DIR/media/video.mp4" 2>/dev/null || stat -c%s "$DIR/media/video.mp4" 2>/dev/null || echo "0")
     if [ "$size" -gt 1000 ]; then
         echo "[STATUS] video_done"
-        jq '.download_status = "skipped_existing"' > "$DIR/media/meta_temp.json" < "$DIR/transcript/meta.json"
-        mv "$DIR/media/meta_temp.json" "$DIR/transcript/meta.json" 2>/dev/null || true
         # Update database
         update_step "$ID" "video" "skipped"
         update_download "$ID" "skipped_existing"
@@ -56,8 +54,6 @@ yt-dlp -f "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<
 if [ -f "$DIR/media/video.temp.mp4" ]; then
     mv "$DIR/media/video.temp.mp4" "$DIR/media/video.mp4"
     echo "[STATUS] video_done"
-    jq '.download_status = "success"' > "$DIR/media/meta_temp.json" < "$DIR/transcript/meta.json"
-    mv "$DIR/media/meta_temp.json" "$DIR/transcript/meta.json" 2>/dev/null || true
     # Update database
     update_step "$ID" "video" "completed"
     update_download "$ID" "success" "" "$DIR/media/video.mp4"
@@ -73,8 +69,6 @@ if [ -f "$DIR/media/v_tempvideo.mp4" ] && [ -f "$DIR/media/v_tempaudio.m4a" ]; t
     rm -f "$DIR/media/v_tempvideo.mp4" "$DIR/media/v_tempaudio.m4a"
     if [ -f "$DIR/media/video.mp4" ]; then
         echo "[STATUS] video_done"
-        jq '.download_status = "success"' > "$DIR/media/meta_temp.json" < "$DIR/transcript/meta.json"
-        mv "$DIR/media/meta_temp.json" "$DIR/transcript/meta.json" 2>/dev/null || true
         # Update database
         update_step "$ID" "video" "completed"
         update_download "$ID" "success" "" "$DIR/media/video.mp4"
@@ -85,8 +79,6 @@ fi
 # Failed
 echo "[STATUS] video_error: download failed"
 rm -f "$DIR/media/v_tempvideo.mp4" "$DIR/media/v_tempaudio.m4a" "$DIR/media/video.temp.mp4" 2>/dev/null || true
-jq '.download_status = "failed"' > "$DIR/media/meta_temp.json" < "$DIR/transcript/meta.json"
-mv "$DIR/media/meta_temp.json" "$DIR/transcript/meta.json" 2>/dev/null || true
 # Update database
 update_step "$ID" "video" "failed" "download failed"
 update_download "$ID" "failed" "download failed"
