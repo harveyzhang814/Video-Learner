@@ -23,6 +23,7 @@ class DatabaseManager {
                 duration TEXT,
                 output_lang TEXT DEFAULT 'zh-CN',
                 focus TEXT,
+                transcripts TEXT DEFAULT '{}',
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
@@ -75,6 +76,29 @@ class DatabaseManager {
         const fields = Object.keys(data).map(k => `${k} = @${k}`).join(', ');
         const stmt = this.db.prepare(`UPDATE tasks SET ${fields}, updated_at = datetime('now') WHERE id = @id`);
         return stmt.run({ ...data, id });
+    }
+
+    // 更新 transcripts 信息
+    updateTranscripts(id, data) {
+        const transcriptsJson = JSON.stringify(data);
+        const stmt = this.db.prepare(`
+            UPDATE tasks SET transcripts = ?, updated_at = datetime('now') WHERE id = ?
+        `);
+        return stmt.run(transcriptsJson, id);
+    }
+
+    // 获取 transcripts 信息
+    getTranscripts(id) {
+        const stmt = this.db.prepare('SELECT transcripts FROM tasks WHERE id = ?');
+        const result = stmt.get(id);
+        if (result && result.transcripts) {
+            try {
+                return JSON.parse(result.transcripts);
+            } catch {
+                return {};
+            }
+        }
+        return {};
     }
 
     // 步骤操作
