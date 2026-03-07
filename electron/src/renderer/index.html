@@ -2226,13 +2226,13 @@
 
       // Fallback to old format parsing for backward compatibility
       if (text.includes('Step 0') || text.includes('Video Info')) {
-        updateProgress('info');
+        updateProgress('fetch');
       } else if (text.includes('Step 1') || text.includes('Video Download')) {
         updateProgress('video');
       } else if (text.includes('Step 2') || text.includes('Audio Extraction')) {
         updateProgress('audio');
       } else if (text.includes('Step 3') || text.includes('Transcript')) {
-        updateProgress('transcript');
+        updateProgress('subs');
       } else if (text.includes('Step 3.5') || text.includes('Generating Article')) {
         updateProgress('article');
       } else if (text.includes('Step 4') || text.includes('Generating Summary')) {
@@ -2441,7 +2441,7 @@
           updateInfoStatusPill('video', 'error');
         }
         if (j.transcript_done) {
-          updateInfoStatusPill('transcript', 'done');
+          updateInfoStatusPill('subs', 'done');
         }
         if (j.article_done) {
           updateInfoStatusPill('article', 'done');
