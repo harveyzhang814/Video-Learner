@@ -2390,6 +2390,8 @@
             const cls = line.includes('Error') ? 'log-err' : line.includes('Success') ? 'log-ok' : '';
             div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${line}</span>`;
             modalLogs.appendChild(div);
+            // 解析进度状态（作为备用方案）
+            parseProgress(line);
         });
         modalLogs.scrollTop = modalLogs.scrollHeight;
     }
