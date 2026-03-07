@@ -1491,6 +1491,20 @@
     </div>
   </div>
 
+  <!-- Confirm Delete Modal -->
+  <div class="modal-overlay hidden" id="confirmDeleteModal">
+    <div class="modal" style="width: 400px;">
+      <div class="modal-content">
+        <div class="modal-title">确认删除</div>
+        <p style="color: var(--text-muted); margin: 0;">确定要删除这个任务及其所有文件吗？此操作不可撤销。</p>
+        <div class="modal-actions" style="justify-content: flex-end; margin-top: 16px;">
+          <button class="btn" id="confirmDeleteCancel">取消</button>
+          <button class="btn danger" id="confirmDeleteOk">删除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // === localStorage 辅助函数 ===
     const LS_KEYS = {
@@ -1571,6 +1585,9 @@
     // Modal elements
     const newTaskModal = document.getElementById('newTaskModal');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+    const confirmDeleteCancel = document.getElementById('confirmDeleteCancel');
+    const confirmDeleteOk = document.getElementById('confirmDeleteOk');
     const modalUrlInput = document.getElementById('modalUrlInput');
     const modalFocusInput = document.getElementById('modalFocusInput');
     const modalDownloadModeRadios = document.getElementById('modalDownloadMode');
