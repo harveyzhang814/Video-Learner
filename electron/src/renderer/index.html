@@ -1252,7 +1252,7 @@
       <!-- Function Bar -->
       <div class="toolbar hidden" id="toolbar">
         <button class="btn" id="openBtn">Open</button>
-        <button class="btn" id="deleteBtn">Delete</button>
+        <button class="btn" id="deleteBtn" onclick="window.showDeleteConfirm()">Delete</button>
         <button class="btn" id="manageBtn">Manage</button>
       </div>
 
@@ -1491,21 +1491,41 @@
     </div>
   </div>
 
-  <!-- Confirm Delete Modal -->
-  <div class="modal-overlay hidden" id="confirmDeleteModal">
-    <div class="modal" style="width: 400px;">
-      <div class="modal-content">
-        <div class="modal-title">确认删除</div>
-        <p style="color: var(--text-muted); margin: 0;">确定要删除这个任务及其所有文件吗？此操作不可撤销。</p>
-        <div class="modal-actions" style="justify-content: flex-end; margin-top: 16px;">
-          <button class="btn" id="confirmDeleteCancel">取消</button>
-          <button class="btn danger" id="confirmDeleteOk">删除</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <script>
+    // Global function for delete button - dynamically create modal
+    window.showDeleteConfirm = function() {
+        // Remove existing if any
+        var existing = document.getElementById('confirmDeleteOverlay');
+        if (existing) existing.remove();
+
+        // Create overlay
+        var overlay = document.createElement('div');
+        overlay.id = 'confirmDeleteOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+
+        // Create dialog - match project modal style
+        var dialog = document.createElement('div');
+        dialog.style.cssText = 'background:var(--bg);width:400px;border:1px solid var(--border);border-radius:8px;padding:24px';
+        dialog.innerHTML = '<div style="font-weight:600;font-size:14px;margin-bottom:12px">确认删除</div><p style="color:var(--text-muted);margin:0 0 20px;font-size:14px">确定要删除这个任务及其所有文件吗？此操作不可撤销。</p><div style="display:flex;gap:8px;justify-content:flex-end"><button id="confirmCancelBtn" class="btn">取消</button><button id="confirmDeleteBtn" class="btn danger">删除</button></div>';
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        // Add event listeners
+        document.getElementById('confirmCancelBtn').onclick = function() {
+            overlay.remove();
+        };
+        document.getElementById('confirmDeleteBtn').onclick = function() {
+            overlay.remove();
+            // Trigger delete
+            window.dispatchEvent(new CustomEvent('confirmDelete'));
+        };
+        // Click outside to close
+        overlay.onclick = function(e) {
+            if (e.target === overlay) overlay.remove();
+        };
+    };
+
     // === localStorage 辅助函数 ===
     const LS_KEYS = {
         PREFERENCES: 'video_learner_preferences',
@@ -1585,9 +1605,6 @@
     // Modal elements
     const newTaskModal = document.getElementById('newTaskModal');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
-    const confirmDeleteModal = document.getElementById('confirmDeleteModal');
-    const confirmDeleteCancel = document.getElementById('confirmDeleteCancel');
-    const confirmDeleteOk = document.getElementById('confirmDeleteOk');
     const modalUrlInput = document.getElementById('modalUrlInput');
     const modalFocusInput = document.getElementById('modalFocusInput');
     const modalDownloadModeRadios = document.getElementById('modalDownloadMode');
@@ -1718,14 +1735,6 @@
 
       // Refresh history list when modal closes
       loadHistory();
-    }
-
-    function showConfirmDelete() {
-      confirmDeleteModal.classList.remove('hidden');
-    }
-
-    function hideConfirmDelete() {
-      confirmDeleteModal.classList.add('hidden');
     }
 
     function initModalStatus() {
@@ -2521,8 +2530,8 @@
       showConfirmDelete();
     });
 
-    confirmDeleteOk.addEventListener('click', async () => {
-      hideConfirmDelete();
+    // Listen for custom confirmDelete event from dynamically created modal
+    window.addEventListener('confirmDelete', async () => {
       if (!currentId) return;
 
       await window.api.deleteWork(currentId);
@@ -2881,10 +2890,6 @@
       document.body.style.userSelect = '';
     });
 
-    confirmDeleteCancel.addEventListener('click', hideConfirmDelete);
-    confirmDeleteModal.addEventListener('click', (e) => {
-      if (e.target === confirmDeleteModal) hideConfirmDelete();
-    });
   </script>
 </body>
 </html>
