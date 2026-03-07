@@ -2480,51 +2480,6 @@
       document.getElementById('summaryPane').classList.toggle('active', name === 'summary');
     }
 
-    runBtn.addEventListener('click', async () => {
-      const url = urlInput.value.trim();
-      if (!url) return alert('Enter a URL');
-
-      runBtn.disabled = true;
-      runBtn.textContent = 'Running...';
-
-      emptyState.classList.add('hidden');
-      switchTab('article');
-
-      // Show progress bar
-      showProgress();
-
-      window.api.onOutput(text => {
-        // Parse and update progress
-        parseProgress(text);
-      });
-
-      try {
-        const res = await window.api.runPipeline({
-          url,
-          focus: focusInput.value.trim(),
-          force: false,
-          downloadVideo: downloading
-        });
-
-        if (res.success) {
-          // ID is returned directly in res.id
-          if (res.id) {
-            currentId = res.id;
-            await loadWork(currentId);
-            await loadHistory();
-          }
-        } else {
-          alert('Error: ' + res.error);
-        }
-      } catch (e) {
-        alert('Error: ' + e.message);
-      }
-
-      runBtn.disabled = false;
-      runBtn.textContent = 'Run';
-      hideProgress();
-    });
-
     // Open folder
     openBtn.addEventListener('click', () => {
       if (currentId) {
