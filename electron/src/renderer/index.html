@@ -2332,6 +2332,12 @@
     }
 
     function updateTaskStatus(payload) {
+        // Only update if this is the currently displayed task
+        if (payload.id && payload.id !== currentId) {
+            loadHistory();
+            return;
+        }
+
         // 更新进度条
         if (payload.currentStep) {
             updateProgress(payload.currentStep);
