@@ -509,47 +509,21 @@ ipcMain.handle('read-subtitle-bilingual', async (event, { id, lang }) => {
 
 // Get available subtitles
 ipcMain.handle('get-available-subtitles', async (event, id) => {
-  const fs = require('fs').promises;
-  const path = require('path');
-  const transcriptDir = path.join(__dirname, '../..', 'work', id, 'transcript');
-
   try {
-    const metaPath = path.join(transcriptDir, 'meta.json');
-    try {
-      const metaContent = await fs.readFile(metaPath, 'utf-8');
-      const meta = JSON.parse(metaContent);
+    // Get transcripts from database
+    const transcripts = db ? db.getTranscripts(id) : {};
 
-      // Return transcripts info from meta
-      if (meta.transcripts) {
-        return {
-          en: meta.transcripts.en || null,
-          zh: meta.transcripts.zh || null,
-          articleSource: meta.article_source_lang || null
-        };
-      }
-    } catch {
-      // meta.json doesn't exist
-    }
+    // Check article source language from tasks table
+    const task = db ? db.getTask(id) : null;
 
-    // Fallback: check if original_en.vtt or original_zh.vtt exist
-    const enPath = path.join(transcriptDir, 'original_en.vtt');
-    const zhPath = path.join(transcriptDir, 'original_zh.vtt');
-
-    const result = { en: null, zh: null, articleSource: null };
-
-    try {
-      await fs.access(enPath);
-      result.en = { type: 'unknown', done: true };
-    } catch {}
-
-    try {
-      await fs.access(zhPath);
-      result.zh = { type: 'unknown', done: true };
-    } catch {}
-
-    return result;
+    // Return transcripts info from database
+    return {
+      en: transcripts.en || null,
+      zh: transcripts.zh || null,
+      articleSource: task ? task.article_source_lang || null : null
+    };
   } catch (e) {
-    console.error('Error getting available subtitles:', e);
+    console.error('get-available-subtitles error:', e);
     return { en: null, zh: null, articleSource: null };
   }
 });
