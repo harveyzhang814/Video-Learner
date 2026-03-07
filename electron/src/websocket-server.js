@@ -40,9 +40,16 @@ class WebSocketServer {
 
     send(type, payload) {
         const data = JSON.stringify({ type, payload });
+        console.log(`[WS] Broadcasting ${type} to ${this.clients.size} clients`);
         this.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
-                client.send(data);
+                try {
+                    client.send(data);
+                } catch (err) {
+                    console.error('[WS] Send error:', err.message);
+                }
+            } else {
+                console.log(`[WS] Client not OPEN, state: ${client.readyState}`);
             }
         });
     }

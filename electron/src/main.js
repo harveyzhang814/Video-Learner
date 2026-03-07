@@ -25,13 +25,15 @@ let currentProcessId = null;
 
 // 初始化编排层（延迟到 createWindow 后获取 mainWindow）
 function initOrchestrator() {
+    let outputCounter = 0;
     orchestrator = new Orchestrator(baseDir,
         (text) => {
-            // 实时推送输出到前端
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('pipeline-output', text);
+            outputCounter++;
+            // Debug: log first few outputs to trace duplicates
+            if (outputCounter <= 20 || text.includes('[STATUS]')) {
+                console.log(`[DEBUG] output #${outputCounter}:`, text.substring(0, 100));
             }
-            // Also broadcast to WebSocket clients
+            // Broadcast to WebSocket clients for log display
             if (wsServer) {
                 wsServer.broadcast('task:output', { text });
             }
@@ -54,6 +56,7 @@ function initOrchestrator() {
         },
         (type, payload) => {
             // 推送步骤事件到 WebSocket 客户端
+            console.log(`[WS] onStepEvent: ${type}`, payload);
             if (wsServer) {
                 wsServer.broadcast(type, payload);
             }
@@ -175,22 +178,37 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
     }
     console.log('[DEBUG] resolved download options:', { shouldDownloadVideo, shouldDownloadAudio });
 
-    // 使用编排层执行
-    const result = await orchestrator.run(url, {
+    // 立即生成 task ID 并返回，让前端可以立即更新 UI
+    const taskId = orchestrator.generateId(url);
+    console.log('[DEBUG] generated task ID:', taskId);
+
+    // 在后台启动任务执行（不等待完成）
+    orchestrator.run(url, {
       downloadVideo: shouldDownloadVideo,
       downloadAudio: shouldDownloadAudio,
       focus,
       force: force || false,
       output_lang: 'zh-CN'
+    }).then(result => {
+      // 任务完成后广播 task:complete 消息
+      console.log('[DEBUG] background task completed:', result.id);
+      if (wsServer) {
+        wsServer.broadcast('task:complete', { id: result.id, success: true });
+      }
+      // 更新数据库中的任务完成状态
+      if (db) {
+        db.updateStep(result.id, 'summary', 'completed');
+        db.updateDownload(result.id, 'completed');
+      }
+    }).catch(err => {
+      console.error('[DEBUG] background task error:', err);
+      if (wsServer) {
+        wsServer.broadcast('task:error', { id: taskId, error: err.message });
+      }
     });
 
-    // 更新任务完成状态到数据库
-    if (db) {
-      db.updateStep(result.id, 'summary', 'completed');
-      db.updateDownload(result.id, 'completed');
-    }
-
-    return { success: true, id: result.id };
+    // 立即返回 ID 给前端
+    return { success: true, id: taskId };
   } catch (e) {
     return { success: false, error: e.message };
   }

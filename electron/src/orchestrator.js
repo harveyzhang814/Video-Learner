@@ -300,12 +300,30 @@ class Orchestrator {
             } else {
                 // 更新数据库中的步骤状态为完成
                 this.db.updateStep(id, stepName, 'completed');
+                // 发送步骤完成通知
+                if (this.onStepEvent) {
+                    this.onStepEvent('task:status', {
+                        id,
+                        currentStep: stepName,
+                        stepStatus: 'completed',
+                        steps: meta.steps || {}
+                    });
+                }
             }
         } else {
             // vtt2md 和 md2vtt 已经内部执行完成
             meta.steps[stepName].status = 'completed';
             // 更新数据库中的步骤状态为完成
             this.db.updateStep(id, stepName, 'completed');
+            // 发送步骤完成通知
+            if (this.onStepEvent) {
+                this.onStepEvent('task:status', {
+                    id,
+                    currentStep: stepName,
+                    stepStatus: 'completed',
+                    steps: meta.steps || {}
+                });
+            }
         }
 
         // 在 subs 或 vtt2md 步骤完成后，检测并保存字幕信息

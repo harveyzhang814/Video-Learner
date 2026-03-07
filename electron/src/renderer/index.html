@@ -1671,7 +1671,21 @@
         // Initialize status based on current progress
         initModalStatus();
 
-        // Update status pills based on what has been completed
+        // Update status pills based on step_status from database
+        const stepStatus = j.step_status || {};
+        const stepOrder = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
+        stepOrder.forEach(step => {
+          const status = stepStatus[step];
+          if (status === 'completed') {
+            setModalStep(step, 'done');
+          } else if (status === 'running') {
+            setModalStep(step, 'active');
+          } else if (status === 'failed') {
+            setModalStep(step, 'error');
+          }
+        });
+
+        // Also check legacy fields as fallback
         if (j.download_status === 'success') {
           setModalStep('video', 'done');
           setModalStep('audio', 'done');
@@ -1783,6 +1797,7 @@
 
     let currentResetStep = null;
     let currentResetTaskId = null;
+    let modalTaskId = null;
 
     // 点击已完成步骤的 tag pill 时显示重置弹窗
     document.querySelectorAll('.modal-status .status-pill.done').forEach(pill => {
@@ -1885,6 +1900,8 @@
       if (mode === 'edit') {
         // Edit mode: continue/resume existing task
         if (!currentId) return;
+        // 设置 modalTaskId 用于 WebSocket 状态更新
+        modalTaskId = currentId;
         modalRunBtn.disabled = true;
         modalRunBtn.textContent = '继续执行中...';
         isRunning = true;
@@ -2004,12 +2021,16 @@
         if (res.success) {
           const newId = res.id;
           if (newId) {
-            // Close modal and load the new task
-            closeNewTaskModal();
-            await loadWork(newId);
-            await loadHistory();
-            // Auto-open manage modal for the new task
-            await openManageModal();
+            // 设置 modalTaskId 用于后续状态更新
+            modalTaskId = newId;
+            // 切换弹窗到编辑模式
+            newTaskModal.setAttribute('data-mode', 'edit');
+            modalTitle.textContent = 'Manage Task';
+            modalRunBtn.textContent = '继续执行';
+            modalSaveBtn.classList.remove('hidden');
+            // 不关闭弹窗，保持打开状态
+            // 状态将通过 WebSocket task:status 更新
+            console.log('[DEBUG] modalTaskId set to:', modalTaskId);
           }
         } else {
           setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'error');
@@ -2326,6 +2347,7 @@
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            console.log('[WS] Received:', data.type, 'payload:', JSON.stringify(data.payload).substring(0, 100));
             handleWsMessage(data);
         };
 
@@ -2346,12 +2368,91 @@
         switch (data.type) {
             case 'task:status':
                 updateTaskStatus(data.payload);
+                // 如果弹窗打开且任务匹配，更新弹窗状态
+                if (modalTaskId && data.payload.id === modalTaskId && newTaskModal.classList.contains('hidden') === false) {
+                    console.log('[DEBUG] updating modal status for:', modalTaskId, data.payload);
+                    // 直接使用 payload 中的步骤状态更新弹窗
+                    const steps = data.payload.steps || {};
+                    const currentStep = data.payload.currentStep;
+                    // 更新当前步骤
+                    if (currentStep) {
+                        setModalStep(currentStep, data.payload.stepStatus === 'completed' ? 'done' : data.payload.stepStatus === 'running' ? 'active' : 'pending');
+                    }
+                    // 更新所有步骤状态
+                    Object.keys(steps).forEach(step => {
+                        const status = steps[step].status;
+                        setModalStep(step, status === 'completed' ? 'done' : status === 'running' ? 'active' : status === 'failed' ? 'error' : 'pending');
+                    });
+                }
                 break;
             case 'task:output':
-                appendOutput(data.payload.text);
+                // Parse [STATUS] from WebSocket for progress updates
+                const text = data.payload.text;
+                if (text.includes('[STATUS]')) {
+                    const statusMatch = text.match(/\[STATUS\] (\S+)/);
+                    if (statusMatch) {
+                        const status = statusMatch[1];
+                        // Handle error status
+                        if (status.includes('_error')) {
+                            const errorStep = status.replace('_error', '');
+                            setModalStep(errorStep, 'error');
+                        }
+                        // Handle normal status
+                        switch (status) {
+                            case 'info_start':
+                            case 'fetch_start':
+                                setModalStep('info', 'active');
+                                break;
+                            case 'info_done':
+                            case 'fetch_done':
+                                setModalStep('info', 'done');
+                                setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'active');
+                                break;
+                            case 'video_start':
+                                setModalStep('video', 'active');
+                                break;
+                            case 'video_done':
+                                setModalStep('video', 'done');
+                                if (modalDownloadMode === 'video') setModalStep('audio', 'active');
+                                break;
+                            case 'audio_start':
+                                setModalStep('audio', 'active');
+                                break;
+                            case 'audio_done':
+                                setModalStep('audio', 'done');
+                                setModalStep('transcript', 'active');
+                                break;
+                            case 'transcript_start':
+                                setModalStep('transcript', 'active');
+                                break;
+                            case 'transcript_done':
+                                setModalStep('transcript', 'done');
+                                setModalStep('article', 'active');
+                                break;
+                            case 'article_start':
+                                setModalStep('article', 'active');
+                                break;
+                            case 'article_done':
+                                setModalStep('article', 'done');
+                                setModalStep('summary', 'active');
+                                break;
+                            case 'summary_start':
+                                setModalStep('summary', 'active');
+                                break;
+                            case 'summary_done':
+                            case 'complete':
+                                setModalStep('summary', 'done');
+                                break;
+                        }
+                    }
+                }
+                appendOutput(text);
                 break;
             case 'task:complete':
                 handleTaskComplete(data.payload);
+                if (modalTaskId && data.payload.id === modalTaskId) {
+                    console.log('[DEBUG] task complete for modal:', modalTaskId);
+                }
                 break;
             case 'task:error':
                 handleTaskError(data.payload);
@@ -2359,10 +2460,31 @@
         }
     }
 
-    function updateTaskStatus(status) {
-        if (status.id === currentId) {
-            loadWork(status.id);
+    function updateTaskStatus(payload) {
+        // Only update if this is the currently displayed task
+        if (payload.id && payload.id !== currentId) {
+            loadHistory();
+            return;
         }
+
+        // 更新进度条
+        if (payload.currentStep) {
+            updateProgress(payload.currentStep);
+        }
+
+        // 直接更新 Status Pills
+        if (payload.steps) {
+            Object.keys(payload.steps).forEach(step => {
+                const stepState = payload.steps[step];
+                let uiState = 'pending';
+                if (stepState === 'running') uiState = 'active';
+                else if (stepState === 'completed') uiState = 'done';
+                else if (stepState === 'failed') uiState = 'error';
+
+                updateInfoStatusPill(step, uiState);
+            });
+        }
+
         loadHistory();
     }
 
@@ -2386,7 +2508,10 @@
         }
     }
 
+    let appendCounter = 0;
     function appendOutput(text) {
+        appendCounter++;
+        console.log('[DEBUG] appendOutput #', appendCounter, ':', text.substring(0, 80));
         const modalLogs = document.getElementById('modalLogs');
         if (!modalLogs) return;
         const lines = text.split('\n').filter(l => l.trim());
@@ -2397,6 +2522,8 @@
             const cls = line.includes('Error') ? 'log-err' : line.includes('Success') ? 'log-ok' : '';
             div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${line}</span>`;
             modalLogs.appendChild(div);
+            // 解析进度状态（作为备用方案）
+            parseProgress(line);
         });
         modalLogs.scrollTop = modalLogs.scrollHeight;
     }
