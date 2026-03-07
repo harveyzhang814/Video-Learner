@@ -1250,17 +1250,14 @@
 
     <div class="main">
       <!-- Function Bar -->
-      <div class="toolbar hidden" id="toolbar">
+      <div class="toolbar" id="toolbar">
         <button class="btn" id="openBtn">Open</button>
         <button class="btn" id="deleteBtn" onclick="window.showDeleteConfirm()">Delete</button>
         <button class="btn" id="manageBtn">Manage</button>
       </div>
 
       <div class="input-section" id="infoSection">
-        <div class="info-empty" id="infoEmpty">
-          <p>选择左侧 History 中的任务，或点击 + New 创建新任务</p>
-        </div>
-        <div class="info-content hidden" id="infoContent">
+        <div class="info-content" id="infoContent">
           <div class="info-row">
             <span class="info-label">标题</span>
             <span class="info-value" id="infoTitle">-</span>
@@ -1576,7 +1573,6 @@
 
     // Info section elements
     const infoSection = document.getElementById('infoSection');
-    const infoEmpty = document.getElementById('infoEmpty');
     const infoContent = document.getElementById('infoContent');
     const infoTitle = document.getElementById('infoTitle');
     const infoUrl = document.getElementById('infoUrl');
@@ -2160,8 +2156,6 @@
       videoPlayer.src = '';
 
       // Reset info section
-      infoEmpty.classList.remove('hidden');
-      infoContent.classList.add('hidden');
       infoTitle.textContent = '-';
       infoUrl.textContent = '-';
       infoLang.textContent = '-';
@@ -2415,6 +2409,8 @@
       const works = await window.api.listWorks();
       if (!works.length) {
         historyList.innerHTML = '<div style="padding: 16px; color: #999; font-size: 12px;">No history</div>';
+        // Hide toolbar when there's no history
+        toolbar.classList.add('hidden');
         return;
       }
       historyList.innerHTML = works.map(w => `
@@ -2459,8 +2455,6 @@
         downloading = true;
 
         // Update info section
-        infoEmpty.classList.add('hidden');
-        infoContent.classList.remove('hidden');
         infoTitle.textContent = j.title || '-';
         infoUrl.textContent = j.url || '-';
         infoLang.textContent = j.lang || '-';
@@ -2496,11 +2490,13 @@
 
         // Hide empty state since we have content
         emptyState.classList.add('hidden');
+        // Show toolbar since we have a task selected
+        toolbar.classList.remove('hidden');
       } else {
         // No task in database, show empty state
         emptyState.classList.remove('hidden');
-        infoEmpty.classList.remove('hidden');
-        infoContent.classList.add('hidden');
+        // Hide toolbar since no task is selected
+        toolbar.classList.add('hidden');
       }
 
       // Always load video
@@ -2555,8 +2551,6 @@
         await loadWork(lastWork.id);
       } else {
         // 重置 info section
-        infoEmpty.classList.remove('hidden');
-        infoContent.classList.add('hidden');
         infoTitle.textContent = '-';
         infoUrl.textContent = '-';
         infoLang.textContent = '-';
