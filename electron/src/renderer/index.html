@@ -1720,6 +1720,14 @@
       loadHistory();
     }
 
+    function showConfirmDelete() {
+      confirmDeleteModal.classList.remove('hidden');
+    }
+
+    function hideConfirmDelete() {
+      confirmDeleteModal.classList.add('hidden');
+    }
+
     function initModalStatus() {
       const pills = document.querySelectorAll('.modal-status .status-pill');
       pills.forEach(pill => pill.classList.add('hidden'));
@@ -2858,6 +2866,11 @@
       videoResizer.classList.remove('active');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+    });
+
+    confirmDeleteCancel.addEventListener('click', hideConfirmDelete);
+    confirmDeleteModal.addEventListener('click', (e) => {
+      if (e.target === confirmDeleteModal) hideConfirmDelete();
     });
   </script>
 </body>
