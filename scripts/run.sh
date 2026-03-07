@@ -91,14 +91,16 @@ fi
 if [ -n "$ID" ]; then
     id="$ID"
     DIR="work/$id"
-    if [ -f "$DIR/transcript/meta.json" ]; then
-        URL=$(jq -r '.url' "$DIR/transcript/meta.json")
-        echo "Resuming task: $id"
-        echo "URL: $URL"
-    else
-        echo "Error: No meta.json found for ID: $id"
+    # Try to get URL from database if available, otherwise error
+    if [ -f "work/index.jsonl" ]; then
+        URL=$(grep "\"id\":\"$id\"" work/index.jsonl | jq -r '.url' 2>/dev/null || echo "")
+    fi
+    if [ -z "$URL" ]; then
+        echo "Error: No existing task found for ID: $id"
         exit 1
     fi
+    echo "Resuming task: $id"
+    echo "URL: $URL"
 else
     # Compute ID from URL
     id=$(printf "%s" "$URL" | shasum | awk '{print $1}' | cut -c1-12)
@@ -117,53 +119,46 @@ YT_DLP_VER=$(yt-dlp --version 2>/dev/null || echo "unknown")
 FFMPEG_VER=$(ffmpeg -version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1 || echo "unknown")
 JQ_VER=$(jq --version 2>/dev/null || echo "unknown")
 
-# Load existing meta or init new
-if [ -f "$DIR/transcript/meta.json" ]; then
-    META=$(cat "$DIR/transcript/meta.json")
-    echo "Loaded existing meta.json"
-else
-    # Determine download_video based on MODE
-    download_video="true"
-    if [ "$MODE" = "transcript" ]; then
-        download_video="false"
-    fi
+# Initialize META (in-memory only, no meta.json file)
+# Determine download_video based on MODE
+download_video="true"
+if [ "$MODE" = "transcript" ]; then
+    download_video="false"
+fi
 
-    META=$(jq -n \
-        --arg url "$URL" \
-        --arg id "$id" \
-        --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        --arg title "" \
-        --arg duration "" \
-        --arg lang "$LANG" \
-        --arg output_lang "$OUTPUT_LANG" \
-        --arg download_status "pending" \
-        --arg download_attempts "0" \
-        --arg download_error "" \
-        --arg transcript_source "" \
-        --arg transcript_done "false" \
-        --arg article_done "false" \
-        --arg summary_done "false" \
-        --arg download_video "$download_video" \
-        --arg yt_dlp_ver "$YT_DLP_VER" \
-        --arg ffmpeg_ver "$FFMPEG_VER" \
-        --arg jq_ver "$JQ_VER" \
-        '{
-            url: $url, id: $id, ts: $ts, title: $title, duration: $duration, lang: $lang, output_lang: $output_lang,
-            download_status: $download_status, download_attempts: ($download_attempts | tonumber),
-            download_error: $download_error, transcript_source: $transcript_source,
-            transcript_done: ($transcript_done == "true"), article_done: ($article_done == "true"),
-            summary_done: ($summary_done == "true"), download_video: ($download_video == "true"),
-            tool_versions: { yt_dlp: $yt_dlp_ver, ffmpeg: $ffmpeg_ver, jq: $jq_ver }
-        }')
+META=$(jq -n \
+    --arg url "$URL" \
+    --arg id "$id" \
+    --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    --arg title "" \
+    --arg duration "" \
+    --arg lang "$LANG" \
+    --arg output_lang "$OUTPUT_LANG" \
+    --arg download_status "pending" \
+    --arg download_attempts "0" \
+    --arg download_error "" \
+    --arg transcript_source "" \
+    --arg transcript_done "false" \
+    --arg article_done "false" \
+    --arg summary_done "false" \
+    --arg download_video "$download_video" \
+    --arg yt_dlp_ver "$YT_DLP_VER" \
+    --arg ffmpeg_ver "$FFMPEG_VER" \
+    --arg jq_ver "$JQ_VER" \
+    '{
+        url: $url, id: $id, ts: $ts, title: $title, duration: $duration, lang: $lang, output_lang: $output_lang,
+        download_status: $download_status, download_attempts: ($download_attempts | tonumber),
+        download_error: $download_error, transcript_source: $transcript_source,
+        transcript_done: ($transcript_done == "true"), article_done: ($article_done == "true"),
+        summary_done: ($summary_done == "true"), download_video: ($download_video == "true"),
+        tool_versions: { yt_dlp: $yt_dlp_ver, ffmpeg: $ffmpeg_ver, jq: $jq_ver }
+    }')
 
-    # === IMMEDIATE SAVE: Save meta.json and index.jsonl right after initialization ===
-    # This ensures the task appears in History even if pipeline is interrupted
-    echo "$META" > "$DIR/transcript/meta.json"
-    index_line=$(echo "$META" | jq -c '{url, id, ts, title, download_status, transcript_done, article_done, summary_done}')
-    # Check if this ID already exists in index.jsonl to avoid duplicates
-    if ! grep -q "\"id\":\"$id\"" work/index.jsonl 2>/dev/null; then
-        echo "$index_line" >> work/index.jsonl
-    fi
+# Write to index.jsonl immediately after initialization
+index_line=$(echo "$META" | jq -c '{url, id, ts, title, download_status, transcript_done, article_done, summary_done}')
+# Check if this ID already exists in index.jsonl to avoid duplicates
+if ! grep -q "\"id\":\"$id\"" work/index.jsonl 2>/dev/null; then
+    echo "$index_line" >> work/index.jsonl
 fi
 
 # === STEP 0: Get Video Info ===
@@ -183,7 +178,6 @@ if [ "$FORCE" = "1" ] || [ "$(echo "$META" | jq -r '.title')" = "" ]; then
     status "info_done"
 
     # Update index.jsonl immediately after getting title
-    echo "$META" > "$DIR/transcript/meta.json"
     index_line=$(echo "$META" | jq -c '{url, id, ts, title, download_status, transcript_done, article_done, summary_done}')
     if grep -q "\"id\":\"$id\"" work/index.jsonl 2>/dev/null; then
         # Use jq to update existing record (convert JSONL to array with -s, then back to JSONL)
@@ -198,8 +192,6 @@ if mode_has_video; then
     status=$(echo "$META" | jq -r '.download_status')
     if [ "$FORCE" = "1" ] || [ "$status" = "pending" ] || [ "$status" = "failed" ]; then
         status "video_start"
-        # Save meta first so download script can update it
-        echo "$META" > "$DIR/transcript/meta.json"
         SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
         # Start video download in background
         nohup bash "$SCRIPT_DIR/download_video.sh" "$URL" "$DIR" "$FORCE" > "$DIR/media/video_download.log" 2>&1 &
@@ -554,18 +546,7 @@ if mode_has_transcript; then
     fi
 fi
 
-# === STEP 5: Save Meta ===
-# Merge with existing meta.json to preserve download_status updated by background download_video.sh
-if [ -f "$DIR/transcript/meta.json" ]; then
-    EXISTING_META=$(cat "$DIR/transcript/meta.json")
-    # Preserve download_status and download_attempts from existing meta (updated by background process)
-    META=$(echo "$META" | jq --argjson existing "$EXISTING_META" '
-        .download_status = ($existing.download_status // "pending") |
-        .download_attempts = ($existing.download_attempts // 0) |
-        .download_error = ($existing.download_error // "")
-    ')
-fi
-echo "$META" > "$DIR/transcript/meta.json"
+# === STEP 5: Update index.jsonl ===
 index_line=$(echo "$META" | jq -c '{url, id, ts, title, download_status, transcript_done, article_done, summary_done}')
 # Update index.jsonl - replace existing line or append new
 if grep -q "\"id\":\"$id\"" work/index.jsonl 2>/dev/null; then
