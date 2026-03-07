@@ -1753,6 +1753,7 @@
 
     let currentResetStep = null;
     let currentResetTaskId = null;
+    let modalTaskId = null;
 
     // 点击已完成步骤的 tag pill 时显示重置弹窗
     document.querySelectorAll('.modal-status .status-pill.done').forEach(pill => {
@@ -1974,12 +1975,16 @@
         if (res.success) {
           const newId = res.id;
           if (newId) {
-            // Close modal and load the new task
-            closeNewTaskModal();
-            await loadWork(newId);
-            await loadHistory();
-            // Auto-open manage modal for the new task
-            await openManageModal();
+            // 设置 modalTaskId 用于后续状态更新
+            modalTaskId = newId;
+            // 切换弹窗到编辑模式
+            newTaskModal.setAttribute('data-mode', 'edit');
+            modalTitle.textContent = 'Manage Task';
+            modalRunBtn.textContent = '继续执行';
+            modalSaveBtn.classList.remove('hidden');
+            // 不关闭弹窗，保持打开状态
+            // 状态将通过 WebSocket task:status 更新
+            console.log('[DEBUG] modalTaskId set to:', modalTaskId);
           }
         } else {
           setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'error');
