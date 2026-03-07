@@ -66,15 +66,24 @@ class Orchestrator {
                 duration = duration || existing.duration;
             }
         }
-        // 更新任务表
-        this.db.updateTask(id, {
+
+        // Prepare update data
+        const updateData = {
             url: meta.url,
             title: title,
             lang: meta.lang,
             duration: duration,
             output_lang: meta.output_lang,
             focus: meta.focus
-        });
+        };
+
+        // Save transcripts if provided
+        if (meta.transcripts) {
+            this.db.updateTranscripts(id, meta.transcripts);
+        }
+
+        // 更新任务表
+        this.db.updateTask(id, updateData);
     }
 
     // 执行步骤脚本
@@ -297,6 +306,26 @@ class Orchestrator {
             meta.steps[stepName].status = 'completed';
             // 更新数据库中的步骤状态为完成
             this.db.updateStep(id, stepName, 'completed');
+        }
+
+        // 在 subs 或 vtt2md 步骤完成后，检测并保存字幕信息
+        if ((stepName === 'subs' || stepName === 'vtt2md') && meta.steps[stepName].status === 'completed') {
+            const subsDir = path.join(dir, 'transcript', 'subs');
+            const enVtt = path.join(subsDir, 'en.vtt');
+            const zhVtt = path.join(subsDir, 'zh.vtt');
+            const enMd = path.join(dir, 'transcript', 'original_en.md');
+            const zhMd = path.join(dir, 'transcript', 'original_zh.md');
+
+            const transcripts = {
+                en: fs.existsSync(enMd) || fs.existsSync(enVtt),
+                zh: fs.existsSync(zhMd) || fs.existsSync(zhVtt)
+            };
+
+            // Save to database
+            this.db.updateTranscripts(id, transcripts);
+
+            // Also update in-memory meta
+            meta.transcripts = transcripts;
         }
 
         meta.step_status = meta.steps[stepName].status;
