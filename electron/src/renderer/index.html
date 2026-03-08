@@ -2915,16 +2915,32 @@
     function updateSubtitleHighlight() {
       const currentTime = videoPlayer.currentTime;
 
-      document.querySelectorAll('.subtitle-item').forEach((item, index) => {
-        const sub = subtitles[index];
+      // Find the subtitle that should be active (current time within range)
+      let activeIndex = -1;
+      for (let i = 0; i < subtitles.length; i++) {
+        const sub = subtitles[i];
         if (sub && currentTime >= sub.start && currentTime <= sub.end) {
-          if (!item.classList.contains('active')) {
-            document.querySelectorAll('.subtitle-item').forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            item.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
+          activeIndex = i;
+          break;  // First match is the correct one
         }
-      });
+      }
+
+      // Only update if the active index changed
+      const items = document.querySelectorAll('.subtitle-item');
+      const currentActive = document.querySelector('.subtitle-item.active');
+      const currentActiveIndex = currentActive ? parseInt(currentActive.dataset.index) : -1;
+
+      if (activeIndex !== -1 && activeIndex !== currentActiveIndex) {
+        // Remove active from all
+        items.forEach(i => i.classList.remove('active'));
+        // Add active to new
+        const newActive = items[activeIndex];
+        if (newActive) {
+          newActive.classList.add('active');
+          // Use instant scroll (no smooth) for faster response
+          newActive.scrollIntoView({ behavior: 'auto', block: 'center' });
+        }
+      }
     }
 
     // Use requestAnimationFrame for smoother subtitle sync (replaces timeupdate for subtitles)
