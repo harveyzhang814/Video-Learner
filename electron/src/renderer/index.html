@@ -2915,13 +2915,14 @@
     function updateSubtitleHighlight() {
       const currentTime = videoPlayer.currentTime;
 
-      // Find the subtitle that should be active (current time within range)
+      // Find the subtitle that should be active
+      // Use < end + small tolerance to avoid floating point precision issues
       let activeIndex = -1;
       for (let i = 0; i < subtitles.length; i++) {
         const sub = subtitles[i];
-        if (sub && currentTime >= sub.start && currentTime <= sub.end) {
+        if (sub && currentTime >= sub.start - 0.01 && currentTime < sub.end + 0.01) {
           activeIndex = i;
-          break;  // First match is the correct one
+          break;
         }
       }
 
