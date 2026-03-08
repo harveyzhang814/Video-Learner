@@ -1,0 +1,1488 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:04.480 --> 00:00:06.869 align:start position:0%
+ 
+Hi<00:00:04.799><c> everyone,</c><00:00:05.520><c> welcome</c><00:00:05.839><c> to</c><00:00:06.080><c> this</c><00:00:06.319><c> agentic</c>
+
+00:00:06.869 --> 00:00:06.879 align:start position:0%
+Hi everyone, welcome to this agentic
+ 
+
+00:00:06.879 --> 00:00:08.950 align:start position:0%
+Hi everyone, welcome to this agentic
+pattern<00:00:07.205><c> [music]</c><00:00:07.279><c> series.</c><00:00:08.240><c> So</c><00:00:08.480><c> if</c><00:00:08.720><c> you</c>
+
+00:00:08.950 --> 00:00:08.960 align:start position:0%
+pattern [music] series. So if you
+ 
+
+00:00:08.960 --> 00:00:11.589 align:start position:0%
+pattern [music] series. So if you
+building<00:00:09.280><c> with</c><00:00:09.519><c> AI,</c><00:00:10.320><c> you</c><00:00:10.559><c> probably</c><00:00:10.880><c> wonder</c>
+
+00:00:11.589 --> 00:00:11.599 align:start position:0%
+building with AI, you probably wonder
+ 
+
+00:00:11.599 --> 00:00:15.030 align:start position:0%
+building with AI, you probably wonder
+how<00:00:11.920><c> to</c><00:00:12.240><c> really</c><00:00:12.719><c> design</c><00:00:13.200><c> the</c><00:00:13.519><c> agentic</c><00:00:14.240><c> system.</c>
+
+00:00:15.030 --> 00:00:15.040 align:start position:0%
+how to really design the agentic system.
+ 
+
+00:00:15.040 --> 00:00:17.750 align:start position:0%
+how to really design the agentic system.
+Sometimes<00:00:15.759><c> you</c><00:00:16.000><c> need</c><00:00:16.160><c> a</c><00:00:16.400><c> single</c><00:00:16.720><c> agent</c><00:00:17.440><c> and</c>
+
+00:00:17.750 --> 00:00:17.760 align:start position:0%
+Sometimes you need a single agent and
+ 
+
+00:00:17.760 --> 00:00:19.990 align:start position:0%
+Sometimes you need a single agent and
+other<00:00:18.080><c> times</c><00:00:18.560><c> you</c><00:00:18.800><c> need</c><00:00:18.960><c> a</c><00:00:19.199><c> whole</c><00:00:19.359><c> team</c><00:00:19.760><c> of</c>
+
+00:00:19.990 --> 00:00:20.000 align:start position:0%
+other times you need a whole team of
+ 
+
+00:00:20.000 --> 00:00:22.710 align:start position:0%
+other times you need a whole team of
+them<00:00:20.320><c> working</c><00:00:20.720><c> together.</c><00:00:21.600><c> And</c><00:00:21.840><c> today</c><00:00:22.320><c> we</c><00:00:22.560><c> will</c>
+
+00:00:22.710 --> 00:00:22.720 align:start position:0%
+them working together. And today we will
+ 
+
+00:00:22.720 --> 00:00:25.830 align:start position:0%
+them working together. And today we will
+diving<00:00:23.119><c> into</c><00:00:23.519><c> AI</c><00:00:24.080><c> agent</c><00:00:24.560><c> design</c><00:00:24.880><c> patterns.</c>
+
+00:00:25.830 --> 00:00:25.840 align:start position:0%
+diving into AI agent design patterns.
+ 
+
+00:00:25.840 --> 00:00:27.589 align:start position:0%
+diving into AI agent design patterns.
+And<00:00:26.080><c> each</c><00:00:26.320><c> pattern</c><00:00:26.800><c> we're</c><00:00:27.039><c> going</c><00:00:27.119><c> to</c><00:00:27.279><c> provide</c>
+
+00:00:27.589 --> 00:00:27.599 align:start position:0%
+And each pattern we're going to provide
+ 
+
+00:00:27.599 --> 00:00:30.230 align:start position:0%
+And each pattern we're going to provide
+you<00:00:27.920><c> with</c><00:00:28.240><c> practical</c><00:00:28.720><c> example</c><00:00:29.199><c> of</c><00:00:29.519><c> code.</c><00:00:30.080><c> And</c>
+
+00:00:30.230 --> 00:00:30.240 align:start position:0%
+you with practical example of code. And
+ 
+
+00:00:30.240 --> 00:00:31.750 align:start position:0%
+you with practical example of code. And
+we're<00:00:30.480><c> also</c><00:00:30.720><c> going</c><00:00:30.800><c> to</c><00:00:30.960><c> walk</c><00:00:31.119><c> through</c><00:00:31.359><c> a</c><00:00:31.519><c> live</c>
+
+00:00:31.750 --> 00:00:31.760 align:start position:0%
+we're also going to walk through a live
+ 
+
+00:00:31.760 --> 00:00:34.470 align:start position:0%
+we're also going to walk through a live
+demo.<00:00:32.640><c> And</c><00:00:32.880><c> by</c><00:00:33.120><c> the</c><00:00:33.360><c> end</c><00:00:33.520><c> of</c><00:00:33.680><c> this</c><00:00:33.920><c> agendic</c>
+
+00:00:34.470 --> 00:00:34.480 align:start position:0%
+demo. And by the end of this agendic
+ 
+
+00:00:34.480 --> 00:00:37.110 align:start position:0%
+demo. And by the end of this agendic
+pattern<00:00:34.880><c> series,</c><00:00:35.680><c> you</c><00:00:35.920><c> will</c><00:00:36.160><c> learn</c><00:00:36.640><c> how</c><00:00:36.880><c> to</c>
+
+00:00:37.110 --> 00:00:37.120 align:start position:0%
+pattern series, you will learn how to
+ 
+
+00:00:37.120 --> 00:00:39.830 align:start position:0%
+pattern series, you will learn how to
+build<00:00:37.440><c> agentic</c><00:00:38.079><c> solution</c><00:00:38.640><c> from</c><00:00:39.040><c> single</c><00:00:39.440><c> agent</c>
+
+00:00:39.830 --> 00:00:39.840 align:start position:0%
+build agentic solution from single agent
+ 
+
+00:00:39.840 --> 00:00:41.910 align:start position:0%
+build agentic solution from single agent
+pattern<00:00:40.320><c> to</c><00:00:40.719><c> different</c><00:00:41.120><c> multi-</c><00:00:41.520><c> aent</c>
+
+00:00:41.910 --> 00:00:41.920 align:start position:0%
+pattern to different multi- aent
+ 
+
+00:00:41.920 --> 00:00:44.150 align:start position:0%
+pattern to different multi- aent
+pattern.<00:00:42.559><c> And</c><00:00:42.719><c> for</c><00:00:42.960><c> today's</c><00:00:43.440><c> episode,</c><00:00:43.920><c> we</c>
+
+00:00:44.150 --> 00:00:44.160 align:start position:0%
+pattern. And for today's episode, we
+ 
+
+00:00:44.160 --> 00:00:46.389 align:start position:0%
+pattern. And for today's episode, we
+will<00:00:44.320><c> focus</c><00:00:44.640><c> on</c><00:00:44.879><c> practical</c><00:00:45.360><c> examples</c><00:00:46.079><c> of</c>
+
+00:00:46.389 --> 00:00:46.399 align:start position:0%
+will focus on practical examples of
+ 
+
+00:00:46.399 --> 00:00:49.350 align:start position:0%
+will focus on practical examples of
+single<00:00:46.800><c> agent,</c><00:00:47.680><c> sequential</c><00:00:48.239><c> agent,</c><00:00:49.039><c> and</c>
+
+00:00:49.350 --> 00:00:49.360 align:start position:0%
+single agent, sequential agent, and
+ 
+
+00:00:49.360 --> 00:00:51.910 align:start position:0%
+single agent, sequential agent, and
+parallel<00:00:49.840><c> agent.</c><00:00:50.559><c> For</c><00:00:50.879><c> next</c><00:00:51.200><c> episode,</c><00:00:51.680><c> we're</c>
+
+00:00:51.910 --> 00:00:51.920 align:start position:0%
+parallel agent. For next episode, we're
+ 
+
+00:00:51.920 --> 00:00:54.549 align:start position:0%
+parallel agent. For next episode, we're
+gonna<00:00:52.239><c> cover</c><00:00:52.879><c> orchestrator</c><00:00:53.520><c> pattern,</c><00:00:54.239><c> review</c>
+
+00:00:54.549 --> 00:00:54.559 align:start position:0%
+gonna cover orchestrator pattern, review
+ 
+
+00:00:54.559 --> 00:00:57.350 align:start position:0%
+gonna cover orchestrator pattern, review
+and<00:00:54.879><c> critique</c><00:00:55.280><c> pattern</c><00:00:56.000><c> with</c><00:00:56.160><c> loop</c><00:00:56.480><c> agent</c><00:00:57.120><c> and</c>
+
+00:00:57.350 --> 00:00:57.360 align:start position:0%
+and critique pattern with loop agent and
+ 
+
+00:00:57.360 --> 00:01:01.029 align:start position:0%
+and critique pattern with loop agent and
+agent<00:00:57.840><c> as</c><00:00:58.160><c> tool.</c><00:00:59.039><c> All</c><00:00:59.120><c> right,</c><00:00:59.600><c> let's</c><00:00:59.840><c> dive</c><00:01:00.079><c> in.</c>
+
+00:01:01.029 --> 00:01:01.039 align:start position:0%
+agent as tool. All right, let's dive in.
+ 
+
+00:01:01.039 --> 00:01:03.910 align:start position:0%
+agent as tool. All right, let's dive in.
+So<00:01:01.280><c> let's</c><00:01:01.600><c> begin</c><00:01:02.079><c> with</c><00:01:02.320><c> the</c><00:01:02.640><c> most</c><00:01:03.199><c> fundamental</c>
+
+00:01:03.910 --> 00:01:03.920 align:start position:0%
+So let's begin with the most fundamental
+ 
+
+00:01:03.920 --> 00:01:06.950 align:start position:0%
+So let's begin with the most fundamental
+pattern,<00:01:04.559><c> the</c><00:01:04.879><c> single</c><00:01:05.280><c> agent.</c><00:01:06.240><c> Imagine</c><00:01:06.640><c> you</c>
+
+00:01:06.950 --> 00:01:06.960 align:start position:0%
+pattern, the single agent. Imagine you
+ 
+
+00:01:06.960 --> 00:01:09.350 align:start position:0%
+pattern, the single agent. Imagine you
+want<00:01:07.040><c> to</c><00:01:07.200><c> plan</c><00:01:07.439><c> a</c><00:01:07.680><c> trip.</c><00:01:08.320><c> So</c><00:01:08.560><c> with</c><00:01:08.720><c> a</c><00:01:09.040><c> single</c>
+
+00:01:09.350 --> 00:01:09.360 align:start position:0%
+want to plan a trip. So with a single
+ 
+
+00:01:09.360 --> 00:01:11.830 align:start position:0%
+want to plan a trip. So with a single
+agent,<00:01:10.159><c> you</c><00:01:10.400><c> want</c><00:01:10.640><c> to</c><00:01:10.799><c> give</c><00:01:10.960><c> it</c><00:01:11.200><c> instruction</c>
+
+00:01:11.830 --> 00:01:11.840 align:start position:0%
+agent, you want to give it instruction
+ 
+
+00:01:11.840 --> 00:01:14.550 align:start position:0%
+agent, you want to give it instruction
+on<00:01:12.159><c> how</c><00:01:12.400><c> to</c><00:01:12.560><c> use</c><00:01:12.720><c> a</c><00:01:12.960><c> tool</c><00:01:13.439><c> and</c><00:01:13.760><c> we</c><00:01:14.000><c> can</c><00:01:14.159><c> have</c><00:01:14.320><c> a</c>
+
+00:01:14.550 --> 00:01:14.560 align:start position:0%
+on how to use a tool and we can have a
+ 
+
+00:01:14.560 --> 00:01:16.550 align:start position:0%
+on how to use a tool and we can have a
+set<00:01:14.720><c> of</c><00:01:14.880><c> tool</c><00:01:15.360><c> like</c><00:01:15.760><c> how</c><00:01:16.000><c> to</c><00:01:16.159><c> check</c><00:01:16.320><c> the</c>
+
+00:01:16.550 --> 00:01:16.560 align:start position:0%
+set of tool like how to check the
+ 
+
+00:01:16.560 --> 00:01:19.190 align:start position:0%
+set of tool like how to check the
+weather,<00:01:17.280><c> check</c><00:01:17.520><c> the</c><00:01:17.759><c> traffic</c><00:01:18.240><c> and</c><00:01:18.560><c> schedule.</c>
+
+00:01:19.190 --> 00:01:19.200 align:start position:0%
+weather, check the traffic and schedule.
+ 
+
+00:01:19.200 --> 00:01:21.510 align:start position:0%
+weather, check the traffic and schedule.
+But<00:01:19.520><c> for</c><00:01:19.920><c> our</c><00:01:20.159><c> example</c><00:01:20.640><c> today,</c><00:01:21.119><c> we</c><00:01:21.360><c> will</c>
+
+00:01:21.510 --> 00:01:21.520 align:start position:0%
+But for our example today, we will
+ 
+
+00:01:21.520 --> 00:01:24.070 align:start position:0%
+But for our example today, we will
+simplify<00:01:22.080><c> things</c><00:01:22.479><c> with</c><00:01:22.799><c> only</c><00:01:23.360><c> Google</c><00:01:23.759><c> search</c>
+
+00:01:24.070 --> 00:01:24.080 align:start position:0%
+simplify things with only Google search
+ 
+
+00:01:24.080 --> 00:01:26.789 align:start position:0%
+simplify things with only Google search
+tool.<00:01:24.880><c> So</c><00:01:25.040><c> you</c><00:01:25.280><c> will</c><00:01:25.520><c> write</c><00:01:25.759><c> a</c><00:01:26.080><c> comprehensive</c>
+
+00:01:26.789 --> 00:01:26.799 align:start position:0%
+tool. So you will write a comprehensive
+ 
+
+00:01:26.799 --> 00:01:29.590 align:start position:0%
+tool. So you will write a comprehensive
+prompt<00:01:27.520><c> telling</c><00:01:27.920><c> the</c><00:01:28.080><c> agent</c><00:01:28.640><c> how</c><00:01:28.880><c> to</c><00:01:29.119><c> plan</c><00:01:29.360><c> the</c>
+
+00:01:29.590 --> 00:01:29.600 align:start position:0%
+prompt telling the agent how to plan the
+ 
+
+00:01:29.600 --> 00:01:32.149 align:start position:0%
+prompt telling the agent how to plan the
+trip<00:01:29.920><c> using</c><00:01:30.240><c> the</c><00:01:30.479><c> search</c><00:01:30.720><c> tool.</c><00:01:31.280><c> So</c><00:01:31.439><c> the</c><00:01:31.680><c> agent</c>
+
+00:01:32.149 --> 00:01:32.159 align:start position:0%
+trip using the search tool. So the agent
+ 
+
+00:01:32.159 --> 00:01:34.230 align:start position:0%
+trip using the search tool. So the agent
+then<00:01:32.400><c> relies</c><00:01:32.880><c> on</c><00:01:33.119><c> the</c><00:01:33.280><c> model's</c><00:01:33.759><c> reasoning</c>
+
+00:01:34.230 --> 00:01:34.240 align:start position:0%
+then relies on the model's reasoning
+ 
+
+00:01:34.240 --> 00:01:36.870 align:start position:0%
+then relies on the model's reasoning
+capability<00:01:34.880><c> to</c><00:01:35.200><c> figure</c><00:01:35.439><c> out</c><00:01:35.600><c> the</c><00:01:35.840><c> sequence</c><00:01:36.560><c> of</c>
+
+00:01:36.870 --> 00:01:36.880 align:start position:0%
+capability to figure out the sequence of
+ 
+
+00:01:36.880 --> 00:01:39.830 align:start position:0%
+capability to figure out the sequence of
+steps.<00:01:37.680><c> As</c><00:01:37.920><c> you</c><00:01:38.159><c> can</c><00:01:38.240><c> see</c><00:01:38.479><c> from</c><00:01:38.799><c> the</c><00:01:39.040><c> screen,</c>
+
+00:01:39.830 --> 00:01:39.840 align:start position:0%
+steps. As you can see from the screen,
+ 
+
+00:01:39.840 --> 00:01:41.429 align:start position:0%
+steps. As you can see from the screen,
+the<00:01:40.079><c> code</c><00:01:40.320><c> for</c><00:01:40.560><c> this</c><00:01:40.799><c> is</c><00:01:41.119><c> very</c>
+
+00:01:41.429 --> 00:01:41.439 align:start position:0%
+the code for this is very
+ 
+
+00:01:41.439 --> 00:01:43.429 align:start position:0%
+the code for this is very
+straightforward<00:01:42.079><c> with</c><00:01:42.400><c> ADK</c><00:01:43.040><c> agent</c>
+
+00:01:43.429 --> 00:01:43.439 align:start position:0%
+straightforward with ADK agent
+ 
+
+00:01:43.439 --> 00:01:45.670 align:start position:0%
+straightforward with ADK agent
+development<00:01:43.840><c> kit.</c><00:01:44.560><c> And</c><00:01:44.799><c> let's</c><00:01:45.040><c> test</c><00:01:45.360><c> it</c><00:01:45.439><c> with</c>
+
+00:01:45.670 --> 00:01:45.680 align:start position:0%
+development kit. And let's test it with
+ 
+
+00:01:45.680 --> 00:01:49.990 align:start position:0%
+development kit. And let's test it with
+ADK<00:01:46.240><c> web</c><00:01:46.479><c> UI</c><00:01:47.119><c> by</c><00:01:47.439><c> typing</c><00:01:48.000><c> ADKVAB.</c><00:01:49.360><c> So</c><00:01:49.520><c> if</c><00:01:49.759><c> I</c>
+
+00:01:49.990 --> 00:01:50.000 align:start position:0%
+ADK web UI by typing ADKVAB. So if I
+ 
+
+00:01:50.000 --> 00:01:53.429 align:start position:0%
+ADK web UI by typing ADKVAB. So if I
+type<00:01:50.799><c> plan</c><00:01:51.040><c> a</c><00:01:51.280><c> trip</c><00:01:51.600><c> to</c><00:01:51.840><c> San</c><00:01:52.079><c> Francisco,</c><00:01:53.200><c> we</c>
+
+00:01:53.429 --> 00:01:53.439 align:start position:0%
+type plan a trip to San Francisco, we
+ 
+
+00:01:53.439 --> 00:01:56.310 align:start position:0%
+type plan a trip to San Francisco, we
+can<00:01:53.600><c> see</c><00:01:54.000><c> in</c><00:01:54.240><c> the</c><00:01:54.479><c> tracing</c><00:01:55.280><c> that</c><00:01:55.600><c> agent</c><00:01:56.000><c> is</c>
+
+00:01:56.310 --> 00:01:56.320 align:start position:0%
+can see in the tracing that agent is
+ 
+
+00:01:56.320 --> 00:01:58.630 align:start position:0%
+can see in the tracing that agent is
+using<00:01:56.560><c> the</c><00:01:56.799><c> search</c><00:01:57.119><c> tool</c><00:01:57.600><c> to</c><00:01:57.840><c> gather</c><00:01:58.240><c> all</c><00:01:58.399><c> the</c>
+
+00:01:58.630 --> 00:01:58.640 align:start position:0%
+using the search tool to gather all the
+ 
+
+00:01:58.640 --> 00:02:01.350 align:start position:0%
+using the search tool to gather all the
+necessary<00:01:59.119><c> information</c><00:01:59.680><c> in</c><00:02:00.000><c> just</c><00:02:00.159><c> one</c><00:02:00.399><c> go.</c><00:02:01.119><c> We</c>
+
+00:02:01.350 --> 00:02:01.360 align:start position:0%
+necessary information in just one go. We
+ 
+
+00:02:01.360 --> 00:02:03.749 align:start position:0%
+necessary information in just one go. We
+can<00:02:01.439><c> see</c><00:02:01.680><c> how</c><00:02:02.000><c> it</c><00:02:02.240><c> is</c><00:02:02.399><c> using</c><00:02:02.640><c> the</c><00:02:02.880><c> tool</c><00:02:03.520><c> from</c>
+
+00:02:03.749 --> 00:02:03.759 align:start position:0%
+can see how it is using the tool from
+ 
+
+00:02:03.759 --> 00:02:06.469 align:start position:0%
+can see how it is using the tool from
+the<00:02:03.920><c> tracing</c><00:02:04.320><c> tab</c><00:02:04.560><c> over</c><00:02:04.799><c> here.</c><00:02:05.520><c> However,</c><00:02:06.159><c> this</c>
+
+00:02:06.469 --> 00:02:06.479 align:start position:0%
+the tracing tab over here. However, this
+ 
+
+00:02:06.479 --> 00:02:08.869 align:start position:0%
+the tracing tab over here. However, this
+works<00:02:06.719><c> for</c><00:02:06.960><c> single</c><00:02:07.280><c> task.</c><00:02:07.920><c> But</c><00:02:08.080><c> as</c><00:02:08.399><c> you</c><00:02:08.640><c> have</c>
+
+00:02:08.869 --> 00:02:08.879 align:start position:0%
+works for single task. But as you have
+ 
+
+00:02:08.879 --> 00:02:10.869 align:start position:0%
+works for single task. But as you have
+more<00:02:09.119><c> tools,</c><00:02:09.759><c> all</c><00:02:10.000><c> the</c><00:02:10.160><c> tasks</c><00:02:10.399><c> are</c><00:02:10.640><c> getting</c>
+
+00:02:10.869 --> 00:02:10.879 align:start position:0%
+more tools, all the tasks are getting
+ 
+
+00:02:10.879 --> 00:02:13.910 align:start position:0%
+more tools, all the tasks are getting
+more<00:02:11.200><c> complex.</c><00:02:12.239><c> For</c><00:02:12.319><c> example,</c><00:02:13.200><c> if</c><00:02:13.360><c> I</c><00:02:13.599><c> have</c><00:02:13.680><c> a</c>
+
+00:02:13.910 --> 00:02:13.920 align:start position:0%
+more complex. For example, if I have a
+ 
+
+00:02:13.920 --> 00:02:16.550 align:start position:0%
+more complex. For example, if I have a
+request<00:02:14.560><c> finding</c><00:02:14.879><c> a</c><00:02:15.120><c> sushi</c><00:02:15.520><c> in</c><00:02:15.680><c> San</c><00:02:15.920><c> Francisco</c>
+
+00:02:16.550 --> 00:02:16.560 align:start position:0%
+request finding a sushi in San Francisco
+ 
+
+00:02:16.560 --> 00:02:18.630 align:start position:0%
+request finding a sushi in San Francisco
+that's<00:02:16.879><c> open</c><00:02:17.200><c> late</c><00:02:17.520><c> and</c><00:02:17.760><c> finding</c><00:02:18.080><c> the</c><00:02:18.239><c> fattest</c>
+
+00:02:18.630 --> 00:02:18.640 align:start position:0%
+that's open late and finding the fattest
+ 
+
+00:02:18.640 --> 00:02:20.869 align:start position:0%
+that's open late and finding the fattest
+way<00:02:18.959><c> getting</c><00:02:19.280><c> there.</c><00:02:19.760><c> So</c><00:02:19.920><c> if</c><00:02:20.160><c> I</c><00:02:20.319><c> build</c><00:02:20.560><c> this</c>
+
+00:02:20.869 --> 00:02:20.879 align:start position:0%
+way getting there. So if I build this
+ 
+
+00:02:20.879 --> 00:02:23.270 align:start position:0%
+way getting there. So if I build this
+with<00:02:21.200><c> single</c><00:02:21.599><c> agent,</c><00:02:22.239><c> we</c><00:02:22.480><c> need</c><00:02:22.560><c> to</c><00:02:22.720><c> define</c><00:02:23.040><c> the</c>
+
+00:02:23.270 --> 00:02:23.280 align:start position:0%
+with single agent, we need to define the
+ 
+
+00:02:23.280 --> 00:02:25.990 align:start position:0%
+with single agent, we need to define the
+logic<00:02:23.760><c> in</c><00:02:24.000><c> system</c><00:02:24.400><c> instruction</c><00:02:25.280><c> with</c><00:02:25.599><c> this</c>
+
+00:02:25.990 --> 00:02:26.000 align:start position:0%
+logic in system instruction with this
+ 
+
+00:02:26.000 --> 00:02:29.510 align:start position:0%
+logic in system instruction with this
+massive<00:02:26.640><c> prom</c><00:02:27.599><c> and</c><00:02:27.760><c> the</c><00:02:28.000><c> behavior</c><00:02:28.720><c> can</c><00:02:29.040><c> become</c>
+
+00:02:29.510 --> 00:02:29.520 align:start position:0%
+massive prom and the behavior can become
+ 
+
+00:02:29.520 --> 00:02:32.550 align:start position:0%
+massive prom and the behavior can become
+very<00:02:30.319><c> unreliable.</c><00:02:31.520><c> Since</c><00:02:31.920><c> AI</c><00:02:32.319><c> is</c>
+
+00:02:32.550 --> 00:02:32.560 align:start position:0%
+very unreliable. Since AI is
+ 
+
+00:02:32.560 --> 00:02:35.110 align:start position:0%
+very unreliable. Since AI is
+nondeterministic,<00:02:33.840><c> you</c><00:02:34.080><c> cannot</c><00:02:34.640><c> always</c>
+
+00:02:35.110 --> 00:02:35.120 align:start position:0%
+nondeterministic, you cannot always
+ 
+
+00:02:35.120 --> 00:02:37.030 align:start position:0%
+nondeterministic, you cannot always
+guarantee<00:02:35.680><c> that</c><00:02:35.920><c> you</c><00:02:36.160><c> will</c><00:02:36.400><c> follow</c><00:02:36.720><c> your</c>
+
+00:02:37.030 --> 00:02:37.040 align:start position:0%
+guarantee that you will follow your
+ 
+
+00:02:37.040 --> 00:02:40.150 align:start position:0%
+guarantee that you will follow your
+multistep<00:02:37.760><c> logic</c><00:02:38.239><c> perfectly</c><00:02:39.040><c> every</c><00:02:39.440><c> time.</c><00:02:40.000><c> So</c>
+
+00:02:40.150 --> 00:02:40.160 align:start position:0%
+multistep logic perfectly every time. So
+ 
+
+00:02:40.160 --> 00:02:43.670 align:start position:0%
+multistep logic perfectly every time. So
+the<00:02:40.400><c> single</c><00:02:40.800><c> agent</c><00:02:41.680><c> lack</c><00:02:42.000><c> of</c><00:02:42.239><c> control</c><00:02:43.120><c> if</c><00:02:43.440><c> is</c>
+
+00:02:43.670 --> 00:02:43.680 align:start position:0%
+the single agent lack of control if is
+ 
+
+00:02:43.680 --> 00:02:47.030 align:start position:0%
+the single agent lack of control if is
+its<00:02:44.000><c> main</c><00:02:44.400><c> weakness</c><00:02:45.760><c> with</c><00:02:46.160><c> single</c><00:02:46.560><c> agent</c>
+
+00:02:47.030 --> 00:02:47.040 align:start position:0%
+its main weakness with single agent
+ 
+
+00:02:47.040 --> 00:02:49.350 align:start position:0%
+its main weakness with single agent
+pattern.<00:02:47.599><c> The</c><00:02:47.840><c> benefit</c><00:02:48.239><c> is</c><00:02:48.720><c> it</c><00:02:48.879><c> is</c><00:02:49.120><c> very</c>
+
+00:02:49.350 --> 00:02:49.360 align:start position:0%
+pattern. The benefit is it is very
+ 
+
+00:02:49.360 --> 00:02:52.229 align:start position:0%
+pattern. The benefit is it is very
+simple<00:02:49.680><c> to</c><00:02:49.920><c> implement</c><00:02:50.800><c> and</c><00:02:51.040><c> is</c><00:02:51.360><c> great</c><00:02:51.840><c> for</c>
+
+00:02:52.229 --> 00:02:52.239 align:start position:0%
+simple to implement and is great for
+ 
+
+00:02:52.239 --> 00:02:54.550 align:start position:0%
+simple to implement and is great for
+straightforward<00:02:52.959><c> multi-step</c><00:02:53.599><c> tasks.</c>
+
+00:02:54.550 --> 00:02:54.560 align:start position:0%
+straightforward multi-step tasks.
+ 
+
+00:02:54.560 --> 00:02:58.070 align:start position:0%
+straightforward multi-step tasks.
+However,<00:02:55.440><c> it</c><00:02:55.680><c> is</c><00:02:55.920><c> less</c><00:02:56.319><c> reliable</c><00:02:57.120><c> for</c><00:02:57.519><c> complex</c>
+
+00:02:58.070 --> 00:02:58.080 align:start position:0%
+However, it is less reliable for complex
+ 
+
+00:02:58.080 --> 00:03:00.949 align:start position:0%
+However, it is less reliable for complex
+workflow<00:02:58.879><c> and</c><00:02:59.120><c> is</c><00:02:59.360><c> harder</c><00:02:59.680><c> to</c><00:02:59.920><c> control</c><00:03:00.640><c> and</c>
+
+00:03:00.949 --> 00:03:00.959 align:start position:0%
+workflow and is harder to control and
+ 
+
+00:03:00.959 --> 00:03:05.110 align:start position:0%
+workflow and is harder to control and
+can<00:03:01.200><c> fill</c><00:03:01.680><c> as</c><00:03:02.000><c> tasks</c><00:03:02.560><c> becoming</c><00:03:03.120><c> more</c><00:03:03.760><c> complex.</c>
+
+00:03:05.110 --> 00:03:05.120 align:start position:0%
+can fill as tasks becoming more complex.
+ 
+
+00:03:05.120 --> 00:03:07.190 align:start position:0%
+can fill as tasks becoming more complex.
+Now,<00:03:05.519><c> let's</c><00:03:05.840><c> get</c><00:03:06.000><c> to</c><00:03:06.159><c> our</c><00:03:06.480><c> second</c><00:03:06.800><c> part</c><00:03:06.959><c> of</c>
+
+00:03:07.190 --> 00:03:07.200 align:start position:0%
+Now, let's get to our second part of
+ 
+
+00:03:07.200 --> 00:03:09.110 align:start position:0%
+Now, let's get to our second part of
+this<00:03:07.440><c> video</c><00:03:08.000><c> which</c><00:03:08.239><c> is</c><00:03:08.400><c> the</c><00:03:08.560><c> sequential</c>
+
+00:03:09.110 --> 00:03:09.120 align:start position:0%
+this video which is the sequential
+ 
+
+00:03:09.120 --> 00:03:11.430 align:start position:0%
+this video which is the sequential
+agent.<00:03:10.000><c> So,</c><00:03:10.159><c> with</c><00:03:10.400><c> the</c><00:03:10.560><c> task</c><00:03:10.879><c> we</c><00:03:11.120><c> covered</c>
+
+00:03:11.430 --> 00:03:11.440 align:start position:0%
+agent. So, with the task we covered
+ 
+
+00:03:11.440 --> 00:03:14.550 align:start position:0%
+agent. So, with the task we covered
+earlier,<00:03:12.319><c> how</c><00:03:12.560><c> do</c><00:03:12.720><c> we</c><00:03:12.959><c> adding</c><00:03:13.360><c> more</c><00:03:13.599><c> control?</c>
+
+00:03:14.550 --> 00:03:14.560 align:start position:0%
+earlier, how do we adding more control?
+ 
+
+00:03:14.560 --> 00:03:16.710 align:start position:0%
+earlier, how do we adding more control?
+This<00:03:14.800><c> bring</c><00:03:15.120><c> us</c><00:03:15.360><c> to</c><00:03:15.519><c> our</c><00:03:15.840><c> first</c><00:03:16.080><c> motion</c>
+
+00:03:16.710 --> 00:03:16.720 align:start position:0%
+This bring us to our first motion
+ 
+
+00:03:16.720 --> 00:03:19.350 align:start position:0%
+This bring us to our first motion
+pattern.<00:03:17.360><c> the</c><00:03:17.680><c> sequential</c><00:03:18.159><c> agent</c><00:03:18.800><c> and</c><00:03:19.120><c> this</c>
+
+00:03:19.350 --> 00:03:19.360 align:start position:0%
+pattern. the sequential agent and this
+ 
+
+00:03:19.360 --> 00:03:21.910 align:start position:0%
+pattern. the sequential agent and this
+pattern<00:03:20.000><c> is</c><00:03:20.239><c> for</c><00:03:20.560><c> highly</c><00:03:20.959><c> structured</c>
+
+00:03:21.910 --> 00:03:21.920 align:start position:0%
+pattern is for highly structured
+ 
+
+00:03:21.920 --> 00:03:24.309 align:start position:0%
+pattern is for highly structured
+repeatable<00:03:22.640><c> task</c><00:03:23.280><c> because</c><00:03:23.519><c> the</c><00:03:23.760><c> order</c><00:03:24.000><c> of</c><00:03:24.159><c> the</c>
+
+00:03:24.309 --> 00:03:24.319 align:start position:0%
+repeatable task because the order of the
+ 
+
+00:03:24.319 --> 00:03:27.270 align:start position:0%
+repeatable task because the order of the
+operation<00:03:25.040><c> is</c><00:03:25.360><c> fixed.</c><00:03:26.000><c> So</c><00:03:26.159><c> the</c><00:03:26.400><c> output</c><00:03:26.800><c> of</c><00:03:27.040><c> one</c>
+
+00:03:27.270 --> 00:03:27.280 align:start position:0%
+operation is fixed. So the output of one
+ 
+
+00:03:27.280 --> 00:03:30.390 align:start position:0%
+operation is fixed. So the output of one
+sub<00:03:27.599><c> aent</c><00:03:28.480><c> become</c><00:03:28.879><c> the</c><00:03:29.120><c> direct</c><00:03:29.519><c> input</c><00:03:30.000><c> for</c><00:03:30.239><c> the</c>
+
+00:03:30.390 --> 00:03:30.400 align:start position:0%
+sub aent become the direct input for the
+ 
+
+00:03:30.400 --> 00:03:32.869 align:start position:0%
+sub aent become the direct input for the
+next<00:03:30.640><c> sub</c><00:03:30.879><c> aent.</c><00:03:31.599><c> It's</c><00:03:31.840><c> like</c><00:03:32.080><c> an</c><00:03:32.319><c> assembly</c>
+
+00:03:32.869 --> 00:03:32.879 align:start position:0%
+next sub aent. It's like an assembly
+ 
+
+00:03:32.879 --> 00:03:35.670 align:start position:0%
+next sub aent. It's like an assembly
+line<00:03:33.519><c> and</c><00:03:33.760><c> for</c><00:03:34.000><c> our</c><00:03:34.319><c> trip</c><00:03:34.720><c> we</c><00:03:35.040><c> can</c><00:03:35.200><c> break</c><00:03:35.440><c> down</c>
+
+00:03:35.670 --> 00:03:35.680 align:start position:0%
+line and for our trip we can break down
+ 
+
+00:03:35.680 --> 00:03:38.309 align:start position:0%
+line and for our trip we can break down
+to<00:03:36.000><c> two</c><00:03:36.560><c> specialized</c><00:03:37.200><c> agent.</c><00:03:37.760><c> So</c><00:03:37.920><c> we</c><00:03:38.159><c> have</c>
+
+00:03:38.309 --> 00:03:38.319 align:start position:0%
+to two specialized agent. So we have
+ 
+
+00:03:38.319 --> 00:03:41.110 align:start position:0%
+to two specialized agent. So we have
+this<00:03:38.720><c> first</c><00:03:39.200><c> a</c><00:03:39.519><c> foot</c><00:03:39.760><c> finding</c><00:03:40.080><c> agent</c><00:03:40.640><c> and</c><00:03:40.879><c> the</c>
+
+00:03:41.110 --> 00:03:41.120 align:start position:0%
+this first a foot finding agent and the
+ 
+
+00:03:41.120 --> 00:03:43.589 align:start position:0%
+this first a foot finding agent and the
+second<00:03:41.680><c> a</c><00:03:42.000><c> transportation</c><00:03:42.720><c> agent.</c><00:03:43.360><c> This</c>
+
+00:03:43.589 --> 00:03:43.599 align:start position:0%
+second a transportation agent. This
+ 
+
+00:03:43.599 --> 00:03:46.390 align:start position:0%
+second a transportation agent. This
+sequential<00:03:44.239><c> agent</c><00:03:44.879><c> ensures</c><00:03:45.599><c> that</c><00:03:45.840><c> we</c><00:03:46.080><c> always</c>
+
+00:03:46.390 --> 00:03:46.400 align:start position:0%
+sequential agent ensures that we always
+ 
+
+00:03:46.400 --> 00:03:48.630 align:start position:0%
+sequential agent ensures that we always
+run<00:03:46.640><c> this</c><00:03:46.879><c> food</c><00:03:47.120><c> finding</c><00:03:47.440><c> agent</c><00:03:47.840><c> first</c><00:03:48.400><c> and</c>
+
+00:03:48.630 --> 00:03:48.640 align:start position:0%
+run this food finding agent first and
+ 
+
+00:03:48.640 --> 00:03:51.350 align:start position:0%
+run this food finding agent first and
+then<00:03:48.879><c> this</c><00:03:49.120><c> transportation</c><00:03:49.840><c> agent</c><00:03:50.319><c> next.</c><00:03:51.120><c> So</c>
+
+00:03:51.350 --> 00:03:51.360 align:start position:0%
+then this transportation agent next. So
+ 
+
+00:03:51.360 --> 00:03:54.229 align:start position:0%
+then this transportation agent next. So
+this<00:03:51.840><c> gives</c><00:03:52.159><c> us</c><00:03:52.720><c> predictable</c><00:03:53.599><c> reliable</c>
+
+00:03:54.229 --> 00:03:54.239 align:start position:0%
+this gives us predictable reliable
+ 
+
+00:03:54.239 --> 00:03:56.229 align:start position:0%
+this gives us predictable reliable
+execution.<00:03:55.200><c> And</c><00:03:55.440><c> you</c><00:03:55.599><c> can</c><00:03:55.760><c> take</c><00:03:55.840><c> a</c><00:03:56.000><c> look</c><00:03:56.080><c> at</c>
+
+00:03:56.229 --> 00:03:56.239 align:start position:0%
+execution. And you can take a look at
+ 
+
+00:03:56.239 --> 00:03:58.630 align:start position:0%
+execution. And you can take a look at
+the<00:03:56.480><c> screen</c><00:03:56.720><c> for</c><00:03:56.959><c> this</c><00:03:57.200><c> code</c><00:03:57.439><c> example</c><00:03:58.080><c> of</c><00:03:58.400><c> how</c>
+
+00:03:58.630 --> 00:03:58.640 align:start position:0%
+the screen for this code example of how
+ 
+
+00:03:58.640 --> 00:04:02.949 align:start position:0%
+the screen for this code example of how
+to<00:03:58.799><c> write</c><00:03:59.040><c> it</c><00:03:59.280><c> in</c><00:03:59.519><c> sequential</c><00:04:00.080><c> agent.</c>
+
+00:04:02.949 --> 00:04:02.959 align:start position:0%
+to write it in sequential agent.
+ 
+
+00:04:02.959 --> 00:04:05.270 align:start position:0%
+to write it in sequential agent.
+All<00:04:03.040><c> right,</c><00:04:03.439><c> let's</c><00:04:03.680><c> try</c><00:04:03.840><c> it</c><00:04:04.000><c> out</c><00:04:04.159><c> in</c><00:04:04.480><c> ADK</c><00:04:05.040><c> web</c>
+
+00:04:05.270 --> 00:04:05.280 align:start position:0%
+All right, let's try it out in ADK web
+ 
+
+00:04:05.280 --> 00:04:08.070 align:start position:0%
+All right, let's try it out in ADK web
+UI.
+
+00:04:08.070 --> 00:04:08.080 align:start position:0%
+UI.
+ 
+
+00:04:08.080 --> 00:04:10.229 align:start position:0%
+UI.
+And<00:04:08.319><c> you</c><00:04:08.480><c> can</c><00:04:08.640><c> look</c><00:04:08.799><c> at</c><00:04:08.879><c> the</c><00:04:09.040><c> tracing</c><00:04:09.439><c> tab.</c><00:04:10.080><c> You</c>
+
+00:04:10.229 --> 00:04:10.239 align:start position:0%
+And you can look at the tracing tab. You
+ 
+
+00:04:10.239 --> 00:04:11.830 align:start position:0%
+And you can look at the tracing tab. You
+can<00:04:10.400><c> see</c><00:04:10.560><c> that</c><00:04:10.799><c> it's</c><00:04:11.040><c> executed</c><00:04:11.439><c> the</c><00:04:11.680><c> food</c>
+
+00:04:11.830 --> 00:04:11.840 align:start position:0%
+can see that it's executed the food
+ 
+
+00:04:11.840 --> 00:04:14.070 align:start position:0%
+can see that it's executed the food
+agent<00:04:12.239><c> first</c><00:04:12.720><c> and</c><00:04:12.959><c> then</c><00:04:13.120><c> the</c><00:04:13.360><c> transportation</c>
+
+00:04:14.070 --> 00:04:14.080 align:start position:0%
+agent first and then the transportation
+ 
+
+00:04:14.080 --> 00:04:17.270 align:start position:0%
+agent first and then the transportation
+agent<00:04:14.560><c> next.</c><00:04:15.200><c> Perfect.</c><00:04:16.079><c> Uh</c><00:04:16.320><c> so</c><00:04:16.560><c> how</c><00:04:16.799><c> do</c><00:04:16.959><c> they</c>
+
+00:04:17.270 --> 00:04:17.280 align:start position:0%
+agent next. Perfect. Uh so how do they
+ 
+
+00:04:17.280 --> 00:04:19.590 align:start position:0%
+agent next. Perfect. Uh so how do they
+communicate<00:04:17.919><c> with</c><00:04:18.160><c> each</c><00:04:18.400><c> other?</c><00:04:19.120><c> So</c><00:04:19.280><c> they</c>
+
+00:04:19.590 --> 00:04:19.600 align:start position:0%
+communicate with each other? So they
+ 
+
+00:04:19.600 --> 00:04:21.990 align:start position:0%
+communicate with each other? So they
+share<00:04:20.000><c> information</c><00:04:20.880><c> through</c><00:04:21.199><c> this</c><00:04:21.600><c> shared</c>
+
+00:04:21.990 --> 00:04:22.000 align:start position:0%
+share information through this shared
+ 
+
+00:04:22.000 --> 00:04:24.950 align:start position:0%
+share information through this shared
+session<00:04:22.400><c> state</c><00:04:23.040><c> which</c><00:04:23.360><c> act</c><00:04:23.759><c> like</c><00:04:24.080><c> a</c><00:04:24.400><c> shared</c>
+
+00:04:24.950 --> 00:04:24.960 align:start position:0%
+session state which act like a shared
+ 
+
+00:04:24.960 --> 00:04:27.189 align:start position:0%
+session state which act like a shared
+scratch<00:04:25.440><c> pad.</c><00:04:26.000><c> You</c><00:04:26.240><c> can</c><00:04:26.400><c> check</c><00:04:26.560><c> the</c><00:04:26.800><c> session</c>
+
+00:04:27.189 --> 00:04:27.199 align:start position:0%
+scratch pad. You can check the session
+ 
+
+00:04:27.199 --> 00:04:29.830 align:start position:0%
+scratch pad. You can check the session
+state<00:04:27.440><c> value</c><00:04:27.759><c> at</c><00:04:28.000><c> this</c><00:04:28.160><c> tab.</c><00:04:29.040><c> And</c><00:04:29.199><c> once</c><00:04:29.520><c> the</c>
+
+00:04:29.830 --> 00:04:29.840 align:start position:0%
+state value at this tab. And once the
+ 
+
+00:04:29.840 --> 00:04:32.390 align:start position:0%
+state value at this tab. And once the
+first<00:04:30.000><c> agent</c><00:04:30.720><c> writes</c><00:04:31.040><c> its</c><00:04:31.280><c> finding</c><00:04:32.000><c> and</c><00:04:32.240><c> then</c>
+
+00:04:32.390 --> 00:04:32.400 align:start position:0%
+first agent writes its finding and then
+ 
+
+00:04:32.400 --> 00:04:34.950 align:start position:0%
+first agent writes its finding and then
+the<00:04:32.639><c> second</c><00:04:32.960><c> agent</c><00:04:33.360><c> reads</c><00:04:33.680><c> it</c><00:04:34.240><c> from</c><00:04:34.479><c> it</c><00:04:34.720><c> by</c>
+
+00:04:34.950 --> 00:04:34.960 align:start position:0%
+the second agent reads it from it by
+ 
+
+00:04:34.960 --> 00:04:37.350 align:start position:0%
+the second agent reads it from it by
+using<00:04:35.280><c> this</c><00:04:35.520><c> curly</c><00:04:36.000><c> braces</c><00:04:36.479><c> in</c><00:04:36.720><c> its</c><00:04:36.960><c> system</c>
+
+00:04:37.350 --> 00:04:37.360 align:start position:0%
+using this curly braces in its system
+ 
+
+00:04:37.360 --> 00:04:40.629 align:start position:0%
+using this curly braces in its system
+prompt.<00:04:38.320><c> So</c><00:04:38.720><c> this</c><00:04:38.960><c> is</c><00:04:39.120><c> a</c><00:04:39.360><c> form</c><00:04:39.680><c> of</c><00:04:40.000><c> short-term</c>
+
+00:04:40.629 --> 00:04:40.639 align:start position:0%
+prompt. So this is a form of short-term
+ 
+
+00:04:40.639 --> 00:04:43.270 align:start position:0%
+prompt. So this is a form of short-term
+memory<00:04:41.120><c> for</c><00:04:41.440><c> your</c><00:04:41.680><c> agent</c><00:04:42.160><c> system.</c><00:04:42.880><c> And</c><00:04:43.120><c> the</c>
+
+00:04:43.270 --> 00:04:43.280 align:start position:0%
+memory for your agent system. And the
+ 
+
+00:04:43.280 --> 00:04:46.390 align:start position:0%
+memory for your agent system. And the
+advantages<00:04:44.160><c> of</c><00:04:44.479><c> sequential</c><00:04:45.040><c> agent</c><00:04:45.840><c> is</c><00:04:46.080><c> that</c>
+
+00:04:46.390 --> 00:04:46.400 align:start position:0%
+advantages of sequential agent is that
+ 
+
+00:04:46.400 --> 00:04:49.110 align:start position:0%
+advantages of sequential agent is that
+it<00:04:46.720><c> has</c><00:04:46.960><c> high</c><00:04:47.360><c> degree</c><00:04:47.680><c> of</c><00:04:47.919><c> control</c><00:04:48.800><c> and</c>
+
+00:04:49.110 --> 00:04:49.120 align:start position:0%
+it has high degree of control and
+ 
+
+00:04:49.120 --> 00:04:52.230 align:start position:0%
+it has high degree of control and
+reliability.<00:04:50.400><c> It</c><00:04:50.639><c> is</c><00:04:50.880><c> more</c><00:04:51.280><c> predictable</c><00:04:52.000><c> than</c>
+
+00:04:52.230 --> 00:04:52.240 align:start position:0%
+reliability. It is more predictable than
+ 
+
+00:04:52.240 --> 00:04:54.790 align:start position:0%
+reliability. It is more predictable than
+a<00:04:52.479><c> single</c><00:04:52.800><c> agent,</c><00:04:53.600><c> but</c><00:04:53.840><c> it</c><00:04:54.080><c> can</c><00:04:54.240><c> be</c><00:04:54.400><c> very</c>
+
+00:04:54.790 --> 00:04:54.800 align:start position:0%
+a single agent, but it can be very
+ 
+
+00:04:54.800 --> 00:04:57.590 align:start position:0%
+a single agent, but it can be very
+inflexible.<00:04:56.000><c> This</c><00:04:56.240><c> rigid</c><00:04:56.880><c> predefined</c>
+
+00:04:57.590 --> 00:04:57.600 align:start position:0%
+inflexible. This rigid predefined
+ 
+
+00:04:57.600 --> 00:04:59.749 align:start position:0%
+inflexible. This rigid predefined
+structure<00:04:58.320><c> can</c><00:04:58.560><c> adapt</c><00:04:58.960><c> to</c><00:04:59.199><c> dynamic</c>
+
+00:04:59.749 --> 00:04:59.759 align:start position:0%
+structure can adapt to dynamic
+ 
+
+00:04:59.759 --> 00:05:02.550 align:start position:0%
+structure can adapt to dynamic
+situations.<00:05:01.120><c> Now</c><00:05:01.520><c> let's</c><00:05:01.840><c> go</c><00:05:02.000><c> to</c><00:05:02.160><c> the</c><00:05:02.320><c> third</c>
+
+00:05:02.550 --> 00:05:02.560 align:start position:0%
+situations. Now let's go to the third
+ 
+
+00:05:02.560 --> 00:05:05.510 align:start position:0%
+situations. Now let's go to the third
+part<00:05:02.720><c> of</c><00:05:02.960><c> this</c><00:05:03.199><c> video,</c><00:05:03.840><c> the</c><00:05:04.160><c> parallel</c><00:05:04.639><c> agent.</c>
+
+00:05:05.510 --> 00:05:05.520 align:start position:0%
+part of this video, the parallel agent.
+ 
+
+00:05:05.520 --> 00:05:08.629 align:start position:0%
+part of this video, the parallel agent.
+So<00:05:06.000><c> what</c><00:05:06.240><c> if</c><00:05:06.880><c> some</c><00:05:07.199><c> tasks</c><00:05:07.840><c> don't</c><00:05:08.080><c> need</c><00:05:08.240><c> to</c><00:05:08.400><c> be</c>
+
+00:05:08.629 --> 00:05:08.639 align:start position:0%
+So what if some tasks don't need to be
+ 
+
+00:05:08.639 --> 00:05:11.110 align:start position:0%
+So what if some tasks don't need to be
+happen<00:05:08.960><c> in</c><00:05:09.199><c> order?</c><00:05:09.759><c> Let's</c><00:05:10.000><c> say</c><00:05:10.400><c> if</c><00:05:10.639><c> I</c><00:05:10.800><c> want</c><00:05:10.960><c> to</c>
+
+00:05:11.110 --> 00:05:11.120 align:start position:0%
+happen in order? Let's say if I want to
+ 
+
+00:05:11.120 --> 00:05:13.430 align:start position:0%
+happen in order? Let's say if I want to
+plan<00:05:11.360><c> a</c><00:05:11.520><c> full</c><00:05:11.840><c> trip</c><00:05:12.320><c> need</c><00:05:12.560><c> to</c><00:05:12.800><c> find</c><00:05:12.960><c> a</c><00:05:13.199><c> good</c>
+
+00:05:13.430 --> 00:05:13.440 align:start position:0%
+plan a full trip need to find a good
+ 
+
+00:05:13.440 --> 00:05:15.909 align:start position:0%
+plan a full trip need to find a good
+museum,<00:05:14.160><c> find</c><00:05:14.320><c> a</c><00:05:14.560><c> good</c><00:05:14.800><c> concert</c><00:05:15.360><c> and</c><00:05:15.600><c> then</c><00:05:15.759><c> a</c>
+
+00:05:15.909 --> 00:05:15.919 align:start position:0%
+museum, find a good concert and then a
+ 
+
+00:05:15.919 --> 00:05:17.909 align:start position:0%
+museum, find a good concert and then a
+good<00:05:16.160><c> restaurant.</c><00:05:16.880><c> If</c><00:05:17.120><c> I</c><00:05:17.280><c> doing</c><00:05:17.600><c> them</c><00:05:17.759><c> in</c>
+
+00:05:17.909 --> 00:05:17.919 align:start position:0%
+good restaurant. If I doing them in
+ 
+
+00:05:17.919 --> 00:05:20.629 align:start position:0%
+good restaurant. If I doing them in
+sequential<00:05:18.479><c> order,</c><00:05:19.039><c> it</c><00:05:19.280><c> will</c><00:05:19.440><c> be</c><00:05:19.680><c> slow.</c><00:05:20.479><c> This</c>
+
+00:05:20.629 --> 00:05:20.639 align:start position:0%
+sequential order, it will be slow. This
+ 
+
+00:05:20.639 --> 00:05:22.710 align:start position:0%
+sequential order, it will be slow. This
+is<00:05:20.880><c> where</c><00:05:21.199><c> the</c><00:05:21.440><c> parallel</c><00:05:21.919><c> agent</c><00:05:22.320><c> pattern</c>
+
+00:05:22.710 --> 00:05:22.720 align:start position:0%
+is where the parallel agent pattern
+ 
+
+00:05:22.720 --> 00:05:25.590 align:start position:0%
+is where the parallel agent pattern
+really<00:05:23.039><c> shines.</c><00:05:24.000><c> It</c><00:05:24.240><c> allows</c><00:05:24.720><c> multiple</c>
+
+00:05:25.590 --> 00:05:25.600 align:start position:0%
+really shines. It allows multiple
+ 
+
+00:05:25.600 --> 00:05:28.469 align:start position:0%
+really shines. It allows multiple
+specialized<00:05:26.240><c> agent</c><00:05:26.800><c> to</c><00:05:27.039><c> run</c><00:05:27.360><c> independently</c>
+
+00:05:28.469 --> 00:05:28.479 align:start position:0%
+specialized agent to run independently
+ 
+
+00:05:28.479 --> 00:05:30.870 align:start position:0%
+specialized agent to run independently
+at<00:05:28.720><c> the</c><00:05:28.960><c> same</c><00:05:29.120><c> time.</c><00:05:29.840><c> We</c><00:05:30.080><c> can</c><00:05:30.320><c> have</c><00:05:30.560><c> three</c>
+
+00:05:30.870 --> 00:05:30.880 align:start position:0%
+at the same time. We can have three
+ 
+
+00:05:30.880 --> 00:05:34.390 align:start position:0%
+at the same time. We can have three
+agent<00:05:31.919><c> museum</c><00:05:32.320><c> finder,</c><00:05:33.120><c> concert</c><00:05:33.600><c> finder,</c>
+
+00:05:34.390 --> 00:05:34.400 align:start position:0%
+agent museum finder, concert finder,
+ 
+
+00:05:34.400 --> 00:05:36.310 align:start position:0%
+agent museum finder, concert finder,
+restaurant<00:05:34.800><c> finder,</c><00:05:35.520><c> all</c><00:05:35.840><c> searching</c>
+
+00:05:36.310 --> 00:05:36.320 align:start position:0%
+restaurant finder, all searching
+ 
+
+00:05:36.320 --> 00:05:39.350 align:start position:0%
+restaurant finder, all searching
+concurrently.<00:05:37.680><c> As</c><00:05:38.000><c> you</c><00:05:38.160><c> can</c><00:05:38.320><c> see,</c><00:05:38.880><c> this</c><00:05:39.120><c> will</c>
+
+00:05:39.350 --> 00:05:39.360 align:start position:0%
+concurrently. As you can see, this will
+ 
+
+00:05:39.360 --> 00:05:41.749 align:start position:0%
+concurrently. As you can see, this will
+be<00:05:39.520><c> a</c><00:05:39.759><c> lot</c><00:05:40.000><c> faster</c><00:05:40.639><c> compared</c><00:05:41.039><c> to</c><00:05:41.199><c> doing</c><00:05:41.520><c> them</c>
+
+00:05:41.749 --> 00:05:41.759 align:start position:0%
+be a lot faster compared to doing them
+ 
+
+00:05:41.759 --> 00:05:44.390 align:start position:0%
+be a lot faster compared to doing them
+in<00:05:42.160><c> sequential</c><00:05:42.639><c> order.</c><00:05:43.360><c> Of</c><00:05:43.600><c> course,</c><00:05:44.160><c> after</c>
+
+00:05:44.390 --> 00:05:44.400 align:start position:0%
+in sequential order. Of course, after
+ 
+
+00:05:44.400 --> 00:05:46.790 align:start position:0%
+in sequential order. Of course, after
+they<00:05:44.639><c> all</c><00:05:44.960><c> find</c><00:05:45.199><c> something,</c><00:05:45.919><c> we</c><00:05:46.240><c> need</c><00:05:46.560><c> to</c>
+
+00:05:46.790 --> 00:05:46.800 align:start position:0%
+they all find something, we need to
+ 
+
+00:05:46.800 --> 00:05:49.270 align:start position:0%
+they all find something, we need to
+bring<00:05:47.039><c> this</c><00:05:47.360><c> results</c><00:05:48.000><c> together.</c><00:05:48.880><c> So,</c><00:05:49.039><c> a</c>
+
+00:05:49.270 --> 00:05:49.280 align:start position:0%
+bring this results together. So, a
+ 
+
+00:05:49.280 --> 00:05:52.550 align:start position:0%
+bring this results together. So, a
+common<00:05:49.600><c> approach</c><00:05:50.160><c> is</c><00:05:50.639><c> combine</c><00:05:51.120><c> this</c><00:05:51.759><c> with</c><00:05:52.080><c> a</c>
+
+00:05:52.550 --> 00:05:52.560 align:start position:0%
+common approach is combine this with a
+ 
+
+00:05:52.560 --> 00:05:55.189 align:start position:0%
+common approach is combine this with a
+sequential<00:05:53.120><c> agent.</c><00:05:53.919><c> So</c><00:05:54.240><c> first</c><00:05:54.560><c> we</c><00:05:54.800><c> will</c><00:05:54.960><c> run</c>
+
+00:05:55.189 --> 00:05:55.199 align:start position:0%
+sequential agent. So first we will run
+ 
+
+00:05:55.199 --> 00:05:58.070 align:start position:0%
+sequential agent. So first we will run
+the<00:05:55.440><c> search</c><00:05:55.919><c> in</c><00:05:56.240><c> parallel</c><00:05:57.280><c> and</c><00:05:57.520><c> then</c><00:05:57.759><c> second</c>
+
+00:05:58.070 --> 00:05:58.080 align:start position:0%
+the search in parallel and then second
+ 
+
+00:05:58.080 --> 00:06:00.790 align:start position:0%
+the search in parallel and then second
+we<00:05:58.320><c> will</c><00:05:58.479><c> run</c><00:05:58.720><c> a</c><00:05:58.960><c> final</c><00:05:59.360><c> aggregator</c><00:06:00.000><c> agent</c><00:06:00.560><c> to</c>
+
+00:06:00.790 --> 00:06:00.800 align:start position:0%
+we will run a final aggregator agent to
+ 
+
+00:06:00.800 --> 00:06:03.670 align:start position:0%
+we will run a final aggregator agent to
+synthesize<00:06:01.440><c> all</c><00:06:01.680><c> the</c><00:06:01.919><c> results</c><00:06:02.560><c> in</c><00:06:02.800><c> a</c><00:06:03.039><c> single</c>
+
+00:06:03.670 --> 00:06:03.680 align:start position:0%
+synthesize all the results in a single
+ 
+
+00:06:03.680 --> 00:06:06.070 align:start position:0%
+synthesize all the results in a single
+trip<00:06:04.000><c> plan.</c><00:06:04.639><c> And</c><00:06:04.800><c> here's</c><00:06:05.120><c> the</c><00:06:05.280><c> agent</c><00:06:05.600><c> code</c><00:06:05.840><c> on</c>
+
+00:06:06.070 --> 00:06:06.080 align:start position:0%
+trip plan. And here's the agent code on
+ 
+
+00:06:06.080 --> 00:06:11.590 align:start position:0%
+trip plan. And here's the agent code on
+how<00:06:06.240><c> to</c><00:06:06.400><c> put</c><00:06:06.639><c> together</c><00:06:07.039><c> them.</c>
+
+00:06:11.590 --> 00:06:11.600 align:start position:0%
+ 
+ 
+
+00:06:11.600 --> 00:06:14.870 align:start position:0%
+ 
+All<00:06:11.680><c> right,</c><00:06:12.000><c> let's</c><00:06:12.240><c> test</c><00:06:12.720><c> ADK</c><00:06:13.199><c> web</c><00:06:13.440><c> UI.</c><00:06:14.479><c> After</c>
+
+00:06:14.870 --> 00:06:14.880 align:start position:0%
+All right, let's test ADK web UI. After
+ 
+
+00:06:14.880 --> 00:06:17.189 align:start position:0%
+All right, let's test ADK web UI. After
+we<00:06:15.120><c> type</c><00:06:15.360><c> the</c><00:06:15.600><c> question</c><00:06:16.240><c> from</c><00:06:16.479><c> this</c><00:06:16.720><c> tracing</c>
+
+00:06:17.189 --> 00:06:17.199 align:start position:0%
+we type the question from this tracing
+ 
+
+00:06:17.199 --> 00:06:20.309 align:start position:0%
+we type the question from this tracing
+tab,<00:06:17.919><c> we</c><00:06:18.160><c> can</c><00:06:18.319><c> see</c><00:06:18.960><c> three</c><00:06:19.360><c> searching</c><00:06:19.759><c> agents</c>
+
+00:06:20.309 --> 00:06:20.319 align:start position:0%
+tab, we can see three searching agents
+ 
+
+00:06:20.319 --> 00:06:22.550 align:start position:0%
+tab, we can see three searching agents
+kick<00:06:20.639><c> off</c><00:06:20.880><c> all</c><00:06:21.120><c> at</c><00:06:21.280><c> the</c><00:06:21.440><c> same</c><00:06:21.600><c> time.</c><00:06:22.080><c> So</c><00:06:22.319><c> once</c>
+
+00:06:22.550 --> 00:06:22.560 align:start position:0%
+kick off all at the same time. So once
+ 
+
+00:06:22.560 --> 00:06:24.390 align:start position:0%
+kick off all at the same time. So once
+they're<00:06:22.880><c> done,</c><00:06:23.280><c> the</c><00:06:23.520><c> results</c><00:06:23.919><c> are</c><00:06:24.080><c> returned</c>
+
+00:06:24.390 --> 00:06:24.400 align:start position:0%
+they're done, the results are returned
+ 
+
+00:06:24.400 --> 00:06:26.309 align:start position:0%
+they're done, the results are returned
+to<00:06:24.560><c> the</c><00:06:24.720><c> session</c><00:06:25.120><c> state</c><00:06:25.440><c> as</c><00:06:25.600><c> you</c><00:06:25.840><c> can</c><00:06:25.919><c> see</c><00:06:26.080><c> from</c>
+
+00:06:26.309 --> 00:06:26.319 align:start position:0%
+to the session state as you can see from
+ 
+
+00:06:26.319 --> 00:06:29.189 align:start position:0%
+to the session state as you can see from
+this<00:06:26.560><c> tab</c><00:06:27.120><c> and</c><00:06:27.360><c> then</c><00:06:27.840><c> the</c><00:06:28.160><c> final</c><00:06:28.560><c> summarizing</c>
+
+00:06:29.189 --> 00:06:29.199 align:start position:0%
+this tab and then the final summarizing
+ 
+
+00:06:29.199 --> 00:06:32.950 align:start position:0%
+this tab and then the final summarizing
+agent<00:06:29.919><c> reset</c><00:06:30.479><c> state</c><00:06:31.039><c> and</c><00:06:31.360><c> generate</c><00:06:32.000><c> our</c><00:06:32.319><c> plan</c>
+
+00:06:32.950 --> 00:06:32.960 align:start position:0%
+agent reset state and generate our plan
+ 
+
+00:06:32.960 --> 00:06:35.270 align:start position:0%
+agent reset state and generate our plan
+and<00:06:33.199><c> this</c><00:06:33.440><c> logic</c><00:06:33.919><c> is</c><00:06:34.160><c> defined</c><00:06:34.560><c> in</c><00:06:34.800><c> the</c><00:06:34.960><c> system</c>
+
+00:06:35.270 --> 00:06:35.280 align:start position:0%
+and this logic is defined in the system
+ 
+
+00:06:35.280 --> 00:06:38.309 align:start position:0%
+and this logic is defined in the system
+prompt<00:06:35.840><c> over</c><00:06:36.160><c> here.</c><00:06:36.960><c> As</c><00:06:37.199><c> you</c><00:06:37.440><c> can</c><00:06:37.600><c> see</c><00:06:38.000><c> this</c><00:06:38.240><c> is</c>
+
+00:06:38.309 --> 00:06:38.319 align:start position:0%
+prompt over here. As you can see this is
+ 
+
+00:06:38.319 --> 00:06:41.029 align:start position:0%
+prompt over here. As you can see this is
+a<00:06:38.560><c> great</c><00:06:38.800><c> way</c><00:06:39.120><c> to</c><00:06:39.360><c> reduce</c><00:06:39.759><c> latency</c><00:06:40.319><c> for</c><00:06:40.560><c> task</c>
+
+00:06:41.029 --> 00:06:41.039 align:start position:0%
+a great way to reduce latency for task
+ 
+
+00:06:41.039 --> 00:06:43.510 align:start position:0%
+a great way to reduce latency for task
+that<00:06:41.280><c> can</c><00:06:41.520><c> be</c><00:06:41.600><c> broken</c><00:06:42.080><c> down</c><00:06:42.400><c> into</c><00:06:42.800><c> independent</c>
+
+00:06:43.510 --> 00:06:43.520 align:start position:0%
+that can be broken down into independent
+ 
+
+00:06:43.520 --> 00:06:45.990 align:start position:0%
+that can be broken down into independent
+subtask.<00:06:44.479><c> So</c><00:06:44.639><c> the</c><00:06:44.880><c> benefit</c><00:06:45.199><c> of</c><00:06:45.440><c> this</c><00:06:45.680><c> design</c>
+
+00:06:45.990 --> 00:06:46.000 align:start position:0%
+subtask. So the benefit of this design
+ 
+
+00:06:46.000 --> 00:06:48.390 align:start position:0%
+subtask. So the benefit of this design
+is<00:06:46.240><c> very</c><00:06:46.479><c> obvious</c><00:06:47.039><c> that</c><00:06:47.360><c> it</c><00:06:47.680><c> significantly</c>
+
+00:06:48.390 --> 00:06:48.400 align:start position:0%
+is very obvious that it significantly
+ 
+
+00:06:48.400 --> 00:06:50.870 align:start position:0%
+is very obvious that it significantly
+reduce<00:06:48.800><c> latency</c><00:06:49.600><c> by</c><00:06:49.840><c> running</c><00:06:50.160><c> tasks</c><00:06:50.560><c> at</c><00:06:50.720><c> the</c>
+
+00:06:50.870 --> 00:06:50.880 align:start position:0%
+reduce latency by running tasks at the
+ 
+
+00:06:50.880 --> 00:06:53.830 align:start position:0%
+reduce latency by running tasks at the
+same<00:06:51.039><c> time.</c><00:06:51.840><c> However,</c><00:06:52.560><c> it</c><00:06:52.800><c> can</c><00:06:53.039><c> have</c><00:06:53.360><c> higher</c>
+
+00:06:53.830 --> 00:06:53.840 align:start position:0%
+same time. However, it can have higher
+ 
+
+00:06:53.840 --> 00:06:56.390 align:start position:0%
+same time. However, it can have higher
+initial<00:06:54.400><c> cost</c><00:06:55.039><c> because</c><00:06:55.440><c> it</c><00:06:55.759><c> is</c><00:06:55.919><c> running</c>
+
+00:06:56.390 --> 00:06:56.400 align:start position:0%
+initial cost because it is running
+ 
+
+00:06:56.400 --> 00:06:59.110 align:start position:0%
+initial cost because it is running
+multiple<00:06:56.880><c> agents</c><00:06:57.360><c> all</c><00:06:57.600><c> at</c><00:06:57.759><c> once</c><00:06:58.319><c> and</c><00:06:58.560><c> in</c><00:06:58.800><c> a</c><00:06:59.039><c> lot</c>
+
+00:06:59.110 --> 00:06:59.120 align:start position:0%
+multiple agents all at once and in a lot
+ 
+
+00:06:59.120 --> 00:07:01.830 align:start position:0%
+multiple agents all at once and in a lot
+of<00:06:59.360><c> use</c><00:06:59.599><c> case</c><00:07:00.160><c> it</c><00:07:00.400><c> requires</c><00:07:01.120><c> gather</c><00:07:01.599><c> or</c>
+
+00:07:01.830 --> 00:07:01.840 align:start position:0%
+of use case it requires gather or
+ 
+
+00:07:01.840 --> 00:07:04.390 align:start position:0%
+of use case it requires gather or
+synthesize<00:07:02.400><c> step</c><00:07:02.800><c> to</c><00:07:03.120><c> combine</c><00:07:03.520><c> the</c><00:07:03.759><c> result</c>
+
+00:07:04.390 --> 00:07:04.400 align:start position:0%
+synthesize step to combine the result
+ 
+
+00:07:04.400 --> 00:07:07.029 align:start position:0%
+synthesize step to combine the result
+which<00:07:04.720><c> can</c><00:07:04.960><c> add</c><00:07:05.199><c> complexity</c><00:07:05.759><c> to</c><00:07:06.000><c> our</c><00:07:06.319><c> design.</c>
+
+00:07:07.029 --> 00:07:07.039 align:start position:0%
+which can add complexity to our design.
+ 
+
+00:07:07.039 --> 00:07:09.110 align:start position:0%
+which can add complexity to our design.
+All<00:07:07.120><c> right,</c><00:07:07.680><c> let's</c><00:07:08.000><c> recap</c><00:07:08.400><c> what</c><00:07:08.639><c> we</c><00:07:08.800><c> covered</c>
+
+00:07:09.110 --> 00:07:09.120 align:start position:0%
+All right, let's recap what we covered
+ 
+
+00:07:09.120 --> 00:07:11.670 align:start position:0%
+All right, let's recap what we covered
+so<00:07:09.360><c> far.</c><00:07:09.759><c> So</c><00:07:09.919><c> we</c><00:07:10.160><c> covered</c><00:07:10.479><c> the</c><00:07:10.720><c> single</c><00:07:11.039><c> agent.</c>
+
+00:07:11.670 --> 00:07:11.680 align:start position:0%
+so far. So we covered the single agent.
+ 
+
+00:07:11.680 --> 00:07:13.909 align:start position:0%
+so far. So we covered the single agent.
+It<00:07:11.840><c> is</c><00:07:12.080><c> simple</c><00:07:12.319><c> to</c><00:07:12.639><c> implement.</c><00:07:13.440><c> It</c><00:07:13.680><c> can</c><00:07:13.759><c> be</c>
+
+00:07:13.909 --> 00:07:13.919 align:start position:0%
+It is simple to implement. It can be
+ 
+
+00:07:13.919 --> 00:07:16.150 align:start position:0%
+It is simple to implement. It can be
+very<00:07:14.240><c> flexible</c><00:07:15.120><c> but</c><00:07:15.440><c> it</c><00:07:15.520><c> lacks</c><00:07:15.759><c> certain</c>
+
+00:07:16.150 --> 00:07:16.160 align:start position:0%
+very flexible but it lacks certain
+ 
+
+00:07:16.160 --> 00:07:18.629 align:start position:0%
+very flexible but it lacks certain
+control<00:07:16.639><c> over</c><00:07:16.960><c> this</c><00:07:17.199><c> whole</c><00:07:17.520><c> system.</c><00:07:18.160><c> We</c><00:07:18.400><c> also</c>
+
+00:07:18.629 --> 00:07:18.639 align:start position:0%
+control over this whole system. We also
+ 
+
+00:07:18.639 --> 00:07:20.710 align:start position:0%
+control over this whole system. We also
+cover<00:07:18.880><c> the</c><00:07:19.120><c> sequential</c><00:07:19.599><c> agent.</c><00:07:20.160><c> It</c><00:07:20.400><c> add</c><00:07:20.560><c> a</c>
+
+00:07:20.710 --> 00:07:20.720 align:start position:0%
+cover the sequential agent. It add a
+ 
+
+00:07:20.720 --> 00:07:22.790 align:start position:0%
+cover the sequential agent. It add a
+certain<00:07:21.039><c> level</c><00:07:21.280><c> of</c><00:07:21.520><c> control</c><00:07:22.160><c> and</c><00:07:22.400><c> make</c><00:07:22.560><c> the</c>
+
+00:07:22.790 --> 00:07:22.800 align:start position:0%
+certain level of control and make the
+ 
+
+00:07:22.800 --> 00:07:25.670 align:start position:0%
+certain level of control and make the
+system<00:07:23.039><c> more</c><00:07:23.360><c> reliable</c><00:07:24.319><c> but</c><00:07:24.639><c> it</c><00:07:24.880><c> is</c><00:07:25.120><c> not</c><00:07:25.360><c> very</c>
+
+00:07:25.670 --> 00:07:25.680 align:start position:0%
+system more reliable but it is not very
+ 
+
+00:07:25.680 --> 00:07:27.909 align:start position:0%
+system more reliable but it is not very
+flexible.<00:07:26.560><c> And</c><00:07:26.800><c> lastly</c><00:07:27.199><c> we</c><00:07:27.360><c> covered</c><00:07:27.680><c> the</c>
+
+00:07:27.909 --> 00:07:27.919 align:start position:0%
+flexible. And lastly we covered the
+ 
+
+00:07:27.919 --> 00:07:30.950 align:start position:0%
+flexible. And lastly we covered the
+parallel<00:07:28.319><c> agent.</c><00:07:29.199><c> It</c><00:07:29.440><c> is</c><00:07:29.599><c> fast,</c><00:07:30.400><c> efficient</c>
+
+00:07:30.950 --> 00:07:30.960 align:start position:0%
+parallel agent. It is fast, efficient
+ 
+
+00:07:30.960 --> 00:07:33.350 align:start position:0%
+parallel agent. It is fast, efficient
+and<00:07:31.280><c> great</c><00:07:31.520><c> for</c><00:07:31.759><c> independent</c><00:07:32.319><c> task</c><00:07:32.960><c> but</c><00:07:33.199><c> it</c>
+
+00:07:33.350 --> 00:07:33.360 align:start position:0%
+and great for independent task but it
+ 
+
+00:07:33.360 --> 00:07:35.350 align:start position:0%
+and great for independent task but it
+can<00:07:33.520><c> add</c><00:07:33.840><c> cost</c><00:07:34.160><c> and</c><00:07:34.400><c> complexity</c><00:07:34.880><c> to</c><00:07:35.120><c> your</c>
+
+00:07:35.350 --> 00:07:35.360 align:start position:0%
+can add cost and complexity to your
+ 
+
+00:07:35.360 --> 00:07:37.430 align:start position:0%
+can add cost and complexity to your
+system.<00:07:36.080><c> With</c><00:07:36.319><c> those</c><00:07:36.560><c> pattern</c><00:07:37.039><c> you</c><00:07:37.280><c> can</c>
+
+00:07:37.430 --> 00:07:37.440 align:start position:0%
+system. With those pattern you can
+ 
+
+00:07:37.440 --> 00:07:39.909 align:start position:0%
+system. With those pattern you can
+already<00:07:37.840><c> build</c><00:07:38.160><c> some</c><00:07:38.560><c> powerful</c><00:07:39.120><c> workflow.</c>
+
+00:07:39.909 --> 00:07:39.919 align:start position:0%
+already build some powerful workflow.
+ 
+
+00:07:39.919 --> 00:07:41.670 align:start position:0%
+already build some powerful workflow.
+And<00:07:40.080><c> in</c><00:07:40.319><c> our</c><00:07:40.560><c> next</c><00:07:40.800><c> video</c><00:07:41.199><c> we're</c><00:07:41.440><c> going</c><00:07:41.520><c> to</c>
+
+00:07:41.670 --> 00:07:41.680 align:start position:0%
+And in our next video we're going to
+ 
+
+00:07:41.680 --> 00:07:44.150 align:start position:0%
+And in our next video we're going to
+level<00:07:42.000><c> up</c><00:07:42.319><c> with</c><00:07:42.560><c> more</c><00:07:42.880><c> advanced</c><00:07:43.360><c> pattern</c><00:07:43.840><c> for</c>
+
+00:07:44.150 --> 00:07:44.160 align:start position:0%
+level up with more advanced pattern for
+ 
+
+00:07:44.160 --> 00:07:46.629 align:start position:0%
+level up with more advanced pattern for
+handling<00:07:44.639><c> even</c><00:07:44.960><c> more</c><00:07:45.440><c> complex</c><00:07:45.919><c> and</c><00:07:46.160><c> dynamic</c>
+
+00:07:46.629 --> 00:07:46.639 align:start position:0%
+handling even more complex and dynamic
+ 
+
+00:07:46.639 --> 00:07:49.029 align:start position:0%
+handling even more complex and dynamic
+problem.<00:07:47.120><c> We</c><00:07:47.360><c> will</c><00:07:47.599><c> explore</c><00:07:48.319><c> cases</c><00:07:48.800><c> with</c>
+
+00:07:49.029 --> 00:07:49.039 align:start position:0%
+problem. We will explore cases with
+ 
+
+00:07:49.039 --> 00:07:51.029 align:start position:0%
+problem. We will explore cases with
+different<00:07:49.360><c> practical</c><00:07:49.759><c> examples</c><00:07:50.639><c> and</c><00:07:50.880><c> the</c>
+
+00:07:51.029 --> 00:07:51.039 align:start position:0%
+different practical examples and the
+ 
+
+00:07:51.039 --> 00:07:52.390 align:start position:0%
+different practical examples and the
+pattern<00:07:51.360><c> we're</c><00:07:51.520><c> going</c><00:07:51.680><c> to</c><00:07:51.759><c> cover</c><00:07:52.080><c> next</c>
+
+00:07:52.390 --> 00:07:52.400 align:start position:0%
+pattern we're going to cover next
+ 
+
+00:07:52.400 --> 00:07:54.390 align:start position:0%
+pattern we're going to cover next
+episode<00:07:52.880><c> including</c><00:07:53.599><c> uh</c><00:07:53.680><c> the</c><00:07:53.840><c> loop</c><00:07:54.160><c> and</c>
+
+00:07:54.390 --> 00:07:54.400 align:start position:0%
+episode including uh the loop and
+ 
+
+00:07:54.400 --> 00:07:56.790 align:start position:0%
+episode including uh the loop and
+critique<00:07:54.800><c> pattern</c><00:07:55.120><c> for</c><00:07:55.360><c> selfcorrection,</c><00:07:56.560><c> the</c>
+
+00:07:56.790 --> 00:07:56.800 align:start position:0%
+critique pattern for selfcorrection, the
+ 
+
+00:07:56.800 --> 00:07:58.800 align:start position:0%
+critique pattern for selfcorrection, the
+coordinator<00:07:57.360><c> pattern</c><00:07:57.680><c> for</c><00:07:57.919><c> dynamic</c><00:07:58.400><c> routing</c>
+
+00:07:58.800 --> 00:07:58.810 align:start position:0%
+coordinator pattern for dynamic routing
+ 
+
+00:07:58.810 --> 00:08:00.950 align:start position:0%
+coordinator pattern for dynamic routing
+[music]<00:07:58.960><c> and</c><00:07:59.199><c> also</c><00:07:59.440><c> the</c><00:07:59.759><c> powerful</c><00:08:00.240><c> concept</c><00:08:00.639><c> of</c>
+
+00:08:00.950 --> 00:08:00.960 align:start position:0%
+[music] and also the powerful concept of
+ 
+
+00:08:00.960 --> 00:08:03.749 align:start position:0%
+[music] and also the powerful concept of
+using<00:08:01.520><c> agent</c><00:08:02.000><c> as</c><00:08:02.240><c> a</c><00:08:02.400><c> tool.</c><00:08:03.039><c> All</c><00:08:03.120><c> right,</c><00:08:03.440><c> I</c><00:08:03.599><c> will</c>
+
+00:08:03.749 --> 00:08:03.759 align:start position:0%
+using agent as a tool. All right, I will
+ 
+
+00:08:03.759 --> 00:08:10.590 align:start position:0%
+using agent as a tool. All right, I will
+see<00:08:03.919><c> you</c><00:08:04.000><c> in</c><00:08:04.050><c> [music]</c><00:08:04.160><c> next</c><00:08:04.400><c> video.</c><00:08:04.720><c> Bye.</c>
+
+00:08:10.590 --> 00:08:10.600 align:start position:0%
+ 
+ 
+
+00:08:10.600 --> 00:08:12.620 align:start position:0%
+ 
+&gt;&gt; [music]
+
