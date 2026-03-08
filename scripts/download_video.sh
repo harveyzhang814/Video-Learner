@@ -48,8 +48,9 @@ fi
 rm -f "$DIR/media/video.temp.mp4" "$DIR/media/v_tempvideo"* "$DIR/media/v_tempaudio"* 2>/dev/null || true
 
 # Attempt 1: Combined format
+echo "[INFO] Attempting combined format download..."
 yt-dlp -f "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best" \
-    -o "$DIR/media/video.temp.mp4" --merge-output-format mp4 "$URL" 2>&1 | tail -3
+    -o "$DIR/media/video.temp.mp4" --merge-output-format mp4 "$URL" 2>&1
 
 if [ -f "$DIR/media/video.temp.mp4" ]; then
     mv "$DIR/media/video.temp.mp4" "$DIR/media/video.mp4"
@@ -61,11 +62,15 @@ if [ -f "$DIR/media/video.temp.mp4" ]; then
 fi
 
 # Attempt 2: DASH fallback
-yt-dlp -f "bestvideo[height<=1080][ext=mp4]" -o "$DIR/media/v_tempvideo.mp4" "$URL" 2>/dev/null || true
-yt-dlp -f "bestaudio[ext=m4a]" -o "$DIR/media/v_tempaudio.m4a" "$URL" 2>/dev/null || true
+echo "[INFO] Attempt 1 failed, trying DASH fallback..."
+echo "[INFO] Downloading video stream..."
+yt-dlp -f "bestvideo[height<=1080][ext=mp4]" -o "$DIR/media/v_tempvideo.mp4" "$URL" 2>&1 || true
+echo "[INFO] Downloading audio stream..."
+yt-dlp -f "bestaudio[ext=m4a]" -o "$DIR/media/v_tempaudio.m4a" "$URL" 2>&1 || true
 
 if [ -f "$DIR/media/v_tempvideo.mp4" ] && [ -f "$DIR/media/v_tempaudio.m4a" ]; then
-    ffmpeg -i "$DIR/media/v_tempvideo.mp4" -i "$DIR/media/v_tempaudio.m4a" -c copy -y "$DIR/media/video.mp4" 2>/dev/null
+    echo "[INFO] Merging video and audio with ffmpeg..."
+    ffmpeg -i "$DIR/media/v_tempvideo.mp4" -i "$DIR/media/v_tempaudio.m4a" -c copy -y "$DIR/media/video.mp4" 2>&1
     rm -f "$DIR/media/v_tempvideo.mp4" "$DIR/media/v_tempaudio.m4a"
     if [ -f "$DIR/media/video.mp4" ]; then
         echo "[STATUS] video_done"

@@ -5,6 +5,13 @@ import glob
 import sys
 import argparse
 
+def parse_timestamp(ts):
+    """Parse timestamp to seconds for sorting."""
+    ts = ts.replace(',', '.')
+    parts = ts.split(':')
+    return float(parts[0])*3600 + float(parts[1])*60 + float(parts[2])
+
+
 def remove_overlap_prefix(current_text, previous_text, min_overlap=3):
     """Remove overlapping prefix from current text."""
     if not previous_text or not current_text:
@@ -33,46 +40,72 @@ def convert_vtt_to_markdown(vtt_path, output_path, lang=None):
     content = re.sub(r'^WEBVTT.*?\n\n', '', content, flags=re.MULTILINE)
 
     # Extract timestamped entries
-    # YouTube VTT has two parts per block:
-    # 1. Word-level timing: "00:00:00.240 --> 00:00:01.910" with HTML tags like <00:...><c>
-    # 2. Clean version: "00:00:01.910 --> 00:00:01.920" without HTML tags
-    # We prefer the clean version (without word timing tags)
-    pattern = r'(\d{2}:\d{2}:\d{2}[.,]?\d*)\s*-->\s*\d{2}:\d{2}:\d{2}[.,]?\d*\s*[^\n]*\n(.+?)(?=\n\n\d{2}:\d{2}|\n*$)'
-    matches = re.findall(pattern, content, re.DOTALL)
+    # VTT format variants:
+    # 1. With word timing: "00:00:00.240 --> 00:00:01.910" + blank line + "Hi<00:...><c> everyone"
+    # 2. Clean format: "00:00:01.910 --> 00:00:01.920" + "text"
+    # 3. Clean format with attributes: "00:00:01.910 --> 00:00:01.920 align:start" + "text"
 
-    # Group by timestamp and prefer clean text (without word timing tags)
-    # Also capture end times from the VTT entries
+    # First, split into blocks by double newline
+    blocks = re.split(r'\n\n+', content)
+
     timestamp_entries = {}
-    full_pattern = r'(\d{2}:\d{2}:\d{2}[.,]?\d*)\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]?\d*)\s*[^\n]*\n(.+?)(?=\n\n\d{2}:\d{2}|\n*$)'
-    full_matches = re.findall(full_pattern, content, re.DOTALL)
+    for block in blocks:
+        lines = block.strip().split('\n')
+        if len(lines) < 2:
+            continue
 
-    for start, end, text in full_matches:
-        # Check if this is a clean entry (no word timing like <00:...><c>)
+        # First line should be timestamp
+        ts_match = re.match(r'(\d{2}:\d{2}:\d{2}[.,]?\d*)\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]?\d*)', lines[0])
+        if not ts_match:
+            continue
+
+        start = ts_match.group(1)
+        end = ts_match.group(2)
+
+        # Text is either on second line, or third line (if second line is blank for word timing)
+        text = None
+        if len(lines) >= 2:
+            # Find the first non-empty line after timestamp
+            for line in lines[1:]:
+                if line.strip():
+                    text = line.strip()
+                    break
+
+        if not text:
+            continue
+
+        # Check if this is a word timing entry (contains <00:...><c> tags)
         has_word_timing = bool(re.search(r'<\d{2}:\d{2}:\d{2}', text))
-        text = re.sub(r'<[^>]+>', '', text)  # Remove XML tags
+
+        # Remove XML/HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
         text = text.strip().replace('\n', ' ')
 
         if not text:
             continue
 
-        parts = start.replace(',', '.').split(':')
-        seconds = float(parts[0])*3600 + float(parts[1])*60 + float(parts[2])
+        # Use seconds (without ms) as key to group entries at same second
+        # This allows us to prefer clean entries over word-timing entries
+        ts_seconds = int(parse_timestamp(start))
 
         # Prefer clean entries (without word timing) over word-timing entries
-        if seconds not in timestamp_entries or not has_word_timing:
-            timestamp_entries[seconds] = (start, end, text)
+        if ts_seconds not in timestamp_entries or not has_word_timing:
+            timestamp_entries[ts_seconds] = (start, end, text)
 
-    # Convert to list and sort
-    entries = [(sec, start, end, text) for sec, (start, end, text) in timestamp_entries.items()]
-    entries.sort(key=lambda x: x[0])
+    # Convert to list and sort by timestamp
+    # Convert to list and sort by timestamp
+    entries = [(ts_sec, start, end, text) for ts_sec, (start, end, text) in timestamp_entries.items()]
+    entries.sort(key=lambda x: parse_timestamp(x[1]))
 
     # Merge entries with overlap removal
     # 1. Time difference < 0.5s: keep longer text, later timestamp
     # 2. Otherwise: remove overlapping prefix from current text
     merged = []
     if entries:
-        current_sec, current_start, current_end, current_text = entries[0]
-        for sec, start, end, text in entries[1:]:
+        ts_sec, current_start, current_end, current_text = entries[0]
+        current_sec = parse_timestamp(current_start)
+        for ts_sec, start, end, text in entries[1:]:
+            sec = parse_timestamp(start)
             time_diff = sec - current_sec
 
             # Check if text is contained in current_text (duplicate or subset)
@@ -93,10 +126,17 @@ def convert_vtt_to_markdown(vtt_path, output_path, lang=None):
                 current_sec, current_start, current_end, current_text = sec, start, end, final_text
         merged.append((current_start, current_end, current_text))
 
-    # Write output with both start and end times
+    # Write output with both start and end times (统一格式: [HH:MM:SS.mmm --> HH:MM:SS.mmm] TEXT)
     with open(output_path, 'w', encoding='utf-8') as f:
         for start, end, text in merged:
-            f.write(f"[{start.split('.')[0]} --> {end.split('.')[0]}] {text}\n")
+            # Normalize to include milliseconds (default to .000 if not present)
+            start_parts = start.replace(',', '.').split('.')
+            end_parts = end.replace(',', '.').split('.')
+            start_ms = start_parts[1].ljust(3, '0')[:3] if len(start_parts) > 1 else '000'
+            end_ms = end_parts[1].ljust(3, '0')[:3] if len(end_parts) > 1 else '000'
+            start_normalized = f"{start_parts[0]}.{start_ms}"
+            end_normalized = f"{end_parts[0]}.{end_ms}"
+            f.write(f"[{start_normalized} --> {end_normalized}] {text}\n")
 
     return len(merged), len(entries)
 

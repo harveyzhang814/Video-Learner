@@ -80,7 +80,21 @@ class DatabaseManager {
 
     getTask(id) {
         const stmt = this.db.prepare('SELECT * FROM tasks WHERE id = ?');
-        return stmt.get(id);
+        const task = stmt.get(id);
+        if (task && task.transcripts) {
+            try {
+                // Parse transcripts JSON string to object
+                let parsed = JSON.parse(task.transcripts);
+                // Handle double-serialized strings (legacy bug)
+                if (typeof parsed === 'string') {
+                    parsed = JSON.parse(parsed);
+                }
+                task.transcripts = parsed;
+            } catch {
+                // Keep as-is if parsing fails
+            }
+        }
+        return task;
     }
 
     updateTask(id, data) {
@@ -91,7 +105,8 @@ class DatabaseManager {
 
     // 更新 transcripts 信息
     updateTranscripts(id, data) {
-        const transcriptsJson = JSON.stringify(data);
+        // 如果已经是字符串，直接使用；否则序列化对象
+        const transcriptsJson = typeof data === 'string' ? data : JSON.stringify(data);
         const stmt = this.db.prepare(`
             UPDATE tasks SET transcripts = ?, updated_at = datetime('now') WHERE id = ?
         `);
@@ -104,7 +119,12 @@ class DatabaseManager {
         const result = stmt.get(id);
         if (result && result.transcripts) {
             try {
-                return JSON.parse(result.transcripts);
+                // Handle double-serialized JSON (legacy bug)
+                let parsed = JSON.parse(result.transcripts);
+                if (typeof parsed === 'string') {
+                    parsed = JSON.parse(parsed);
+                }
+                return parsed;
             } catch {
                 return {};
             }

@@ -32,8 +32,10 @@ fi
 rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
 
 # Download audio using yt-dlp
-yt-dlp -f "bestaudio[ext=m4a]/bestaudio/best" \
-    -o "$DIR/media/audio.temp.m4a" "$URL" 2>&1 | tail -3
+# Priority: m4a > webm > any audio
+echo "[INFO] Downloading audio..."
+yt-dlp -f "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio" \
+    -o "$DIR/media/audio.temp.m4a" "$URL" 2>&1
 PIPESTATUS_CODE=(${PIPESTATUS[@]})
 YTDLP_EXIT_CODE=${PIPESTATUS_CODE[0]}
 
