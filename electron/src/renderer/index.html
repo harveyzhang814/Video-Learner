@@ -2929,8 +2929,6 @@
     function updateSubtitleHighlight() {
       const currentTime = videoPlayer.currentTime;
 
-      // Debug: log current time and subtitle ranges
-      // console.log('[SUB] currentTime:', currentTime);
 
       // Find the subtitle that should be active
       // Optimization: Start from last known index (usually the next subtitle)
@@ -2960,12 +2958,6 @@
         lastActiveIndex = activeIndex;
       }
 
-      // Debug log for subtitle sync
-      if (activeIndex !== -1) {
-        const sub = subtitles[activeIndex];
-        console.log('[SUB] time=' + currentTime.toFixed(2) + ' activeIndex=' + activeIndex + ' range=[' + sub.start.toFixed(2) + '-' + sub.end.toFixed(2) + '] text="' + sub.text.substring(0, 30) + '"');
-      }
-
       // Only update if the active index changed
       const items = document.querySelectorAll('.subtitle-item');
       const currentActive = document.querySelector('.subtitle-item.active');
@@ -2978,13 +2970,6 @@
         const newActive = items[activeIndex];
         if (newActive) {
           newActive.classList.add('active');
-          const domStart = newActive.dataset.start;
-          const arrStart = subtitles[activeIndex].start;
-          console.log('[SUB-HL] setting active index=' + activeIndex + ' element-index=' + newActive.dataset.index + ' dom-start=' + domStart + ' arr-start=' + arrStart + ' match=' + (domStart == arrStart));
-
-          // DEBUG: Verify DOM state after setting
-          const allActive = document.querySelectorAll('.subtitle-item.active');
-          console.log('[SUB-DOM] active count=' + allActive.length + ' indices=' + Array.from(allActive).map(el => el.dataset.index).join(','));
 
           // Use instant scroll (no smooth) for faster response
           newActive.scrollIntoView({ behavior: 'auto', block: 'center' });
