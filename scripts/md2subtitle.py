@@ -5,15 +5,35 @@ import re
 import argparse
 
 def parse_original_md(filepath):
-    """Parse original.md format: supports both:
-    - [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text (with ms)
-    - [hh:mm:ss --> hh:mm:ss] text (without ms, from vtt_converter.py)
+    """Parse original.md format: supports:
+    - [HH:MM:SS.mmm --> HH:MM:SS.mmm] text (统一格式，带毫秒)
+    - [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text (旧格式，带毫秒)
+    - [hh:mm:ss --> hh:mm:ss] text (旧格式，无毫秒)
     """
     entries = []
     with open(filepath, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if not line:
+                continue
+
+            # Try unified format with milliseconds: [HH:MM:SS.mmm --> HH:MM:SS.mmm] text
+            match = re.match(r'\[(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})\]\s+(.+)', line)
+            if match:
+                h1, m1, s1, ms1, h2, m2, s2, ms2, text = match.groups()
+
+                start_sec = int(h1) * 3600 + int(m1) * 60 + int(s1)
+                start_ms = int(ms1)
+                end_sec = int(h2) * 3600 + int(m2) * 60 + int(s2)
+                end_ms = int(ms2)
+
+                # Skip invalid entries: end <= start or empty text
+                if end_sec < start_sec or (end_sec == start_sec and end_ms <= start_ms):
+                    continue
+                if not text.strip():
+                    continue
+
+                entries.append((start_sec, end_sec, start_ms, end_ms, text))
                 continue
 
             # Try format with milliseconds: [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text

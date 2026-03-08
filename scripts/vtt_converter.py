@@ -93,10 +93,17 @@ def convert_vtt_to_markdown(vtt_path, output_path, lang=None):
                 current_sec, current_start, current_end, current_text = sec, start, end, final_text
         merged.append((current_start, current_end, current_text))
 
-    # Write output with both start and end times
+    # Write output with both start and end times (统一格式: [HH:MM:SS.mmm --> HH:MM:SS.mmm] TEXT)
     with open(output_path, 'w', encoding='utf-8') as f:
         for start, end, text in merged:
-            f.write(f"[{start.split('.')[0]} --> {end.split('.')[0]}] {text}\n")
+            # Normalize to include milliseconds (default to .000 if not present)
+            start_parts = start.replace(',', '.').split('.')
+            end_parts = end.replace(',', '.').split('.')
+            start_ms = start_parts[1].ljust(3, '0')[:3] if len(start_parts) > 1 else '000'
+            end_ms = end_parts[1].ljust(3, '0')[:3] if len(end_parts) > 1 else '000'
+            start_normalized = f"{start_parts[0]}.{start_ms}"
+            end_normalized = f"{end_parts[0]}.{end_ms}"
+            f.write(f"[{start_normalized} --> {end_normalized}] {text}\n")
 
     return len(merged), len(entries)
 
