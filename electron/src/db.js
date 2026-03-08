@@ -80,7 +80,21 @@ class DatabaseManager {
 
     getTask(id) {
         const stmt = this.db.prepare('SELECT * FROM tasks WHERE id = ?');
-        return stmt.get(id);
+        const task = stmt.get(id);
+        if (task && task.transcripts) {
+            try {
+                // Parse transcripts JSON string to object
+                let parsed = JSON.parse(task.transcripts);
+                // Handle double-serialized strings (legacy bug)
+                if (typeof parsed === 'string') {
+                    parsed = JSON.parse(parsed);
+                }
+                task.transcripts = parsed;
+            } catch {
+                // Keep as-is if parsing fails
+            }
+        }
+        return task;
     }
 
     updateTask(id, data) {
