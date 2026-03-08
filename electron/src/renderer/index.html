@@ -2839,22 +2839,28 @@
     }
 
     async function loadSubtitlesForLang(id, lang) {
+      console.log('[DEBUG] loadSubtitlesForLang called with:', { id, lang, availableSubtitles });
       const subtitleContent = await window.api.readSubtitleBilingual(id, lang);
+      console.log('[DEBUG] subtitleContent for', lang, ':', subtitleContent ? 'exists (' + subtitleContent.length + ' chars)' : 'null');
 
       if (subtitleContent) {
         subtitles = parseVTT(subtitleContent);
         renderSubtitles();
         subtitleModule.classList.remove('hidden');
+        console.log('[DEBUG] Subtitle module shown, items:', subtitles.length);
       } else {
         subtitles = [];
         subtitleList.innerHTML = '';
         // If Chinese not available, try English as fallback
+        console.log('[DEBUG] No subtitle for', lang, ', checking fallback. availableSubtitles.en:', availableSubtitles.en);
         if (lang === 'zh' && availableSubtitles.en) {
+          console.log('[DEBUG] Falling back to English');
           currentSubtitleLang = 'en';
           updateLanguageSwitcher();
           await loadSubtitlesForLang(id, 'en');
           return;
         }
+        console.log('[DEBUG] No fallback available, hiding subtitle module');
         subtitleModule.classList.add('hidden');
       }
     }

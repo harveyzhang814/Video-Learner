@@ -531,14 +531,22 @@ ipcMain.handle('get-available-subtitles', async (event, id) => {
     // Get transcripts from database
     const transcripts = db ? db.getTranscripts(id) : {};
 
-    // Check article source language from tasks table
-    const task = db ? db.getTask(id) : null;
+    // Fallback: check file existence if database returns null/false
+    const fs = require('fs');
+    const path = require('path');
+    const transcriptDir = path.join(__dirname, '../..', 'work', id, 'transcript');
+    const enVttExists = fs.existsSync(path.join(transcriptDir, 'original_en.vtt'));
+    const zhVttExists = fs.existsSync(path.join(transcriptDir, 'original_zh.vtt'));
 
-    // Return transcripts info from database
+    // Use database value if truthy, otherwise fallback to file check
+    const enAvailable = (transcripts.en && transcripts.en !== false) || enVttExists;
+    const zhAvailable = (transcripts.zh && transcripts.zh !== false) || zhVttExists;
+
+    // Return transcripts info
     return {
-      en: transcripts.en || null,
-      zh: transcripts.zh || null,
-      articleSource: task ? task.article_source_lang || null : null
+      en: enAvailable ? true : null,
+      zh: zhAvailable ? true : null,
+      articleSource: null
     };
   } catch (e) {
     console.error('get-available-subtitles error:', e);
