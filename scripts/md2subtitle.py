@@ -5,7 +5,10 @@ import re
 import argparse
 
 def parse_original_md(filepath):
-    """Parse original.md format: [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text"""
+    """Parse original.md format: supports both:
+    - [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text (with ms)
+    - [hh:mm:ss --> hh:mm:ss] text (without ms, from vtt_converter.py)
+    """
     entries = []
     with open(filepath, 'r', encoding='utf-8') as f:
         for line in f:
@@ -13,7 +16,7 @@ def parse_original_md(filepath):
             if not line:
                 continue
 
-            # Match [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text
+            # Try format with milliseconds: [hh:mm:ss] HH:MM:SS.mmm --> HH:MM:SS.mmm text
             match = re.match(r'\[\d{2}:\d{2}:\d{2}\]\s+(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s+(.+)', line)
             if match:
                 h1, m1, s1, ms1, h2, m2, s2, ms2, text = match.groups()
@@ -30,6 +33,24 @@ def parse_original_md(filepath):
                     continue
 
                 entries.append((start_sec, end_sec, start_ms, end_ms, text))
+                continue
+
+            # Try format without milliseconds: [hh:mm:ss --> hh:mm:ss] text
+            match = re.match(r'\[(\d{2}):(\d{2}):(\d{2})\s*-->\s*(\d{2}):(\d{2}):(\d{2})\]\s+(.+)', line)
+            if match:
+                h1, m1, s1, h2, m2, s2, text = match.groups()
+
+                start_sec = int(h1) * 3600 + int(m1) * 60 + int(s1)
+                end_sec = int(h2) * 3600 + int(m2) * 60 + int(s2)
+
+                # Skip invalid entries: end <= start or empty text
+                if end_sec < start_sec:
+                    continue
+                if not text.strip():
+                    continue
+
+                # Default to 0ms for start, 999ms for end (1 second duration)
+                entries.append((start_sec, end_sec, 0, 999, text))
     return entries
 
 def format_vtt_time(seconds, ms):
