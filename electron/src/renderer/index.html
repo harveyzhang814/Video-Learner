@@ -2863,7 +2863,9 @@
       const buttons = languageSwitcher.querySelectorAll('button');
       buttons.forEach(btn => {
         const lang = btn.dataset.lang;
-        const isAvailable = availableSubtitles[lang] && availableSubtitles[lang].done;
+        const transcript = availableSubtitles[lang];
+        // Handle both formats: boolean (true/false) or object {done: true/false}
+        const isAvailable = transcript && (transcript === true || (transcript.done));
         btn.classList.toggle('hidden', !isAvailable);
         btn.classList.toggle('active', lang === currentSubtitleLang && isAvailable);
       });
@@ -2873,7 +2875,9 @@
     languageSwitcher.addEventListener('click', async (e) => {
       if (e.target.tagName === 'BUTTON' && currentId) {
         const newLang = e.target.dataset.lang;
-        if (newLang !== currentSubtitleLang && availableSubtitles[newLang]) {
+        const transcript = availableSubtitles[newLang];
+        const isAvailable = transcript && (transcript === true || (transcript.done));
+        if (newLang !== currentSubtitleLang && isAvailable) {
           currentSubtitleLang = newLang;
           updateLanguageSwitcher();
           await loadSubtitlesForLang(currentId, currentSubtitleLang);
