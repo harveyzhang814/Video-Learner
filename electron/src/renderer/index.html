@@ -2770,6 +2770,7 @@
     const subtitleList = document.getElementById('subtitleList');
     const languageSwitcher = document.getElementById('languageSwitcher');
     let subtitles = [];
+    let lastActiveIndex = 0;  // Cache for optimized search
     let currentSubtitleLang = 'zh';  // Default to Chinese
     let availableSubtitles = { en: null, zh: null };
 
@@ -2830,6 +2831,19 @@
       // Get available subtitles info
       availableSubtitles = await window.api.getAvailableSubtitles(id);
       console.log('Available subtitles:', availableSubtitles);
+
+      // Smart language selection: choose default language based on availability
+      // Priority: current language if available, otherwise fallback to available language
+      let selectedLang = currentSubtitleLang;
+      if (!availableSubtitles[selectedLang]) {
+        // Current language not available, find fallback
+        if (availableSubtitles.zh) {
+          selectedLang = 'zh';
+        } else if (availableSubtitles.en) {
+          selectedLang = 'en';
+        }
+        currentSubtitleLang = selectedLang;  // Update to valid language
+      }
 
       // Update language switcher visibility based on available subtitles
       updateLanguageSwitcher();
@@ -2915,15 +2929,41 @@
     function updateSubtitleHighlight() {
       const currentTime = videoPlayer.currentTime;
 
+      // Debug: log current time and subtitle ranges
+      // console.log('[SUB] currentTime:', currentTime);
+
       // Find the subtitle that should be active
-      // Use simple >= start && <= end for exact match
+      // Optimization: Start from last known index (usually the next subtitle)
+      // This is O(1) amortized for sequential playback
       let activeIndex = -1;
-      for (let i = 0; i < subtitles.length; i++) {
+      const startIdx = Math.max(0, lastActiveIndex);
+      for (let i = startIdx; i < subtitles.length; i++) {
         const sub = subtitles[i];
-        if (sub && currentTime >= sub.start && currentTime <= sub.end) {
+        if (sub && currentTime >= sub.start && currentTime < sub.end) {
           activeIndex = i;
           break;
         }
+        // If we've passed the current time, no need to check earlier subtitles
+        if (sub && currentTime < sub.start) {
+          break;
+        }
+      }
+      // If not found (currentTime >= last subtitle's end), use last subtitle
+      if (activeIndex === -1 && subtitles.length > 0) {
+        const lastSub = subtitles[subtitles.length - 1];
+        if (currentTime >= lastSub.start) {
+          activeIndex = subtitles.length - 1;
+        }
+      }
+      // Cache last active index for next frame
+      if (activeIndex !== -1) {
+        lastActiveIndex = activeIndex;
+      }
+
+      // Debug log for subtitle sync
+      if (activeIndex !== -1) {
+        const sub = subtitles[activeIndex];
+        console.log('[SUB] time=' + currentTime.toFixed(2) + ' activeIndex=' + activeIndex + ' range=[' + sub.start.toFixed(2) + '-' + sub.end.toFixed(2) + '] text="' + sub.text.substring(0, 30) + '"');
       }
 
       // Only update if the active index changed
@@ -2938,6 +2978,14 @@
         const newActive = items[activeIndex];
         if (newActive) {
           newActive.classList.add('active');
+          const domStart = newActive.dataset.start;
+          const arrStart = subtitles[activeIndex].start;
+          console.log('[SUB-HL] setting active index=' + activeIndex + ' element-index=' + newActive.dataset.index + ' dom-start=' + domStart + ' arr-start=' + arrStart + ' match=' + (domStart == arrStart));
+
+          // DEBUG: Verify DOM state after setting
+          const allActive = document.querySelectorAll('.subtitle-item.active');
+          console.log('[SUB-DOM] active count=' + allActive.length + ' indices=' + Array.from(allActive).map(el => el.dataset.index).join(','));
+
           // Use instant scroll (no smooth) for faster response
           newActive.scrollIntoView({ behavior: 'auto', block: 'center' });
         }
