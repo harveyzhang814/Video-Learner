@@ -245,7 +245,17 @@ class Orchestrator {
                     }
                 }
                 if (errors.length > 0) {
+                    meta.steps[stepName].status = 'failed';
                     meta.steps[stepName].error = errors.join('\n');
+                    this.db.updateStep(id, stepName, 'failed', errors.join('\n'));
+                    if (this.onStepEvent) {
+                        this.onStepEvent('task:error', {
+                            id,
+                            step: stepName,
+                            error: errors.join('\n')
+                        });
+                    }
+                    return { success: false, error: errors.join('\n') };
                 }
                 break;
             case 'md2vtt':
