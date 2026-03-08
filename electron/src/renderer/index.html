@@ -2927,10 +2927,38 @@
       });
     }
 
-    // Add timeupdate listener for subtitle sync
+    // Use requestAnimationFrame for smoother subtitle sync (replaces timeupdate for subtitles)
+    let rafId = null;
+    function subtitleSyncLoop() {
+      if (!videoPlayer.paused && !videoPlayer.ended) {
+        updateSubtitleHighlight();
+      }
+      rafId = requestAnimationFrame(subtitleSyncLoop);
+    }
+
+    videoPlayer.addEventListener('play', () => {
+      if (rafId === null) {
+        rafId = requestAnimationFrame(subtitleSyncLoop);
+      }
+    });
+
+    videoPlayer.addEventListener('pause', () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    });
+
+    videoPlayer.addEventListener('ended', () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    });
+
+    // Keep timeupdate for progress bar (less frequent is fine)
     videoPlayer.addEventListener('timeupdate', () => {
       updateProgress();
-      updateSubtitleHighlight();
     });
 
     async function loadVideo(id) {
