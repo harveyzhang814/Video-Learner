@@ -12,6 +12,7 @@ const path = require('path');
 
 const DatabaseManager = require('../electron/src/db');
 const { createApp } = require('../services/http-server');
+const orchestrator = require('../core/orchestrator');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DB_PATH = path.join(ROOT_DIR, 'work', 'database.sqlite');
@@ -140,6 +141,14 @@ async function run() {
       throw new Error('API steps and SQLite steps out of sync for fetch');
     }
     console.log('[persistence-test] API and SQLite state consistent');
+
+    // 9) Restore from DB: drop from memory then GET again (simulate process restart)
+    orchestrator._dropTaskFromMemory(taskId);
+    const afterRestoreRes = await jsonRequest(base, `/api/tasks/${taskId}`);
+    if (afterRestoreRes.status !== 200 || afterRestoreRes.body.task_id !== taskId) {
+      throw new Error(`after restore: expected 200 and task_id ${taskId}, got ${afterRestoreRes.status} ${JSON.stringify(afterRestoreRes.body?.task_id)}`);
+    }
+    console.log('[persistence-test] restore from SQLite OK');
 
     db.close();
   } finally {

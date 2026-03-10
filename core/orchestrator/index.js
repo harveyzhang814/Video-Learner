@@ -61,6 +61,78 @@ function initSteps() {
 }
 
 /**
+ * Load task from SQLite into memory (for restart recovery). Returns task or null.
+ */
+function loadTaskFromDb(taskId, rootDir) {
+  const db = ensureDb(rootDir);
+  const row = db.getTask(taskId);
+  if (!row) return null;
+
+  const stepsRows = db.getSteps(taskId);
+  const steps = initSteps();
+  for (const r of stepsRows) {
+    if (STEPS.includes(r.step_name)) {
+      steps[r.step_name] = {
+        status: r.status || 'pending',
+        attempts: r.attempts || 0,
+        error: r.error || null
+      };
+    }
+  }
+
+  const statusList = Object.values(steps).map((s) => s.status);
+  let status = 'pending';
+  if (statusList.some((s) => s === 'running')) status = 'running';
+  else if (statusList.some((s) => s === 'failed')) status = 'failed';
+  else if (statusList.every((s) => s === 'completed' || s === 'skipped')) status = 'completed';
+
+  const task = {
+    task_id: taskId,
+    status,
+    created_at: row.created_at || row.ts,
+    updated_at: row.updated_at || row.ts,
+    params: {
+      url: row.url,
+      focus: row.focus || '',
+      mode: 'both',
+      force: 0,
+      output_lang: row.output_lang || 'zh-CN',
+      rootDir
+    },
+    meta: {
+      url: row.url,
+      id: taskId,
+      ts: row.ts || row.created_at,
+      output_lang: row.output_lang || 'zh-CN',
+      focus: row.focus || '',
+      download_status: 'pending',
+      transcript_done: false,
+      article_done: false,
+      summary_done: false
+    },
+    steps,
+    processInfo: null
+  };
+  tasks.set(taskId, task);
+  updateTaskMetaFromFilesystem(task);
+  return task;
+}
+
+/**
+ * Ensure task is in memory; load from DB if needed (options.rootDir required for restore).
+ */
+function ensureTask(taskId, options = {}) {
+  let task = tasks.get(taskId);
+  if (!task && options.rootDir) {
+    task = loadTaskFromDb(taskId, options.rootDir);
+  }
+  if (!task) {
+    throw new Error(`task not found: ${taskId}`);
+  }
+  return task;
+}
+
+/**
  * Create a logical task but do not start execution yet.
  * params: { url, focus, mode, force, output_lang, rootDir }
  */
@@ -203,10 +275,7 @@ function runStepScript(rootDir, stepName, args) {
  * options: { focus, force }
  */
 async function runStep(taskId, stepName, options = {}) {
-  const task = tasks.get(taskId);
-  if (!task) {
-    throw new Error(`task not found: ${taskId}`);
-  }
+  const task = ensureTask(taskId, options);
   if (!STEPS.includes(stepName)) {
     throw new Error(`unknown step: ${stepName}`);
   }
@@ -385,11 +454,8 @@ async function runStep(taskId, stepName, options = {}) {
  * Run the full pipeline by orchestrating individual steps.
  * This is synchronous from the caller's perspective (returns when finished).
  */
-async function runTask(taskId) {
-  const task = tasks.get(taskId);
-  if (!task) {
-    throw new Error(`task not found: ${taskId}`);
-  }
+async function runTask(taskId, options = {}) {
+  const task = ensureTask(taskId, options);
   if (task.status === 'running') {
     return; // already running
   }
@@ -424,11 +490,8 @@ async function runTask(taskId) {
   task.updated_at = new Date().toISOString();
 }
 
-async function getTask(taskId) {
-  const task = tasks.get(taskId);
-  if (!task) {
-    throw new Error(`task not found: ${taskId}`);
-  }
+async function getTask(taskId, options = {}) {
+  const task = ensureTask(taskId, options);
 
   if (task.status === 'completed' || task.status === 'failed') {
     updateTaskMetaFromFilesystem(task);
@@ -442,11 +505,8 @@ async function getTask(taskId) {
   };
 }
 
-async function getTaskResult(taskId) {
-  const task = tasks.get(taskId);
-  if (!task) {
-    throw new Error(`task not found: ${taskId}`);
-  }
+async function getTaskResult(taskId, options = {}) {
+  const task = ensureTask(taskId, options);
 
   const rootDir = task.params.rootDir;
   const id = task.meta.id;
@@ -474,11 +534,8 @@ async function getTaskResult(taskId) {
   };
 }
 
-async function getTaskSteps(taskId) {
-  const task = tasks.get(taskId);
-  if (!task) {
-    throw new Error(`task not found: ${taskId}`);
-  }
+async function getTaskSteps(taskId, options = {}) {
+  const task = ensureTask(taskId, options);
   task.steps = task.steps || initSteps();
   return Object.entries(task.steps).map(([name, info]) => ({
     name,
@@ -488,6 +545,11 @@ async function getTaskSteps(taskId) {
   }));
 }
 
-module.exports = { createTask, runTask, runStep, getTask, getTaskResult, getTaskSteps, STEPS };
+/** For tests: drop task from memory to simulate process restart and test restore from DB */
+function _dropTaskFromMemory(taskId) {
+  tasks.delete(taskId);
+}
+
+module.exports = { createTask, runTask, runStep, getTask, getTaskResult, getTaskSteps, STEPS, _dropTaskFromMemory };
 
 

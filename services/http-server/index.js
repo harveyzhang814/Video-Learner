@@ -30,7 +30,7 @@ function createApp(options = {}) {
 
     // Fire-and-forget runTask; caller can poll status.
     orchestrator
-      .runTask(task.task_id)
+      .runTask(task.task_id, { rootDir: ROOT_DIR })
       .catch((err) => console.error('runTask error', err));
 
     ctx.status = 201;
@@ -45,7 +45,7 @@ function createApp(options = {}) {
   router.get('/tasks/:taskId', async (ctx) => {
   const { taskId } = ctx.params;
   try {
-    const task = await orchestrator.getTask(taskId);
+    const task = await orchestrator.getTask(taskId, { rootDir: ROOT_DIR });
     ctx.body = task;
   } catch (err) {
     if (/task not found/.test(err.message)) {
@@ -60,7 +60,7 @@ function createApp(options = {}) {
   router.get('/tasks/:taskId/result', async (ctx) => {
   const { taskId } = ctx.params;
   try {
-    const result = await orchestrator.getTaskResult(taskId);
+    const result = await orchestrator.getTaskResult(taskId, { rootDir: ROOT_DIR });
     ctx.body = result;
   } catch (err) {
     if (/task not found/.test(err.message)) {
@@ -75,7 +75,7 @@ function createApp(options = {}) {
   router.get('/tasks/:taskId/steps', async (ctx) => {
   const { taskId } = ctx.params;
   try {
-    const steps = await orchestrator.getTaskSteps(taskId);
+    const steps = await orchestrator.getTaskSteps(taskId, { rootDir: ROOT_DIR });
     ctx.body = steps;
   } catch (err) {
     if (/task not found/.test(err.message)) {
@@ -91,7 +91,7 @@ function createApp(options = {}) {
   const { taskId, stepName } = ctx.params;
   try {
     const { focus, force } = ctx.request.body || {};
-    const result = await orchestrator.runStep(taskId, stepName, { focus, force });
+    const result = await orchestrator.runStep(taskId, stepName, { focus, force, rootDir: ROOT_DIR });
     ctx.status = result.success ? 202 : 400;
     ctx.body = result;
   } catch (err) {
