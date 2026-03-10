@@ -228,7 +228,9 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
       }
     }).catch(err => {
       console.error('[DEBUG] background task error:', err);
-      if (wsServer) wsServer.broadcast('task:error', { id: taskId, error: err.message });
+      const payload = { id: taskId, error: err.message || String(err) };
+      if (err.step) payload.step = err.step;
+      if (wsServer) wsServer.broadcast('task:error', payload);
     });
 
     // 立即返回 ID 给前端

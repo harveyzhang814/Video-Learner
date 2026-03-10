@@ -2496,6 +2496,19 @@
     }
 
     function handleTaskError(payload) {
+        if (payload.id === modalTaskId) {
+            if (payload.step) setModalStep(payload.step, 'error');
+            if (payload.error) {
+                const modalLogs = document.getElementById('modalLogs');
+                if (modalLogs) {
+                    const line = document.createElement('div');
+                    line.className = 'log-line log-err';
+                    line.textContent = `Error [${payload.step || 'task'}]: ${payload.error}`;
+                    modalLogs.appendChild(line);
+                    modalLogs.scrollTop = modalLogs.scrollHeight;
+                }
+            }
+        }
         if (payload.id === currentId) {
             loadWork(payload.id);
         }

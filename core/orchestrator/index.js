@@ -246,13 +246,23 @@ function updateTaskMetaFromFilesystem(task) {
 }
 
 /**
+ * Build env for child process so yt-dlp/ffmpeg are found when run from Electron (no full shell PATH).
+ */
+function spawnEnv() {
+  const extra = ['/usr/local/bin', '/opt/homebrew/bin', '/usr/bin', '/bin'];
+  const pathList = [process.env.PATH, ...extra].filter(Boolean);
+  const PATH = [...new Set(pathList.join(':').split(':'))].filter(Boolean).join(':');
+  return { ...process.env, PATH };
+}
+
+/**
  * Low-level helper to run a single step script and collect its exit code/output.
  * opts.onOutput(text) optional - called for each stdout/stderr chunk (e.g. for Electron log stream).
  */
 function runStepScript(rootDir, stepName, args, opts = {}) {
   return new Promise((resolve, reject) => {
     const script = path.join(rootDir, 'scripts', STEP_SCRIPTS[stepName]);
-    const proc = spawn('bash', [script, ...args], { cwd: rootDir });
+    const proc = spawn('bash', [script, ...args], { cwd: rootDir, env: spawnEnv() });
 
     let output = '';
     const onChunk = (data) => {

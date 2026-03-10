@@ -89,25 +89,39 @@ class Orchestrator {
 
     const opts = { rootDir: this.baseDir, onOutput: this.onOutput };
 
-    await core.runStep(id, 'fetch', opts);
+    const checkStep = async (stepName, stepOpts = {}) => {
+      const result = await core.runStep(id, stepName, { ...opts, ...stepOpts });
+      if (!result.success) {
+        const errMsg = result.error || '步骤执行失败';
+        if (this.onStepEvent) {
+          this.onStepEvent('task:error', { id, step: stepName, error: errMsg });
+        }
+        const e = new Error(`[${stepName}] ${errMsg}`);
+        e.step = stepName;
+        throw e;
+      }
+      return result;
+    };
+
+    await checkStep('fetch');
     let meta = this.db.getTask(id);
     if (this.onTaskUpdated && meta) {
       this.onTaskUpdated(meta);
     }
 
     if (mode === 'both' || mode === 'video') {
-      await core.runStep(id, 'video', { ...opts, force });
+      await checkStep('video', { force });
     } else if (mode === 'audio') {
-      await core.runStep(id, 'audio', { ...opts, force });
+      await checkStep('audio', { force });
     }
 
-    await core.runStep(id, 'subs', opts);
-    await core.runStep(id, 'vtt2md', opts);
-    await core.runStep(id, 'md2vtt', opts);
-    await core.runStep(id, 'article', opts);
+    await checkStep('subs');
+    await checkStep('vtt2md');
+    await checkStep('md2vtt');
+    await checkStep('article');
 
     const summaryFocus = focus || (meta && meta.focus) || '视频的主要内容和要点';
-    await core.runStep(id, 'summary', { ...opts, focus: summaryFocus });
+    await checkStep('summary', { focus: summaryFocus });
 
     if (this.onStepEvent) {
       this.onStepEvent('task:complete', { id });
