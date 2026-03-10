@@ -27,6 +27,7 @@ DB_PATH="$PROJECT_DIR/work/database.sqlite"
 
 # Initialize database
 source "$SCRIPT_DIR/db.sh"
+source "$SCRIPT_DIR/yt-dlp-cookies.sh"
 
 # Create output directory
 SUBS_DIR="$DIR/transcript/subs"
@@ -45,9 +46,9 @@ update_step "$ID" "subs" "running"
 
 # Detect available subtitles
 echo "Detecting available subtitles..."
-available_subs=$(yt-dlp --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh-Hans|zh-Hant|zh)[[:space:]]/{print $1}' | head -20)
+available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh-Hans|zh-Hant|zh)[[:space:]]/{print $1}' | head -20)
 if [ -z "$available_subs" ]; then
-    available_subs=$(yt-dlp --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20)
+    available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20)
 fi
 echo "Available subtitles: ${available_subs:-none}"
 
@@ -73,10 +74,10 @@ download_subtitle_for_lang() {
 
     if [ "$sub_type" = "original" ]; then
         # Use --write-subs for original subtitles
-        yt-dlp --skip-download --write-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null || return 1
+        yt-dlp $YT_DLP_COOKIE_OPTS --skip-download --write-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null || return 1
     else
         # Use --write-auto-subs for auto-generated subtitles
-        yt-dlp --skip-download --write-auto-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null || return 1
+        yt-dlp $YT_DLP_COOKIE_OPTS --skip-download --write-auto-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null || return 1
     fi
 
     # Find and rename the downloaded file

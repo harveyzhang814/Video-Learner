@@ -5,7 +5,8 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron ."
+    "dev": "electron .",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
   "author": "",
   "license": "MIT",
