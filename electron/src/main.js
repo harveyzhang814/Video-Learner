@@ -139,7 +139,7 @@ function createWindow() {
           case 'task:refresh':
               // Handle refresh - send current status
               if (orchestrator) {
-                  const status = orchestrator.getStatus(data.payload.id);
+                  const status = await orchestrator.getStatus(data.payload.id);
                   wsServer.send('task:status', status);
               }
               break;
@@ -247,7 +247,7 @@ ipcMain.handle('skip-step', async (event, { id, step }) => {
 // 获取任务状态
 ipcMain.handle('get-task-status', async (event, id) => {
   try {
-    const status = orchestrator.getStatus(id);
+    const status = await orchestrator.getStatus(id);
     return status;
   } catch (e) {
     return null;

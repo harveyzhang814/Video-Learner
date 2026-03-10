@@ -247,19 +247,21 @@ function updateTaskMetaFromFilesystem(task) {
 
 /**
  * Low-level helper to run a single step script and collect its exit code/output.
+ * opts.onOutput(text) optional - called for each stdout/stderr chunk (e.g. for Electron log stream).
  */
-function runStepScript(rootDir, stepName, args) {
+function runStepScript(rootDir, stepName, args, opts = {}) {
   return new Promise((resolve, reject) => {
     const script = path.join(rootDir, 'scripts', STEP_SCRIPTS[stepName]);
     const proc = spawn('bash', [script, ...args], { cwd: rootDir });
 
     let output = '';
-    proc.stdout.on('data', (data) => {
-      output += data.toString();
-    });
-    proc.stderr.on('data', (data) => {
-      output += data.toString();
-    });
+    const onChunk = (data) => {
+      const text = data.toString();
+      output += text;
+      if (opts.onOutput) opts.onOutput(text);
+    };
+    proc.stdout.on('data', onChunk);
+    proc.stderr.on('data', onChunk);
 
     proc.on('close', (code) => {
       resolve({ code, output });
@@ -341,7 +343,7 @@ async function runStep(taskId, stepName, options = {}) {
           const match = vtt.match(/\.([^.]+)\./);
           const lang = match && match[1] ? match[1] : 'en';
           const outPath = path.join(dir, 'transcript', `original_${lang}.md`);
-          const result = await runStepScript(rootDir, 'vtt2md', [path.join(subsDir, vtt), outPath]);
+          const result = await runStepScript(rootDir, 'vtt2md', [path.join(subsDir, vtt), outPath], { onOutput: options.onOutput });
           if (result.code !== 0) {
             errors.push(`${vtt}: ${result.output || 'failed'}`);
           }
@@ -366,7 +368,7 @@ async function runStep(taskId, stepName, options = {}) {
       const errors = [];
       if (fs.existsSync(enMd)) {
         try {
-          const result = await runStepScript(rootDir, 'md2vtt', [enMd, enMd.replace('.md', '.vtt')]);
+          const result = await runStepScript(rootDir, 'md2vtt', [enMd, enMd.replace('.md', '.vtt')], { onOutput: options.onOutput });
           if (result.code !== 0) {
             errors.push(`original_en.md: ${result.output || 'failed'}`);
           }
@@ -376,7 +378,7 @@ async function runStep(taskId, stepName, options = {}) {
       }
       if (fs.existsSync(zhMd)) {
         try {
-          const result = await runStepScript(rootDir, 'md2vtt', [zhMd, zhMd.replace('.md', '.vtt')]);
+          const result = await runStepScript(rootDir, 'md2vtt', [zhMd, zhMd.replace('.md', '.vtt')], { onOutput: options.onOutput });
           if (result.code !== 0) {
             errors.push(`original_zh.md: ${result.output || 'failed'}`);
           }
@@ -433,7 +435,7 @@ async function runStep(taskId, stepName, options = {}) {
   }
 
   if (args.length > 0) {
-    const result = await runStepScript(rootDir, stepName, args);
+    const result = await runStepScript(rootDir, stepName, args, { onOutput: options.onOutput });
     if (result.code === 0) {
       stepState.status = 'completed';
       stepState.error = null;
@@ -545,11 +547,23 @@ async function getTaskSteps(taskId, options = {}) {
   }));
 }
 
+function skipStep(taskId, stepName, options = {}) {
+  const task = ensureTask(taskId, options);
+  if (!STEPS.includes(stepName)) {
+    throw new Error(`unknown step: ${stepName}`);
+  }
+  task.steps = task.steps || initSteps();
+  task.steps[stepName] = { status: 'skipped', attempts: 0, error: null };
+  const db = ensureDb(task.params.rootDir);
+  db.updateStep(task.meta.id, stepName, 'skipped');
+  return { success: true };
+}
+
 /** For tests: drop task from memory to simulate process restart and test restore from DB */
 function _dropTaskFromMemory(taskId) {
   tasks.delete(taskId);
 }
 
-module.exports = { createTask, runTask, runStep, getTask, getTaskResult, getTaskSteps, STEPS, _dropTaskFromMemory };
+module.exports = { createTask, runTask, runStep, skipStep, getTask, getTaskResult, getTaskSteps, STEPS, _dropTaskFromMemory };
 
 
