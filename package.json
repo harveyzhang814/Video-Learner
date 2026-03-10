@@ -5,7 +5,10 @@
   "private": true,
   "scripts": {
     "start": "bash start-electron.sh",
-    "install-deps": "bash scripts/install.sh"
+    "install-deps": "bash scripts/install.sh",
+    "agent:serve": "node services/http-server/index.js",
+    "test:agent": "node tests/agent-http.test.js",
+    "test:agent:sqlite": "node tests/agent-sqlite-persistence.test.js"
   },
   "keywords": [
     "youtube",
@@ -13,5 +16,13 @@
     "transcript",
     "summary"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "better-sqlite3": "^12.6.2"
+  },
+  "dependencies": {
+    "koa": "^3.1.2",
+    "koa-bodyparser": "^4.4.1",
+    "koa-router": "^14.0.0"
+  }
 }
