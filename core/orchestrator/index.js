@@ -1,9 +1,9 @@
 'use strict';
 
 const { spawn } = require('child_process');
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { generateId } = require('../id');
 const { createDb } = require('./db');
 
 // In-memory task store (also persisted to SQLite via ensureDb).
@@ -30,13 +30,6 @@ const STEP_SCRIPTS = {
   article: 'generate_article.sh',
   summary: 'generate_summary.sh'
 };
-
-/**
- * Compute stable id from URL: sha1(url).slice(0, 12)
- */
-function computeId(url) {
-  return crypto.createHash('sha1').update(url).digest('hex').slice(0, 12);
-}
 
 function getWorkDir(rootDir, id) {
   return path.join(rootDir, 'work', id);
@@ -80,7 +73,7 @@ async function createTask(params) {
     throw new Error('rootDir is required');
   }
 
-  const id = computeId(url);
+  const id = generateId(url);
   const taskId = id; // For MVP we just use id as taskId
   const now = new Date().toISOString();
   const workDir = getWorkDir(rootDir, id);
