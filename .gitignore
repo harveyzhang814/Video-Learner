@@ -27,6 +27,9 @@ electron/node_modules/
 # Worktree
 .worktrees/
 
+# Local settings (cookie / API keys 等，勿提交)
+scripts/settings.conf
+
 # Work outputs (application data, completely ignored)
 work/*
 *.log

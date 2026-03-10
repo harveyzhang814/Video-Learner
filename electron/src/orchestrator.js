@@ -86,11 +86,22 @@ class Orchestrator {
         this.db.updateTask(id, updateData);
     }
 
+    // 构建子进程环境（确保 yt-dlp/ffmpeg 等可通过 PATH 找到；Electron 启动时可能无完整 shell PATH）
+    _spawnEnv() {
+        const extra = ['/usr/local/bin', '/opt/homebrew/bin', '/usr/bin', '/bin'];
+        const pathList = [process.env.PATH, ...extra].filter(Boolean);
+        const PATH = [...new Set(pathList.join(':').split(':'))].filter(Boolean).join(':');
+        return { ...process.env, PATH };
+    }
+
     // 执行步骤脚本
     runStepScript(step, args) {
         return new Promise((resolve, reject) => {
             const script = path.join(this.baseDir, 'scripts', STEPS[step]);
-            const proc = spawn('bash', [script, ...args], { cwd: this.baseDir });
+            const proc = spawn('bash', [script, ...args], {
+                cwd: this.baseDir,
+                env: this._spawnEnv()
+            });
 
             let output = '';
             proc.stdout.on('data', (data) => {
