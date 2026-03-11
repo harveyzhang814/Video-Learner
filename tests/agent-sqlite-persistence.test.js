@@ -10,9 +10,9 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 
-const DatabaseManager = require('../electron/src/db');
 const { createApp } = require('../services/http-server');
 const orchestrator = require('../core/orchestrator');
+const { createDb } = require('../core/orchestrator/db');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DB_PATH = path.join(ROOT_DIR, 'work', 'database.sqlite');
@@ -74,7 +74,7 @@ async function run() {
       throw new Error(`database not found at ${DB_PATH}`);
     }
 
-    const db = new DatabaseManager(DB_PATH);
+    const db = createDb(ROOT_DIR);
 
     // 3) Assert task row exists and has correct fields
     const taskRow = db.getTask(taskId);

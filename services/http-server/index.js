@@ -4,17 +4,123 @@ const Koa = require('koa');
 const Router = require('koa-router');
 const bodyParser = require('koa-bodyparser');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 
 const orchestrator = require('../../core/orchestrator');
+const { EventStream } = require('./event-stream');
 
 function createApp(options = {}) {
   const app = new Koa();
+  const rootRouter = new Router();
   const router = new Router({
     prefix: '/api'
   });
 
   // Allow tests to inject rootDir (e.g. temp dir); default is worktree root
   const ROOT_DIR = options.rootDir ?? path.resolve(__dirname, '../..');
+  const PKG_PATH = path.join(ROOT_DIR, 'package.json');
+  const pkg = fs.existsSync(PKG_PATH) ? JSON.parse(fs.readFileSync(PKG_PATH, 'utf8')) : { version: 'unknown' };
+
+  const stream = options.eventStream ?? new EventStream({ maxBufferSize: options.maxEventBufferSize ?? 500 });
+  const token = options.token ?? (process.env.AGENT_EVENTS_TOKEN || crypto.randomBytes(24).toString('hex'));
+
+  // Bridge orchestrator events into global stream buffer.
+  if (!options.disableOrchestratorBridge && typeof orchestrator.onEvent === 'function') {
+    orchestrator.onEvent((ev) => {
+      stream.append({ type: ev.type, taskId: ev.taskId, payload: ev.payload });
+    });
+  }
+
+  rootRouter.get('/healthz', async (ctx) => {
+    ctx.body = { ok: true };
+  });
+
+  rootRouter.get('/version', async (ctx) => {
+    ctx.body = { version: pkg.version || 'unknown' };
+  });
+
+  router.get('/events', async (ctx) => {
+    const qToken = (ctx.query && ctx.query.token) || '';
+    if (!qToken || qToken !== token) {
+      // Avoid logging full query string (contains token).
+      ctx.status = 401;
+      ctx.body = {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Missing or invalid token'
+        }
+      };
+      return;
+    }
+
+    ctx.req.setTimeout(0);
+    ctx.respond = false;
+    const res = ctx.res;
+    const headers = {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no'
+    };
+    res.writeHead(200, headers);
+    if (typeof res.flushHeaders === 'function') res.flushHeaders();
+    if (ctx.req.socket && typeof ctx.req.socket.setNoDelay === 'function') ctx.req.socket.setNoDelay(true);
+
+    const write = (text) => {
+      try {
+        res.write(text);
+      } catch (_) {
+        // ignore
+      }
+    };
+
+    // Initial comment to open stream promptly
+    write(`: connected ${new Date().toISOString()}\n\n`);
+
+    const lastEventId = ctx.get('Last-Event-Id');
+    if (lastEventId) {
+      const replay = stream.getReplaySince(lastEventId);
+      if (!replay.ok) {
+        const { minId, maxId } = replay;
+        const data = JSON.stringify({
+          type: 'stream.resync_required',
+          ts: new Date().toISOString(),
+          payload: {
+            reason: replay.reason,
+            minEventId: minId,
+            maxEventId: maxId
+          }
+        }).replace(/\r?\n/g, '\\n');
+        write(`id: 0\nevent: stream.resync_required\ndata: ${data}\n\n`);
+      } else {
+        for (const ev of replay.events) {
+          write(EventStream.formatSseFrame(ev));
+        }
+      }
+    }
+
+    const unsubscribe = stream.onEvent((ev) => {
+      write(EventStream.formatSseFrame(ev));
+    });
+
+    // Heartbeat every 15s (within 10-20s requirement)
+    const heartbeat = setInterval(() => {
+      write(': ping\n\n');
+    }, 15000);
+
+    const cleanup = () => {
+      clearInterval(heartbeat);
+      try {
+        unsubscribe();
+      } catch (_) {
+        // ignore
+      }
+    };
+
+    ctx.req.on('close', cleanup);
+    ctx.req.on('error', cleanup);
+  });
 
   router.post('/tasks', async (ctx) => {
   try {
@@ -40,6 +146,18 @@ function createApp(options = {}) {
     ctx.status = 400;
     ctx.body = { error: err.message || 'failed to create task' };
   }
+  });
+
+  router.get('/tasks', async (ctx) => {
+    try {
+      const limit = ctx.query && ctx.query.limit ? Number(ctx.query.limit) : 200;
+      const rows = await orchestrator.listTasks({ rootDir: ROOT_DIR, limit });
+      ctx.body = rows;
+    } catch (err) {
+      console.error('GET /api/tasks error', err);
+      ctx.status = 500;
+      ctx.body = { error: err.message || 'failed to list tasks' };
+    }
   });
 
   router.get('/tasks/:taskId', async (ctx) => {
@@ -105,8 +223,13 @@ function createApp(options = {}) {
   });
 
   app.use(bodyParser());
+  app.use(rootRouter.routes());
+  app.use(rootRouter.allowedMethods());
   app.use(router.routes());
   app.use(router.allowedMethods());
+
+  // Expose token for callers/tests (do not include in logs elsewhere).
+  app.context.eventsToken = token;
 
   return app;
 }
@@ -120,6 +243,7 @@ if (require.main === module) {
   const app = createApp();
   app.listen(port, () => {
     console.log(`Agent HTTP service listening on http://localhost:${port}`);
+    // IMPORTANT: never log the SSE token.
   });
 }
 
