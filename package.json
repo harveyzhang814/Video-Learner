@@ -10,7 +10,13 @@
     "test:agent": "node tests/agent-http.test.js",
     "test:agent:sqlite": "node tests/agent-sqlite-persistence.test.js",
     "test:fetch": "node tests/fetch-step.test.js",
-    "test:sse": "node tests/sse-e2e.test.js"
+    "test:sse": "node tests/sse-e2e.test.js",
+    "test:gui:main": "node tests/main-process.test.js",
+    "test:gui:preload": "node tests/preload.test.js",
+    "test:gui:client:http": "node tests/service-client-http.test.js",
+    "test:gui:client:sse": "node tests/service-client-sse.test.js",
+    "test:gui:state": "node tests/gui-logic-state.test.js",
+    "test:gui": "npm run test:gui:main && npm run test:gui:preload && npm run test:gui:client:http && npm run test:gui:client:sse && npm run test:gui:state"
   },
   "keywords": [
     "youtube",
