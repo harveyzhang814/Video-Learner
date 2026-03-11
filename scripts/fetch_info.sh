@@ -43,11 +43,12 @@ echo "[STATUS] fetch_start"
 # Update step to running
 update_step "$ID" "fetch" "running"
 
-# Get video info as JSON
-video_info=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null)
+# Get video info as JSON (keep stderr so failures show in log)
+video_info=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>&1) || true
 
-if [ -z "$video_info" ]; then
+if [ -z "$video_info" ] || ! echo "$video_info" | jq -e . >/dev/null 2>&1; then
     echo "Error: Failed to fetch video info"
+    [ -n "$video_info" ] && echo "$video_info"
     exit 1
 fi
 

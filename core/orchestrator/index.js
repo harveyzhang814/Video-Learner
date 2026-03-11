@@ -246,6 +246,21 @@ function updateTaskMetaFromFilesystem(task) {
 }
 
 /**
+ * Build a user-facing error message from script exit code and output.
+ * Avoids showing [STATUS] lines as the error; prefers lines that look like real errors.
+ */
+function formatStepError(code, output) {
+  const raw = (output || '').trim();
+  if (!raw) return `Step failed (exit code ${code}). See log for details.`;
+  const lines = raw.split(/\r?\n/).filter((l) => l.trim());
+  const nonStatus = lines.filter((l) => !/^\[STATUS\]\s/.test(l.trim()));
+  const errorLike = nonStatus.filter((l) => /error|failed|Error|Failed/i.test(l));
+  const msg = (errorLike.length ? errorLike[errorLike.length - 1] : nonStatus[nonStatus.length - 1] || lines[lines.length - 1]).trim();
+  if (!msg || /^\[STATUS\]/.test(msg)) return `Step failed (exit code ${code}). See log for details.`;
+  return msg;
+}
+
+/**
  * Build env for child process so yt-dlp/ffmpeg are found when run from Electron (no full shell PATH).
  */
 function spawnEnv() {
@@ -451,7 +466,7 @@ async function runStep(taskId, stepName, options = {}) {
       stepState.error = null;
     } else {
       stepState.status = 'failed';
-      stepState.error = result.output || 'Step failed';
+      stepState.error = formatStepError(result.code, result.output);
     }
     task.steps[stepName] = stepState;
     db.updateStep(id, stepName, stepState.status, stepState.error || null);

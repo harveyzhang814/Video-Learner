@@ -8,7 +8,8 @@
     "install-deps": "bash scripts/install.sh",
     "agent:serve": "node services/http-server/index.js",
     "test:agent": "node tests/agent-http.test.js",
-    "test:agent:sqlite": "node tests/agent-sqlite-persistence.test.js"
+    "test:agent:sqlite": "node tests/agent-sqlite-persistence.test.js",
+    "test:fetch": "node tests/fetch-step.test.js"
   },
   "keywords": [
     "youtube",
