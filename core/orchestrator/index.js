@@ -3,6 +3,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { EventEmitter } = require('events');
 const { generateId } = require('../id');
 const { createDb } = require('./db');
 
@@ -10,11 +11,40 @@ const { createDb } = require('./db');
 const tasks = new Map();
 const dbCache = new Map();
 
+// Minimal event bus for external consumers (HTTP SSE, etc.)
+const orchestratorEvents = new EventEmitter();
+orchestratorEvents.setMaxListeners(0);
+let globalEventSeq = 1;
+
+function emitOrchestratorEvent(type, taskId, payload = {}) {
+  const ev = {
+    eventId: String(globalEventSeq++),
+    type,
+    taskId: taskId || null,
+    ts: new Date().toISOString(),
+    payload
+  };
+  orchestratorEvents.emit('event', ev);
+  return ev;
+}
+
+function onEvent(handler) {
+  orchestratorEvents.on('event', handler);
+  return () => orchestratorEvents.off('event', handler);
+}
+
 function ensureDb(rootDir) {
   if (!dbCache.has(rootDir)) {
     dbCache.set(rootDir, createDb(rootDir));
   }
   return dbCache.get(rootDir);
+}
+
+function listTasks(options = {}) {
+  const rootDir = options.rootDir ?? path.resolve(__dirname, '../..');
+  const db = ensureDb(rootDir);
+  const limit = options.limit ?? 200;
+  return db.listTasks({ limit });
 }
 
 // Step definitions (aligned with scripts/*)
@@ -192,6 +222,7 @@ async function createTask(params) {
     status: task.status
   });
 
+  emitOrchestratorEvent('task.created', taskId, { meta: task.meta, status: task.status });
   return { task_id: taskId, status: task.status, meta: task.meta };
 }
 
@@ -337,6 +368,8 @@ async function runStep(taskId, stepName, options = {}) {
   task.steps[stepName] = stepState;
   task.updated_at = new Date().toISOString();
   db.updateStep(id, stepName, 'running');
+  emitOrchestratorEvent('step.started', taskId, { stepName, attempts: stepState.attempts });
+  emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'running' });
 
   const url = task.meta.url;
   const enMd = path.join(dir, 'transcript', 'original_en.md');
@@ -474,6 +507,16 @@ async function runStep(taskId, stepName, options = {}) {
 
   updateTaskMetaFromFilesystem(task);
 
+  emitOrchestratorEvent('step.finished', taskId, {
+    stepName,
+    status: task.steps[stepName].status,
+    error: task.steps[stepName].error || null
+  });
+  emitOrchestratorEvent('task.updated', taskId, {
+    status: task.status,
+    stepName,
+    stepStatus: task.steps[stepName].status
+  });
   return { success: task.steps[stepName].status === 'completed', error: task.steps[stepName].error || null };
 }
 
@@ -489,6 +532,7 @@ async function runTask(taskId, options = {}) {
 
   task.status = 'running';
   task.updated_at = new Date().toISOString();
+  emitOrchestratorEvent('task.updated', taskId, { status: task.status });
 
   const { mode, focus } = task.params;
 
@@ -515,6 +559,7 @@ async function runTask(taskId, options = {}) {
   const failedStep = Object.values(task.steps || {}).find((s) => s.status === 'failed');
   task.status = failedStep ? 'failed' : 'completed';
   task.updated_at = new Date().toISOString();
+  emitOrchestratorEvent('task.updated', taskId, { status: task.status });
 }
 
 async function getTask(taskId, options = {}) {
@@ -589,6 +634,18 @@ function _dropTaskFromMemory(taskId) {
   tasks.delete(taskId);
 }
 
-module.exports = { createTask, runTask, runStep, skipStep, getTask, getTaskResult, getTaskSteps, STEPS, _dropTaskFromMemory };
+module.exports = {
+  createTask,
+  listTasks,
+  runTask,
+  runStep,
+  skipStep,
+  getTask,
+  getTaskResult,
+  getTaskSteps,
+  onEvent,
+  STEPS,
+  _dropTaskFromMemory
+};
 
 

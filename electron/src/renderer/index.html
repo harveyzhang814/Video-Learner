@@ -1488,294 +1488,62 @@
     </div>
   </div>
 
-  <script>
-    // Global function for delete button - dynamically create modal
-    window.showDeleteConfirm = function() {
-        // Remove existing if any
-        var existing = document.getElementById('confirmDeleteOverlay');
-        if (existing) existing.remove();
+  <script type="module">
+    import { ServiceClient } from './service-client.js';
 
-        // Create overlay
-        var overlay = document.createElement('div');
-        overlay.id = 'confirmDeleteOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center';
-
-        // Create dialog - match project modal style
-        var dialog = document.createElement('div');
-        dialog.style.cssText = 'background:var(--bg);width:400px;border:1px solid var(--border);border-radius:8px;padding:24px';
-        dialog.innerHTML = '<div style="font-weight:600;font-size:14px;margin-bottom:12px">确认删除</div><p style="color:var(--text-muted);margin:0 0 20px;font-size:14px">确定要删除这个任务及其所有文件吗？此操作不可撤销。</p><div style="display:flex;gap:8px;justify-content:flex-end"><button id="confirmCancelBtn" class="btn">取消</button><button id="confirmDeleteBtn" class="btn danger">删除</button></div>';
-
-        overlay.appendChild(dialog);
-        document.body.appendChild(overlay);
-
-        // Add event listeners
-        document.getElementById('confirmCancelBtn').onclick = function() {
-            overlay.remove();
-        };
-        document.getElementById('confirmDeleteBtn').onclick = function() {
-            overlay.remove();
-            // Trigger delete
-            window.dispatchEvent(new CustomEvent('confirmDelete'));
-        };
-        // Click outside to close
-        overlay.onclick = function(e) {
-            if (e.target === overlay) overlay.remove();
-        };
-    };
-
-    // === localStorage 辅助函数 ===
-    const LS_KEYS = {
-        PREFERENCES: 'video_learner_preferences',
-        TASK_CACHE: (id) => `video_learner_task_${id}`
-    };
-
-    function savePreferences(prefs) {
-        localStorage.setItem(LS_KEYS.PREFERENCES, JSON.stringify(prefs));
-    }
-
-    function loadPreferences() {
-        const data = localStorage.getItem(LS_KEYS.PREFERENCES);
-        return data ? JSON.parse(data) : { defaultFocus: '', defaultDownloadMode: 'video' };
-    }
-
-    function saveTaskCache(id, taskData) {
-        localStorage.setItem(LS_KEYS.TASK_CACHE(id), JSON.stringify(taskData));
-    }
-
-    function loadTaskCache(id) {
-        const data = localStorage.getItem(LS_KEYS.TASK_CACHE(id));
-        return data ? JSON.parse(data) : null;
-    }
-
-    function clearTaskCache(id) {
-        localStorage.removeItem(LS_KEYS.TASK_CACHE(id));
-    }
-
-    let currentId = null;
-    let downloading = true;
-
-    const urlInput = document.getElementById('urlInput');
-    const focusInput = document.getElementById('focusInput');
+    // === DOM ===
+    const historyList = document.getElementById('historyList');
+    const newBtn = document.getElementById('newBtn');
+    const manageBtn = document.getElementById('manageBtn');
     const openBtn = document.getElementById('openBtn');
     const deleteBtn = document.getElementById('deleteBtn');
-    const manageBtn = document.getElementById('manageBtn');
     const toolbar = document.getElementById('toolbar');
     const emptyState = document.getElementById('emptyState');
-    const articleOutput = document.getElementById('articleOutput');
-    const summaryOutput = document.getElementById('summaryOutput');
-    const historyList = document.getElementById('historyList');
-    const tabs = document.querySelectorAll('.tab');
-    const videoToggle = document.getElementById('videoToggle');
-    const newBtn = document.getElementById('newBtn');
-    const progressSection = document.getElementById('progressSection');
-    const progressFill = document.getElementById('progressFill');
-    const progressSteps = document.querySelectorAll('.progress-step');
 
-    // Info section elements
-    const infoSection = document.getElementById('infoSection');
-    const infoContent = document.getElementById('infoContent');
     const infoTitle = document.getElementById('infoTitle');
     const infoUrl = document.getElementById('infoUrl');
     const infoLang = document.getElementById('infoLang');
     const infoDuration = document.getElementById('infoDuration');
     const infoFocus = document.getElementById('infoFocus');
 
-    // Video player elements
-    const videoPlayer = document.getElementById('videoPlayer');
-    const videoEmpty = document.getElementById('videoEmpty');
-    const playPauseBtn = document.getElementById('playPauseBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const progressBar = document.getElementById('progressBar');
-    const timeDisplay = document.getElementById('timeDisplay');
+    const tabs = document.querySelectorAll('.tab');
+    const articleOutput = document.getElementById('articleOutput');
+    const summaryOutput = document.getElementById('summaryOutput');
 
-    // infoStatus removed - using status-pill instead
-
-    const STEPS = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
-    let currentStep = 0;
-
-    videoToggle.addEventListener('click', () => {
-      downloading = !downloading;
-      videoToggle.classList.toggle('active', downloading);
-    });
-
-    // Modal elements
     const newTaskModal = document.getElementById('newTaskModal');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
     const modalUrlInput = document.getElementById('modalUrlInput');
     const modalFocusInput = document.getElementById('modalFocusInput');
     const modalDownloadModeRadios = document.getElementById('modalDownloadMode');
-    let modalDownloadMode = 'video';
-    let isRunning = false;
     const modalRunBtn = document.getElementById('modalRunBtn');
-    const modalStopBtn = document.getElementById('modalStopBtn');
     const modalSaveBtn = document.getElementById('modalSaveBtn');
+    const modalStopBtn = document.getElementById('modalStopBtn');
     const modalTitle = document.getElementById('modalTitle');
     const modalLogs = document.getElementById('modalLogs');
-    const modalStatus = document.getElementById('modalStatus');
 
-    // Get download mode from radio group
+    // 任务状态 pills（主界面 & 弹窗共用同一套 step 名）
+    const STEPS = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
+
+    let client = null;
+    let es = null;
+    let currentTaskId = null;
+
+    // taskId -> { seenSeq:Set<number|string>, logs:string[] }
+    const logState = new Map();
+    // taskId -> last task snapshot
+    const taskCache = new Map();
+
     function getModalDownloadMode() {
       const selected = modalDownloadModeRadios.querySelector('input[name="downloadMode"]:checked');
       return selected ? selected.value : 'video';
     }
 
-    // Update modalDownloadMode when radio changes
-    modalDownloadModeRadios.addEventListener('change', () => {
-      modalDownloadMode = getModalDownloadMode();
-    });
-
-    function openNewTaskModal() {
-      newTaskModal.setAttribute('data-mode', 'new');
-      modalTitle.textContent = 'New Task';
-      modalRunBtn.classList.remove('hidden');
-      modalSaveBtn.classList.add('hidden');
-      modalStatus.classList.remove('hidden');
-      modalLogs.classList.remove('hidden');
-      newTaskModal.classList.remove('hidden');
-      modalUrlInput.focus();
-      // Initialize status pills (hidden state)
-      initModalStatus();
-    }
-
-    async function openManageModal() {
-      if (!currentId) return;
-      newTaskModal.setAttribute('data-mode', 'edit');
-      modalTitle.textContent = 'Manage Task';
-      modalRunBtn.classList.remove('hidden');
-      modalRunBtn.textContent = '继续执行';
-      modalSaveBtn.classList.remove('hidden');
-      modalStatus.classList.remove('hidden');
-      modalLogs.classList.remove('hidden');
-
-      // Load current task data from database
-      const j = await window.api.getTaskDetails(currentId);
-      if (j) {
-        // 保存到 localStorage 缓存
-        saveTaskCache(currentId, {
-            download_status: j.download_status,
-            transcript_done: j.transcript_done,
-            article_done: j.article_done,
-            summary_done: j.summary_done,
-            focus: j.focus,
-            title: j.title
-        });
-
-        modalUrlInput.value = j.url || '';
-        modalFocusInput.value = j.focus || '';
-        // Set radio button based on downloadVideo
-        const mode = 'video';
-        const radio = modalDownloadModeRadios.querySelector(`input[value="${mode}"]`);
-        if (radio) radio.checked = true;
-        modalDownloadMode = mode;
-
-        // Initialize status based on current progress
-        initModalStatus();
-
-        // Update status pills based on step_status from database
-        const stepStatus = j.step_status || {};
-        const stepOrder = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
-        stepOrder.forEach(step => {
-          const status = stepStatus[step];
-          if (status === 'completed') {
-            setModalStep(step, 'done');
-          } else if (status === 'running') {
-            setModalStep(step, 'active');
-          } else if (status === 'failed') {
-            setModalStep(step, 'error');
-          }
-        });
-
-        // Also check legacy fields as fallback
-        if (j.download_status === 'success') {
-          setModalStep('video', 'done');
-          setModalStep('audio', 'done');
-        } else if (j.download_status === 'failed') {
-          setModalStep('video', 'error');
-          setModalStep('audio', 'error');
-        }
-
-        if (j.transcript_done) {
-          setModalStep('transcript', 'done');
-        }
-
-        if (j.article_done) {
-          setModalStep('article', 'done');
-        }
-
-        if (j.summary_done) {
-          setModalStep('summary', 'done');
-        }
-      }
-
-      // Load existing logs from task.log
-      let logContent = await window.api.readFile(`work/${currentId}/media/task.log`);
-      if (!logContent) {
-        // Fallback to old video_download.log
-        logContent = await window.api.readFile(`work/${currentId}/media/video_download.log`);
-      }
-      if (logContent) {
-        modalLogs.textContent = logContent;
-        modalLogs.scrollTop = modalLogs.scrollHeight;
-      }
-
-      newTaskModal.classList.remove('hidden');
-      modalFocusInput.focus();
-    }
-
-    function closeNewTaskModal() {
-      newTaskModal.classList.add('hidden');
-      newTaskModal.setAttribute('data-mode', 'new');
-      modalUrlInput.value = '';
-      modalFocusInput.value = '';
-      modalLogs.textContent = '';
-      // Reset radio to video
-      const videoRadio = modalDownloadModeRadios.querySelector('input[value="video"]');
-      if (videoRadio) videoRadio.checked = true;
-      modalDownloadMode = 'video';
-      modalRunBtn.textContent = 'Run';
-      modalRunBtn.classList.remove('hidden');
-      modalSaveBtn.classList.add('hidden');
-      isRunning = false;
-      modalStopBtn.classList.add('hidden');
-      document.querySelectorAll('.modal-status .status-pill').forEach(el => {
-        el.classList.remove('active', 'done', 'error');
-        el.classList.add('hidden');
-        el.querySelector('.icon').textContent = '○';
-      });
-
-      // Refresh history list when modal closes
-      loadHistory();
-    }
-
-    function initModalStatus() {
-      const pills = document.querySelectorAll('.modal-status .status-pill');
-      pills.forEach(pill => pill.classList.add('hidden'));
-
-      // Always show fetch step
-      document.querySelector('.modal-status .status-pill[data-step="fetch"]').classList.remove('hidden');
-
-      // Show video/audio based on mode
-      if (modalDownloadMode === 'video') {
-        document.querySelector('.modal-status .status-pill[data-step="video"]').classList.remove('hidden');
-      } else if (modalDownloadMode === 'audio') {
-        document.querySelector('.modal-status .status-pill[data-step="audio"]').classList.remove('hidden');
-      }
-
-      // Always show subs and subsequent steps
-      document.querySelector('.modal-status .status-pill[data-step="subs"]').classList.remove('hidden');
-      document.querySelector('.modal-status .status-pill[data-step="vtt2md"]').classList.remove('hidden');
-      document.querySelector('.modal-status .status-pill[data-step="md2vtt"]').classList.remove('hidden');
-      document.querySelector('.modal-status .status-pill[data-step="article"]').classList.remove('hidden');
-      document.querySelector('.modal-status .status-pill[data-step="summary"]').classList.remove('hidden');
-    }
-
-    function setModalStep(step, state) {
-      const pill = document.querySelector(`.modal-status .status-pill[data-step="${step}"]`);
-      if (!pill || pill.classList.contains('hidden')) return;
-
+    function setPillState(scopeSelector, step, state) {
+      const pill = document.querySelector(`${scopeSelector} .status-pill[data-step="${step}"]`);
+      if (!pill) return;
       pill.classList.remove('active', 'done', 'error');
       const icon = pill.querySelector('.icon');
-
+      if (!icon) return;
       if (state === 'active') {
         pill.classList.add('active');
         icon.textContent = '◐';
@@ -1785,1332 +1553,282 @@
       } else if (state === 'error') {
         pill.classList.add('error');
         icon.textContent = '✗';
-      }
-    }
-
-    // === 重置弹窗逻辑 ===
-    const resetPopup = document.getElementById('resetPopup');
-    const resetPopupClose = document.getElementById('resetPopupClose');
-    const resetPopupCancel = document.getElementById('resetPopupCancel');
-    const resetPopupConfirm = document.getElementById('resetPopupConfirm');
-    const resetStepName = document.getElementById('resetStepName');
-
-    let currentResetStep = null;
-    let currentResetTaskId = null;
-    let modalTaskId = null;
-
-    // 点击已完成步骤的 tag pill 时显示重置弹窗
-    document.querySelectorAll('.modal-status .status-pill.done').forEach(pill => {
-        pill.style.cursor = 'pointer';
-        pill.addEventListener('click', () => {
-            const step = pill.dataset.step;
-            if (step === 'info' || step === 'audio') return; // info 和 audio 不可重置
-            currentResetStep = step;
-            currentResetTaskId = currentId;
-            resetStepName.textContent = {
-                video: '视频下载',
-                transcript: '转录',
-                article: '文章',
-                summary: '总结'
-            }[step];
-            resetPopup.classList.remove('hidden');
-        });
-    });
-
-    // 关闭弹窗
-    resetPopupClose.addEventListener('click', () => resetPopup.classList.add('hidden'));
-    resetPopupCancel.addEventListener('click', () => resetPopup.classList.add('hidden'));
-    resetPopup.addEventListener('click', (e) => {
-        if (e.target === resetPopup) resetPopup.classList.add('hidden');
-    });
-
-    // 确认重置
-    resetPopupConfirm.addEventListener('click', async () => {
-        if (!currentResetStep || !currentResetTaskId) return;
-
-        try {
-            await window.api.resetTaskStep(currentResetTaskId, currentResetStep);
-
-            // 更新 UI
-            setModalStep(currentResetStep, 'pending');
-
-            // 清除缓存
-            clearTaskCache(currentResetTaskId);
-
-            resetPopup.classList.add('hidden');
-        } catch (e) {
-            alert('重置失败: ' + e.message);
-        }
-    });
-
-    modalCloseBtn.addEventListener('click', closeNewTaskModal);
-
-    newTaskModal.addEventListener('click', (e) => {
-      if (e.target === newTaskModal) {
-        closeNewTaskModal();
-      }
-    });
-
-    newBtn.addEventListener('click', () => {
-      openNewTaskModal();
-    });
-
-    manageBtn.addEventListener('click', () => {
-      openManageModal();
-    });
-
-    modalSaveBtn.addEventListener('click', async () => {
-      if (!currentId) return;
-      const url = modalUrlInput.value.trim();
-      const focus = modalFocusInput.value.trim();
-      const mode = getModalDownloadMode();
-
-      // Update task in database
-      await window.api.updateTaskDetails(currentId, {
-        url: url,
-        focus: focus
-      });
-
-      closeNewTaskModal();
-      // Reload the current work to update display
-      await loadWork(currentId);
-    });
-
-    // Stop button logic
-    modalStopBtn.addEventListener('click', async () => {
-      if (!isRunning) return;
-
-      // Stop the running pipeline
-      await window.api.stopPipeline(currentId);
-
-      isRunning = false;
-      modalStopBtn.classList.add('hidden');
-      modalRunBtn.disabled = false;
-      modalRunBtn.textContent = 'Run';
-
-      // Clear logs and show stopped message
-      modalLogs.innerHTML += `<div class="log-line log-err">任务已停止</div>`;
-    });
-
-    // Modal Run button logic
-    modalRunBtn.addEventListener('click', async () => {
-      const mode = newTaskModal.getAttribute('data-mode');
-      const url = modalUrlInput.value.trim();
-
-      if (mode === 'edit') {
-        // Edit mode: continue/resume existing task
-        if (!currentId) return;
-        // 设置 modalTaskId 用于 WebSocket 状态更新
-        modalTaskId = currentId;
-        modalRunBtn.disabled = true;
-        modalRunBtn.textContent = '继续执行中...';
-        isRunning = true;
-        modalStopBtn.classList.remove('hidden');
-        setModalStep('info', 'active');
-        runExistingTask(currentId);
-        return;
-      }
-
-      // New task mode
-      if (!url) return alert('Enter a URL');
-
-      modalRunBtn.disabled = true;
-      modalRunBtn.textContent = 'Running...';
-      isRunning = true;
-      modalStopBtn.classList.remove('hidden');
-
-      // Initialize status pills based on user selection
-      initModalStatus();
-      setModalStep('info', 'active');
-
-      // Listen for output
-      window.api.onOutput((text) => {
-        // Parse progress using standardized [STATUS] format
-        const statusMatch = text.match(/\[STATUS\] (\S+)/);
-        if (statusMatch) {
-          const status = statusMatch[1];
-          switch (status) {
-            case 'info_start':
-            case 'fetch_start':
-              setModalStep('info', 'active');
-              break;
-            case 'info_done':
-            case 'fetch_done':
-              setModalStep('info', 'done');
-              if (modalDownloadMode === 'video') {
-                setModalStep('video', 'active');
-              } else {
-                setModalStep('transcript', 'active');
-              }
-              break;
-            case 'video_start':
-              setModalStep('video', 'active');
-              break;
-            case 'video_done':
-              setModalStep('video', 'done');
-              if (modalDownloadMode === 'video') {
-                setModalStep('audio', 'active');
-              }
-              break;
-            case 'video_error':
-              setModalStep('video', 'error');
-              break;
-            case 'audio_start':
-              setModalStep('audio', 'active');
-              break;
-            case 'audio_done':
-              setModalStep('audio', 'done');
-              setModalStep('transcript', 'active');
-              break;
-            case 'transcript_start':
-              setModalStep('transcript', 'active');
-              break;
-            case 'transcript_done':
-              setModalStep('transcript', 'done');
-              setModalStep('article', 'active');
-              break;
-            case 'article_start':
-              setModalStep('article', 'active');
-              break;
-            case 'article_done':
-              setModalStep('article', 'done');
-              setModalStep('summary', 'active');
-              break;
-            case 'summary_start':
-              setModalStep('summary', 'active');
-              break;
-            case 'summary_done':
-              setModalStep('summary', 'done');
-              break;
-            case 'complete':
-              setModalStep('summary', 'done');
-              break;
-          }
-        }
-
-        // Also handle error status
-        if (text.includes('[STATUS]') && text.includes('error')) {
-          const errorMatch = text.match(/\[STATUS\] (\S+_error)/);
-          if (errorMatch) {
-            const errorStep = errorMatch[1].replace('_error', '');
-            setModalStep(errorStep, 'error');
-          }
-        }
-
-        // Add to log
-        const lines = text.split('\n').filter(l => l.trim());
-        const ts = new Date().toLocaleTimeString();
-        lines.forEach(line => {
-          const div = document.createElement('div');
-          div.className = 'log-line';
-          const cls = line.includes('Error') ? 'log-err' : line.includes('Success') ? 'log-ok' : '';
-          div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${line}</span>`;
-          modalLogs.appendChild(div);
-        });
-        modalLogs.scrollTop = modalLogs.scrollHeight;
-      });
-
-      try {
-        const res = await window.api.runPipeline({
-          url,
-          focus: modalFocusInput.value.trim(),
-          force: false,
-          downloadVideo: modalDownloadMode
-        });
-
-        if (res.success) {
-          const newId = res.id;
-          if (newId) {
-            // 设置 modalTaskId 用于后续状态更新
-            modalTaskId = newId;
-            // 切换弹窗到编辑模式
-            newTaskModal.setAttribute('data-mode', 'edit');
-            modalTitle.textContent = 'Manage Task';
-            modalRunBtn.textContent = '继续执行';
-            modalSaveBtn.classList.remove('hidden');
-            // 不关闭弹窗，保持打开状态
-            // 状态将通过 WebSocket task:status 更新
-            console.log('[DEBUG] modalTaskId set to:', modalTaskId);
-          }
-        } else {
-          setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'error');
-          modalLogs.innerHTML += `<div class="log-line log-err">Error: ${res.error}</div>`;
-        }
-      } catch (e) {
-        setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'error');
-        modalLogs.innerHTML += `<div class="log-line log-err">${e.message}</div>`;
-      }
-
-      isRunning = false;
-      modalStopBtn.classList.add('hidden');
-      modalRunBtn.disabled = false;
-      modalRunBtn.textContent = 'Run';
-    });
-
-    // Run/resume existing task
-    async function runExistingTask(id) {
-      // Listen for output
-      window.api.onOutput((text) => {
-        // Parse progress using standardized [STATUS] format
-        const statusMatch = text.match(/\[STATUS\] (\S+)/);
-        if (statusMatch) {
-          const status = statusMatch[1];
-          switch (status) {
-            case 'info_start':
-            case 'fetch_start':
-              setModalStep('info', 'active');
-              break;
-            case 'info_done':
-            case 'fetch_done':
-              setModalStep('info', 'done');
-              if (modalDownloadMode === 'video') {
-                setModalStep('video', 'active');
-              } else {
-                setModalStep('transcript', 'active');
-              }
-              break;
-            case 'video_start':
-              setModalStep('video', 'active');
-              break;
-            case 'video_done':
-              setModalStep('video', 'done');
-              if (modalDownloadMode === 'video') {
-                setModalStep('audio', 'active');
-              }
-              break;
-            case 'video_error':
-              setModalStep('video', 'error');
-              break;
-            case 'audio_start':
-              setModalStep('audio', 'active');
-              break;
-            case 'audio_done':
-              setModalStep('audio', 'done');
-              setModalStep('transcript', 'active');
-              break;
-            case 'transcript_start':
-              setModalStep('transcript', 'active');
-              break;
-            case 'transcript_done':
-              setModalStep('transcript', 'done');
-              setModalStep('article', 'active');
-              break;
-            case 'article_start':
-              setModalStep('article', 'active');
-              break;
-            case 'article_done':
-              setModalStep('article', 'done');
-              setModalStep('summary', 'active');
-              break;
-            case 'summary_start':
-              setModalStep('summary', 'active');
-              break;
-            case 'summary_done':
-              setModalStep('summary', 'done');
-              break;
-            case 'complete':
-              setModalStep('summary', 'done');
-              break;
-          }
-        }
-
-        // Also handle error status
-        if (text.includes('[STATUS]') && text.includes('error')) {
-          const errorMatch = text.match(/\[STATUS\] (\S+_error)/);
-          if (errorMatch) {
-            const errorStep = errorMatch[1].replace('_error', '');
-            setModalStep(errorStep, 'error');
-          }
-        }
-
-        // Add to log
-        const lines = text.split('\n').filter(l => l.trim());
-        const ts = new Date().toLocaleTimeString();
-        lines.forEach(line => {
-          const div = document.createElement('div');
-          div.className = 'log-line';
-          const cls = line.includes('Error') ? 'log-err' : line.includes('Success') ? 'log-ok' : '';
-          div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${line}</span>`;
-          modalLogs.appendChild(div);
-        });
-        modalLogs.scrollTop = modalLogs.scrollHeight;
-      });
-
-      try {
-        const res = await window.api.runPipeline({
-          id: id,
-          focus: modalFocusInput.value.trim(),
-          force: false,
-          downloadVideo: modalDownloadMode
-        });
-
-        if (res.success) {
-          // Close modal and reload the task
-          closeNewTaskModal();
-          await loadWork(id);
-          await loadHistory();
-        } else {
-          setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'error');
-          modalLogs.innerHTML += `<div class="log-line log-err">Error: ${res.error}</div>`;
-        }
-      } catch (e) {
-        setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'error');
-        modalLogs.innerHTML += `<div class="log-line log-err">${e.message}</div>`;
-      }
-
-      isRunning = false;
-      modalStopBtn.classList.add('hidden');
-      modalRunBtn.disabled = false;
-      modalRunBtn.textContent = '继续执行';
-    }
-
-    // Original newBtn functionality for when not using modal
-    function resetMainForm() {
-      currentId = null;
-      toolbar.classList.add('hidden');
-      urlInput.value = '';
-      focusInput.value = '';
-      articleOutput.innerHTML = '';
-      summaryOutput.innerHTML = '';
-      emptyState.classList.remove('hidden');
-      videoPlayer.pause();
-      videoPlayer.src = '';
-
-      // Reset info section
-      infoTitle.textContent = '-';
-      infoUrl.textContent = '-';
-      infoLang.textContent = '-';
-      infoDuration.textContent = '-';
-      infoFocus.textContent = '-';
-      resetInfoStatusPills();
-      hideVideo();
-      loadHistory();
-      switchTab('article');
-    }
-
-    function resetInfoStatusPills() {
-      document.querySelectorAll('#infoStatus .status-pill').forEach(pill => {
-        pill.classList.remove('active', 'done', 'error');
-        pill.querySelector('.icon').textContent = '○';
-      });
-    }
-
-    function updateInfoStatusPill(step, state) {
-      const pill = document.querySelector(`#infoStatus .status-pill[data-step="${step}"]`);
-      if (!pill) return;
-      pill.classList.remove('active', 'done', 'error');
-      if (state === 'active') {
-        pill.classList.add('active');
-        pill.querySelector('.icon').textContent = '◐';
-      } else if (state === 'done') {
-        pill.classList.add('done');
-        pill.querySelector('.icon').textContent = '●';
-      } else if (state === 'error') {
-        pill.classList.add('error');
-        pill.querySelector('.icon').textContent = '✕';
-      }
-    }
-
-    function updateProgress(step) {
-      const stepIndex = STEPS.indexOf(step);
-      if (stepIndex === -1) return;
-
-      currentStep = stepIndex;
-      const percent = ((stepIndex + 1) / STEPS.length) * 100;
-      progressFill.style.width = `${percent}%`;
-
-      progressSteps.forEach((el, i) => {
-        el.classList.remove('active', 'done');
-        if (i < stepIndex) {
-          el.classList.add('done');
-        } else if (i === stepIndex) {
-          el.classList.add('active');
-        }
-      });
-    }
-
-    function parseProgress(text) {
-      // Use standardized [STATUS] format for parsing
-      const statusMatch = text.match(/\[STATUS\] (\S+)/);
-      if (statusMatch) {
-        const status = statusMatch[1];
-        switch (status) {
-          case 'fetch_start':
-          case 'fetch_done':
-            updateProgress('fetch');
-            break;
-          case 'video_start':
-          case 'video_done':
-            updateProgress('video');
-            break;
-          case 'audio_start':
-          case 'audio_done':
-            updateProgress('audio');
-            break;
-          case 'subs_start':
-          case 'subs_done':
-            updateProgress('subs');
-            break;
-          case 'vtt2md_start':
-          case 'vtt2md_done':
-            updateProgress('vtt2md');
-            break;
-          case 'md2vtt_start':
-          case 'md2vtt_done':
-            updateProgress('md2vtt');
-            break;
-          case 'article_start':
-          case 'article_done':
-            updateProgress('article');
-            break;
-          case 'summary_start':
-          case 'summary_done':
-          case 'complete':
-            updateProgress('summary');
-            progressFill.style.width = '100%';
-            break;
-        }
-        return;
-      }
-
-      // Fallback to old format parsing for backward compatibility
-      if (text.includes('Step 0') || text.includes('Video Info')) {
-        updateProgress('fetch');
-      } else if (text.includes('Step 1') || text.includes('Video Download')) {
-        updateProgress('video');
-      } else if (text.includes('Step 2') || text.includes('Audio Extraction')) {
-        updateProgress('audio');
-      } else if (text.includes('Step 3') || text.includes('Transcript')) {
-        updateProgress('subs');
-      } else if (text.includes('Step 3.5') || text.includes('Generating Article')) {
-        updateProgress('article');
-      } else if (text.includes('Step 4') || text.includes('Generating Summary')) {
-        updateProgress('summary');
-      } else if (text.includes('Pipeline Complete') || text.includes('Success')) {
-        updateProgress('summary');
-        progressFill.style.width = '100%';
-      }
-    }
-
-    function showProgress() {
-      progressSection.classList.remove('hidden');
-      progressFill.style.width = '0%';
-      currentStep = 0;
-      progressSteps.forEach((el, i) => {
-        el.classList.remove('active', 'done');
-        if (i === 0) el.classList.add('active');
-      });
-    }
-
-    function hideProgress() {
-      setTimeout(() => {
-        progressSection.classList.add('hidden');
-      }, 1000);
-    }
-
-    loadHistory();
-
-    // WebSocket connection for realtime updates (must be defined before connectWebSocket)
-    let ws = null;
-    let wsReconnectInterval = null;
-
-    // Connect to WebSocket for realtime updates
-    connectWebSocket();
-
-    // 监听任务创建事件 - 立即刷新列表
-    window.api.onTaskCreated((task) => {
-      loadHistory();
-    });
-
-    // 监听任务更新事件 - 更新任务信息
-    window.api.onTaskUpdated((task) => {
-      // 如果当前查看的是这个任务，更新显示
-      if (task && task.id === currentId) {
-        loadWork(task.id);
-      }
-      // 刷新列表以更新标题
-      loadHistory();
-    });
-
-    function connectWebSocket() {
-        if (ws && ws.readyState === WebSocket.OPEN) return;
-
-        ws = new WebSocket('ws://localhost:8765');
-
-        ws.onopen = () => {
-            console.log('[WS] Connected');
-            if (wsReconnectInterval) {
-                clearInterval(wsReconnectInterval);
-                wsReconnectInterval = null;
-            }
-        };
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            console.log('[WS] Received:', data.type, 'payload:', JSON.stringify(data.payload).substring(0, 100));
-            handleWsMessage(data);
-        };
-
-        ws.onclose = () => {
-            console.log('[WS] Disconnected');
-            // Reconnect if tasks are running
-            if (!wsReconnectInterval) {
-                wsReconnectInterval = setInterval(connectWebSocket, 5000);
-            }
-        };
-
-        ws.onerror = (error) => {
-            console.error('[WS] Error:', error);
-        };
-    }
-
-    function handleWsMessage(data) {
-        switch (data.type) {
-            case 'task:status':
-                updateTaskStatus(data.payload);
-                // 如果弹窗打开且任务匹配，更新弹窗状态
-                if (modalTaskId && data.payload.id === modalTaskId && newTaskModal.classList.contains('hidden') === false) {
-                    console.log('[DEBUG] updating modal status for:', modalTaskId, data.payload);
-                    // 直接使用 payload 中的步骤状态更新弹窗
-                    const steps = data.payload.steps || {};
-                    const currentStep = data.payload.currentStep;
-                    // 更新当前步骤
-                    if (currentStep) {
-                        setModalStep(currentStep, data.payload.stepStatus === 'completed' ? 'done' : data.payload.stepStatus === 'running' ? 'active' : 'pending');
-                    }
-                    // 更新所有步骤状态
-                    Object.keys(steps).forEach(step => {
-                        const status = steps[step].status;
-                        setModalStep(step, status === 'completed' ? 'done' : status === 'running' ? 'active' : status === 'failed' ? 'error' : 'pending');
-                    });
-                }
-                break;
-            case 'task:output':
-                // Parse [STATUS] from WebSocket for progress updates
-                const text = data.payload.text;
-                if (text.includes('[STATUS]')) {
-                    const statusMatch = text.match(/\[STATUS\] (\S+)/);
-                    if (statusMatch) {
-                        const status = statusMatch[1];
-                        // Handle error status
-                        if (status.includes('_error')) {
-                            const errorStep = status.replace('_error', '');
-                            setModalStep(errorStep, 'error');
-                        }
-                        // Handle normal status
-                        switch (status) {
-                            case 'info_start':
-                            case 'fetch_start':
-                                setModalStep('info', 'active');
-                                break;
-                            case 'info_done':
-                            case 'fetch_done':
-                                setModalStep('info', 'done');
-                                setModalStep(modalDownloadMode === 'video' ? 'video' : 'transcript', 'active');
-                                break;
-                            case 'video_start':
-                                setModalStep('video', 'active');
-                                break;
-                            case 'video_done':
-                                setModalStep('video', 'done');
-                                if (modalDownloadMode === 'video') setModalStep('audio', 'active');
-                                break;
-                            case 'audio_start':
-                                setModalStep('audio', 'active');
-                                break;
-                            case 'audio_done':
-                                setModalStep('audio', 'done');
-                                setModalStep('transcript', 'active');
-                                break;
-                            case 'transcript_start':
-                                setModalStep('transcript', 'active');
-                                break;
-                            case 'transcript_done':
-                                setModalStep('transcript', 'done');
-                                setModalStep('article', 'active');
-                                break;
-                            case 'article_start':
-                                setModalStep('article', 'active');
-                                break;
-                            case 'article_done':
-                                setModalStep('article', 'done');
-                                setModalStep('summary', 'active');
-                                break;
-                            case 'summary_start':
-                                setModalStep('summary', 'active');
-                                break;
-                            case 'summary_done':
-                            case 'complete':
-                                setModalStep('summary', 'done');
-                                break;
-                        }
-                    }
-                }
-                appendOutput(text);
-                break;
-            case 'task:complete':
-                handleTaskComplete(data.payload);
-                if (modalTaskId && data.payload.id === modalTaskId) {
-                    console.log('[DEBUG] task complete for modal:', modalTaskId);
-                }
-                break;
-            case 'task:error':
-                handleTaskError(data.payload);
-                break;
-        }
-    }
-
-    function updateTaskStatus(payload) {
-        // Only update if this is the currently displayed task
-        if (payload.id && payload.id !== currentId) {
-            loadHistory();
-            return;
-        }
-
-        // 更新进度条
-        if (payload.currentStep) {
-            updateProgress(payload.currentStep);
-        }
-
-        // 直接更新 Status Pills
-        if (payload.steps) {
-            Object.keys(payload.steps).forEach(step => {
-                const stepState = payload.steps[step];
-                let uiState = 'pending';
-                if (stepState === 'running') uiState = 'active';
-                else if (stepState === 'completed') uiState = 'done';
-                else if (stepState === 'failed') uiState = 'error';
-
-                updateInfoStatusPill(step, uiState);
-            });
-        }
-
-        loadHistory();
-    }
-
-    function handleTaskComplete(payload) {
-        if (payload.id === currentId) {
-            loadWork(payload.id);
-        }
-        loadHistory();
-    }
-
-    function handleTaskError(payload) {
-        if (payload.id === modalTaskId) {
-            if (payload.step) setModalStep(payload.step, 'error');
-            if (payload.error) {
-                const modalLogs = document.getElementById('modalLogs');
-                if (modalLogs) {
-                    const line = document.createElement('div');
-                    line.className = 'log-line log-err';
-                    line.textContent = `Error [${payload.step || 'task'}]: ${payload.error}`;
-                    modalLogs.appendChild(line);
-                    modalLogs.scrollTop = modalLogs.scrollHeight;
-                }
-            }
-        }
-        if (payload.id === currentId) {
-            loadWork(payload.id);
-        }
-        loadHistory();
-    }
-
-    function sendWsCommand(type, payload) {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type, payload }));
-        }
-    }
-
-    let appendCounter = 0;
-    function appendOutput(text) {
-        appendCounter++;
-        console.log('[DEBUG] appendOutput #', appendCounter, ':', text.substring(0, 80));
-        const modalLogs = document.getElementById('modalLogs');
-        if (!modalLogs) return;
-        const lines = text.split('\n').filter(l => l.trim());
-        const ts = new Date().toLocaleTimeString();
-        lines.forEach(line => {
-            const div = document.createElement('div');
-            div.className = 'log-line';
-            const cls = line.includes('Error') ? 'log-err' : line.includes('Success') ? 'log-ok' : '';
-            div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${line}</span>`;
-            modalLogs.appendChild(div);
-            // 解析进度状态（作为备用方案）
-            parseProgress(line);
-        });
-        modalLogs.scrollTop = modalLogs.scrollHeight;
-    }
-
-    function refreshTask(id) {
-        sendWsCommand('task:refresh', { id });
-    }
-
-    async function loadHistory() {
-      const works = await window.api.listWorks();
-      if (!works.length) {
-        historyList.innerHTML = '<div style="padding: 16px; color: #999; font-size: 12px;">No history</div>';
-        // Keep toolbar visible even when there's no history
-        return;
-      }
-      historyList.innerHTML = works.map(w => `
-        <div class="history-item ${w.id === currentId ? 'active' : ''}" data-id="${w.id}">
-          <span class="status-dot ${w.status || 'completed'}"></span>
-          <div class="title">${w.title || 'Untitled'}</div>
-          <div class="meta">${new Date(w.ts).toLocaleDateString()}</div>
-        </div>
-      `).join('');
-
-      document.querySelectorAll('.history-item').forEach(item => {
-        item.addEventListener('click', () => loadWork(item.dataset.id));
-      });
-    }
-
-    // Auto-refresh every 30 seconds when page is active (fallback for WebSocket)
-    if (!window.historyRefreshInterval) {
-      window.historyRefreshInterval = setInterval(() => {
-        loadHistory();
-      }, 30000);
-    }
-
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', () => {
-      if (window.historyRefreshInterval) {
-        clearInterval(window.historyRefreshInterval);
-      }
-    });
-
-    async function loadWork(id) {
-      currentId = id;
-      toolbar.classList.remove('hidden');
-      loadHistory();
-
-      // Load task data from database
-      const j = await window.api.getTaskDetails(id);
-
-      if (j) {
-        urlInput.value = j.url || '';
-        focusInput.value = j.focus || '';
-        videoToggle.classList.toggle('active', true);
-        downloading = true;
-
-        // Update info section
-        infoTitle.textContent = j.title || '-';
-        infoUrl.textContent = j.url || '-';
-        infoLang.textContent = j.lang || '-';
-        infoDuration.textContent = j.duration || '-';
-        infoFocus.textContent = j.focus || '-';
-
-        // Update status pills based on step_status
-        resetInfoStatusPills();
-        const stepStatus = j.step_status || {};
-
-        // 状态映射函数
-        function mapStepStatusToUI(status) {
-          switch (status) {
-            case 'running': return 'active';
-            case 'completed': return 'done';
-            case 'failed': return 'error';
-            default: return 'pending';
-          }
-        }
-
-        // 更新所有 8 个 steps
-        const steps = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
-        steps.forEach(step => {
-          const status = stepStatus[step] || 'pending';
-          const uiState = mapStepStatusToUI(status);
-          updateInfoStatusPill(step, uiState);
-        });
-
-        const article = await window.api.readFile(`work/${id}/writing/article.md`);
-        const summary = await window.api.readFile(`work/${id}/writing/summary.md`);
-        articleOutput.innerHTML = article ? marked.parse(article) : '';
-        summaryOutput.innerHTML = summary ? marked.parse(summary) : '';
-
-        // Hide empty state since we have content
-        emptyState.classList.add('hidden');
-        // Show toolbar since we have a task selected
-        toolbar.classList.remove('hidden');
       } else {
-        // No task in database, show empty state
-        emptyState.classList.remove('hidden');
-        // Hide toolbar since no task is selected
-        toolbar.classList.add('hidden');
+        icon.textContent = '○';
+      }
+    }
+
+    function applyTaskToInfo(task) {
+      const meta = (task && task.meta) || {};
+      infoTitle.textContent = meta.title || '-';
+      infoUrl.textContent = meta.url || '-';
+      infoLang.textContent = meta.lang || '-';
+      infoDuration.textContent = meta.duration || '-';
+      infoFocus.textContent = meta.focus || '-';
+
+      const steps = task && task.steps ? task.steps : {};
+      for (const step of STEPS) {
+        const s = steps[step] && steps[step].status ? steps[step].status : 'pending';
+        const ui =
+          s === 'running' ? 'active' : s === 'completed' || s === 'skipped' ? 'done' : s === 'failed' ? 'error' : 'pending';
+        setPillState('#infoStatus', step, ui);
+      }
+    }
+
+    function ensureLogState(taskId) {
+      if (!logState.has(taskId)) {
+        logState.set(taskId, { seenSeq: new Set(), logs: [] });
+      }
+      return logState.get(taskId);
+    }
+
+    function appendLogLine(taskId, line, { seq } = {}) {
+      const st = ensureLogState(taskId);
+      if (seq !== undefined && seq !== null) {
+        if (st.seenSeq.has(seq)) return;
+        st.seenSeq.add(seq);
+      }
+      st.logs.push(line);
+      if (taskId === currentTaskId) {
+        const ts = new Date().toLocaleTimeString();
+        const div = document.createElement('div');
+        div.className = 'log-line';
+        const cls = /error|failed/i.test(line) ? 'log-err' : '';
+        div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${escapeHtml(line)}</span>`;
+        modalLogs.appendChild(div);
+        modalLogs.scrollTop = modalLogs.scrollHeight;
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function renderHistory(tasks) {
+      if (!tasks || tasks.length === 0) {
+        historyList.innerHTML = '<div style="padding: 16px; color: #999; font-size: 12px;">No history</div>';
+        return;
+      }
+      historyList.innerHTML = tasks
+        .map((t) => {
+          const id = t.id || t.task_id || t.taskId;
+          const title = t.title || (t.url ? t.url.slice(0, 60) : 'Untitled');
+          const ts = t.created_at || t.ts || t.updated_at || '';
+          return `
+            <div class="history-item ${id === currentTaskId ? 'active' : ''}" data-id="${id}">
+              <span class="status-dot unknown"></span>
+              <div class="title">${escapeHtml(title)}</div>
+              <div class="meta">${ts ? escapeHtml(new Date(ts).toLocaleDateString()) : ''}</div>
+            </div>
+          `;
+        })
+        .join('');
+
+      document.querySelectorAll('.history-item').forEach((item) => {
+        item.addEventListener('click', () => selectTask(item.dataset.id));
+      });
+    }
+
+    async function refreshHistory() {
+      const rows = await client.listTasks({ limit: 200 });
+      renderHistory(rows);
+    }
+
+    async function selectTask(taskId) {
+      currentTaskId = taskId;
+      toolbar.classList.remove('hidden');
+      emptyState.classList.add('hidden');
+      modalLogs.textContent = '';
+
+      const task = await client.getTask(taskId);
+      taskCache.set(taskId, task);
+      applyTaskToInfo(task);
+
+      // render cached logs (if any)
+      const st = ensureLogState(taskId);
+      for (const line of st.logs) {
+        appendLogLine(taskId, line);
       }
 
-      // Always load video
-      await loadVideo(id);
+      // 内容区先保持核心子集：提示 HTTP 未暴露文件内容
+      articleOutput.innerHTML = '<div style="padding:16px;color:#999">（当前 renderer 已迁移到 HTTP+SSE；文章/总结内容读取接口暂未暴露，后续可加 /api/tasks/:id/result/content）</div>';
+      summaryOutput.innerHTML = '<div style="padding:16px;color:#999">（同上）</div>';
 
+      await refreshHistory();
       switchTab('article');
     }
 
-    tabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+    function openNewTaskModal() {
+      newTaskModal.setAttribute('data-mode', 'new');
+      modalTitle.textContent = 'New Task';
+      modalRunBtn.classList.remove('hidden');
+      modalRunBtn.disabled = false;
+      modalRunBtn.textContent = 'Run';
+      modalSaveBtn.classList.add('hidden');
+      modalStopBtn.classList.add('hidden');
+      modalLogs.textContent = '';
+      newTaskModal.classList.remove('hidden');
+      modalUrlInput.focus();
+    }
+
+    function openManageModal() {
+      if (!currentTaskId) return;
+      newTaskModal.setAttribute('data-mode', 'edit');
+      modalTitle.textContent = 'Manage Task';
+      modalRunBtn.classList.add('hidden'); // 目前 HTTP 侧是 create 后自动 runTask
+      modalSaveBtn.classList.add('hidden');
+      modalStopBtn.classList.add('hidden');
+      modalLogs.textContent = '';
+      const st = ensureLogState(currentTaskId);
+      for (const line of st.logs) appendLogLine(currentTaskId, line);
+      newTaskModal.classList.remove('hidden');
+      modalFocusInput.focus();
+    }
+
+    function closeModal() {
+      newTaskModal.classList.add('hidden');
+      newTaskModal.setAttribute('data-mode', 'new');
+      modalUrlInput.value = '';
+      modalFocusInput.value = '';
+      modalLogs.textContent = '';
+    }
 
     function switchTab(name) {
-      tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+      tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
       document.getElementById('articlePane').classList.toggle('active', name === 'article');
       document.getElementById('summaryPane').classList.toggle('active', name === 'summary');
     }
+    tabs.forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
 
-    // Open folder
-    openBtn.addEventListener('click', () => {
-      if (currentId) {
-        window.api.openFolder(`work/${currentId}`);
-      }
-    });
+    async function setupEvents() {
+      const lastEventId = sessionStorage.getItem('agent_lastEventId') || '';
+      es = client.subscribeEvents({ lastEventId });
 
-    // Delete current
-    deleteBtn.addEventListener('click', async () => {
-      if (!currentId) return;
-      showConfirmDelete();
-    });
-
-    // Listen for custom confirmDelete event from dynamically created modal
-    window.addEventListener('confirmDelete', async () => {
-      if (!currentId) return;
-
-      await window.api.deleteWork(currentId);
-      const works = await window.api.listWorks();
-
-      currentId = null;
-      toolbar.classList.add('hidden');
-      urlInput.value = '';
-      focusInput.value = '';
-      articleOutput.innerHTML = '';
-      summaryOutput.innerHTML = '';
-      emptyState.classList.remove('hidden');
-      videoPlayer.pause();
-      videoPlayer.src = '';
-      hideVideo();
-      loadHistory();
-
-      // 尝试加载最后一个项目
-      if (works.length > 0) {
-        const lastWork = works[works.length - 1];
-        await loadWork(lastWork.id);
-      } else {
-        // 重置 info section
-        infoTitle.textContent = '-';
-        infoUrl.textContent = '-';
-        infoLang.textContent = '-';
-        infoDuration.textContent = '-';
-        infoFocus.textContent = '-';
-        resetInfoStatusPills();
-      }
-    });
-
-    // Video Player functions
-    function formatTime(seconds) {
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    function showVideo() {
-      videoPlayer.classList.remove('hidden');
-      videoEmpty.classList.add('hidden');
-    }
-
-    function hideVideo() {
-      videoPlayer.classList.add('hidden');
-      videoEmpty.classList.remove('hidden');
-    }
-
-    function updateTimeDisplay() {
-      const current = formatTime(videoPlayer.currentTime);
-      const duration = formatTime(videoPlayer.duration || 0);
-      timeDisplay.textContent = `${current} / ${duration}`;
-    }
-
-    function updateProgress() {
-      if (videoPlayer.duration) {
-        progressBar.value = (videoPlayer.currentTime / videoPlayer.duration) * 100;
-      }
-      updateTimeDisplay();
-    }
-
-    playPauseBtn.addEventListener('click', () => {
-      if (videoPlayer.paused) {
-        videoPlayer.play();
-        playPauseBtn.textContent = '⏸';
-      } else {
-        videoPlayer.pause();
-        playPauseBtn.textContent = '▶';
-      }
-    });
-
-    stopBtn.addEventListener('click', () => {
-      videoPlayer.pause();
-      videoPlayer.currentTime = 0;
-      playPauseBtn.textContent = '▶';
-      updateTimeDisplay();
-    });
-
-    progressBar.addEventListener('input', () => {
-      if (videoPlayer.duration) {
-        videoPlayer.currentTime = (progressBar.value / 100) * videoPlayer.duration;
-      }
-    });
-
-    progressBar.addEventListener('change', () => {
-      if (videoPlayer.duration) {
-        videoPlayer.currentTime = (progressBar.value / 100) * videoPlayer.duration;
-      }
-    });
-
-    videoPlayer.addEventListener('loadedmetadata', () => {
-      progressBar.value = 0;
-      updateTimeDisplay();
-
-      // If we have a video file (not just audio), jump to 1-2 seconds and pause
-      // to show a meaningful frame instead of black screen at 0:00
-      if (videoPlayer.src && !videoPlayer.src.includes('.m4a') && !videoPlayer.src.includes('.mp3')) {
-        const duration = videoPlayer.duration;
-        if (duration > 2) {
-          videoPlayer.currentTime = 1.5; // Jump to 1.5s to show a clear frame
-        } else if (duration > 1) {
-          videoPlayer.currentTime = duration * 0.5; // Jump to middle if shorter than 2s
-        }
-        videoPlayer.pause();
-      }
-    });
-    videoPlayer.addEventListener('ended', () => {
-      playPauseBtn.textContent = '▶';
-    });
-
-    // Subtitle Module - must be defined before loadVideo/loadSubtitles
-    const subtitleModule = document.getElementById('subtitleModule');
-    const subtitleList = document.getElementById('subtitleList');
-    const languageSwitcher = document.getElementById('languageSwitcher');
-    let subtitles = [];
-    let lastActiveIndex = 0;  // Cache for optimized search
-    let currentSubtitleLang = 'zh';  // Default to Chinese
-    let availableSubtitles = { en: null, zh: null };
-
-    function parseVTT(vttContent) {
-      const lines = vttContent.trim().split('\n');
-      const result = [];
-      let i = 0;
-
-      // Skip header
-      while (i < lines.length && !lines[i].includes('-->')) {
-        i++;
-      }
-
-      while (i < lines.length) {
-        const line = lines[i].trim();
-        if (line.includes('-->')) {
-          const [start, end] = line.split('-->').map(t => t.trim());
-          const startSec = parseTimestamp(start);
-          const endSec = parseTimestamp(end);
-
-          i++;
-          let text = '';
-          while (i < lines.length && lines[i].trim() !== '') {
-            text += (text ? '\n' : '') + lines[i].trim();
-            i++;
-          }
-
-          if (text) {
-            result.push({ start: startSec, end: endSec, text });
-          }
-        } else {
-          i++;
-        }
-      }
-
-      return result;
-    }
-
-    function parseTimestamp(ts) {
-      // Handle both HH:MM:SS.mmm and MM:SS.mmm formats
-      const parts = ts.split(':');
-      let seconds = 0;
-      if (parts.length === 3) {
-        seconds = parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseFloat(parts[2]);
-      } else if (parts.length === 2) {
-        seconds = parseInt(parts[0]) * 60 + parseFloat(parts[1]);
-      }
-      return seconds;
-    }
-
-    function formatTimestamp(seconds) {
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    async function loadSubtitles(id) {
-      // Get available subtitles info
-      availableSubtitles = await window.api.getAvailableSubtitles(id);
-      console.log('Available subtitles:', availableSubtitles);
-
-      // Smart language selection: choose default language based on availability
-      // Priority: current language if available, otherwise fallback to available language
-      let selectedLang = currentSubtitleLang;
-      if (!availableSubtitles[selectedLang]) {
-        // Current language not available, find fallback
-        if (availableSubtitles.zh) {
-          selectedLang = 'zh';
-        } else if (availableSubtitles.en) {
-          selectedLang = 'en';
-        }
-        currentSubtitleLang = selectedLang;  // Update to valid language
-      }
-
-      // Update language switcher visibility based on available subtitles
-      updateLanguageSwitcher();
-
-      // Load the current language subtitle
-      await loadSubtitlesForLang(id, currentSubtitleLang);
-    }
-
-    async function loadSubtitlesForLang(id, lang) {
-      console.log('[DEBUG] loadSubtitlesForLang called with:', { id, lang, availableSubtitles });
-      const subtitleContent = await window.api.readSubtitleBilingual(id, lang);
-      console.log('[DEBUG] subtitleContent for', lang, ':', subtitleContent ? 'exists (' + subtitleContent.length + ' chars)' : 'null');
-
-      if (subtitleContent) {
-        subtitles = parseVTT(subtitleContent);
-        renderSubtitles();
-        subtitleModule.classList.remove('hidden');
-        console.log('[DEBUG] Subtitle module shown, items:', subtitles.length);
-      } else {
-        subtitles = [];
-        subtitleList.innerHTML = '';
-        // If Chinese not available, try English as fallback
-        console.log('[DEBUG] No subtitle for', lang, ', checking fallback. availableSubtitles.en:', availableSubtitles.en);
-        if (lang === 'zh' && availableSubtitles.en) {
-          console.log('[DEBUG] Falling back to English');
-          currentSubtitleLang = 'en';
-          updateLanguageSwitcher();
-          await loadSubtitlesForLang(id, 'en');
+      const handle = async (ev, forcedType) => {
+        let data = null;
+        try {
+          data = JSON.parse(ev.data);
+        } catch (_) {
           return;
         }
-        console.log('[DEBUG] No fallback available, hiding subtitle module');
-        subtitleModule.classList.add('hidden');
-      }
-    }
+        if (data && data.eventId) sessionStorage.setItem('agent_lastEventId', String(data.eventId));
 
-    function updateLanguageSwitcher() {
-      const buttons = languageSwitcher.querySelectorAll('button');
-      buttons.forEach(btn => {
-        const lang = btn.dataset.lang;
-        const transcript = availableSubtitles[lang];
-        // Handle both formats: boolean (true/false) or object {done: true/false}
-        const isAvailable = transcript && (transcript === true || (transcript.done));
-        btn.classList.toggle('hidden', !isAvailable);
-        btn.classList.toggle('active', lang === currentSubtitleLang && isAvailable);
-      });
-    }
+        const type = forcedType || data.type;
+        const taskId = data.taskId || (data.payload && data.payload.taskId) || null;
 
-    // Language switcher event listener
-    languageSwitcher.addEventListener('click', async (e) => {
-      if (e.target.tagName === 'BUTTON' && currentId) {
-        const newLang = e.target.dataset.lang;
-        const transcript = availableSubtitles[newLang];
-        const isAvailable = transcript && (transcript === true || (transcript.done));
-        if (newLang !== currentSubtitleLang && isAvailable) {
-          currentSubtitleLang = newLang;
-          updateLanguageSwitcher();
-          await loadSubtitlesForLang(currentId, currentSubtitleLang);
-        }
-      }
-    });
-
-    function renderSubtitles() {
-      subtitleList.innerHTML = subtitles.map((sub, index) => `
-        <div class="subtitle-item" data-index="${index}" data-start="${sub.start}">
-          <span class="timestamp">${formatTimestamp(sub.start)}</span>
-          <span class="text">${sub.text.replace(/\n/g, '<br>')}</span>
-        </div>
-      `).join('');
-
-      // Add click handlers
-      document.querySelectorAll('.subtitle-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-          const timestamp = parseFloat(item.dataset.start);
-          videoPlayer.currentTime = timestamp;
-          if (videoPlayer.paused) {
-            videoPlayer.play();
-            playPauseBtn.textContent = '⏸';
+        if (type === 'stream.resync_required') {
+          if (currentTaskId) {
+            try {
+              const snap = await client.getTask(currentTaskId);
+              taskCache.set(currentTaskId, snap);
+              applyTaskToInfo(snap);
+              appendLogLine(currentTaskId, '[stream] resync_required → refreshed task snapshot');
+            } catch (e) {
+              appendLogLine(currentTaskId, `[stream] resync refresh failed: ${e.message}`);
+            }
           }
-        });
-      });
+          return;
+        }
+
+        if (type === 'task.created') {
+          await refreshHistory();
+          return;
+        }
+
+        if (type === 'task.updated' || type === 'step.started' || type === 'step.finished') {
+          if (taskId) {
+            // 轻量：只在当前任务命中时刷新快照
+            if (taskId === currentTaskId) {
+              const snap = await client.getTask(taskId);
+              taskCache.set(taskId, snap);
+              applyTaskToInfo(snap);
+            }
+            await refreshHistory();
+          }
+          if (taskId && data.payload && data.payload.stepName) {
+            appendLogLine(taskId, `${type}: ${data.payload.stepName} ${data.payload.status || data.payload.stepStatus || ''}`.trim());
+          }
+          return;
+        }
+
+        if (type === 'log.appended') {
+          if (!taskId) return;
+          const text = (data.payload && data.payload.text) || (data.payload && data.payload.line) || '';
+          const seq = data.payload ? data.payload.seq : undefined;
+          if (text) appendLogLine(taskId, text, { seq });
+          return;
+        }
+      };
+
+      es.onmessage = (ev) => handle(ev);
+      es.addEventListener('task.created', (ev) => handle(ev, 'task.created'));
+      es.addEventListener('task.updated', (ev) => handle(ev, 'task.updated'));
+      es.addEventListener('step.started', (ev) => handle(ev, 'step.started'));
+      es.addEventListener('step.finished', (ev) => handle(ev, 'step.finished'));
+      es.addEventListener('log.appended', (ev) => handle(ev, 'log.appended'));
+      es.addEventListener('stream.resync_required', (ev) => handle(ev, 'stream.resync_required'));
+
+      es.onerror = () => {
+        if (currentTaskId) appendLogLine(currentTaskId, '[stream] disconnected, will auto-reconnect');
+      };
     }
 
-    function updateSubtitleHighlight() {
-      const currentTime = videoPlayer.currentTime;
+    // === UI bindings ===
+    newBtn.addEventListener('click', openNewTaskModal);
+    manageBtn.addEventListener('click', openManageModal);
+    modalCloseBtn.addEventListener('click', closeModal);
+    newTaskModal.addEventListener('click', (e) => {
+      if (e.target === newTaskModal) closeModal();
+    });
 
+    // Core: create task via HTTP
+    modalRunBtn.addEventListener('click', async () => {
+      const url = modalUrlInput.value.trim();
+      if (!url) return alert('Enter a URL');
 
-      // Find the subtitle that should be active
-      // Optimization: Start from last known index (usually the next subtitle)
-      // This is O(1) amortized for sequential playback
-      let activeIndex = -1;
-      const startIdx = Math.max(0, lastActiveIndex);
-      for (let i = startIdx; i < subtitles.length; i++) {
-        const sub = subtitles[i];
-        if (sub && currentTime >= sub.start && currentTime < sub.end) {
-          activeIndex = i;
-          break;
+      modalRunBtn.disabled = true;
+      modalRunBtn.textContent = 'Creating...';
+
+      const focus = modalFocusInput.value.trim();
+      const dlMode = getModalDownloadMode();
+      const mode = dlMode === 'audio' ? 'audio' : 'both';
+
+      try {
+        const created = await client.createTask({ url, focus, mode, force: false });
+        const taskId = created && created.task_id ? created.task_id : created.taskId;
+        closeModal();
+        await refreshHistory();
+        if (taskId) {
+          await selectTask(taskId);
+          openManageModal();
         }
-        // If we've passed the current time, no need to check earlier subtitles
-        if (sub && currentTime < sub.start) {
-          break;
-        }
-      }
-      // If not found (currentTime >= last subtitle's end), use last subtitle
-      if (activeIndex === -1 && subtitles.length > 0) {
-        const lastSub = subtitles[subtitles.length - 1];
-        if (currentTime >= lastSub.start) {
-          activeIndex = subtitles.length - 1;
-        }
-      }
-      // Cache last active index for next frame
-      if (activeIndex !== -1) {
-        lastActiveIndex = activeIndex;
-      }
-
-      // Only update if the active index changed
-      const items = document.querySelectorAll('.subtitle-item');
-      const currentActive = document.querySelector('.subtitle-item.active');
-      const currentActiveIndex = currentActive ? parseInt(currentActive.dataset.index) : -1;
-
-      if (activeIndex !== -1 && activeIndex !== currentActiveIndex) {
-        // Remove active from all
-        items.forEach(i => i.classList.remove('active'));
-        // Add active to new
-        const newActive = items[activeIndex];
-        if (newActive) {
-          newActive.classList.add('active');
-
-          // Use instant scroll (no smooth) for faster response
-          newActive.scrollIntoView({ behavior: 'auto', block: 'center' });
-        }
-      }
-    }
-
-    // Use requestAnimationFrame for smoother subtitle sync (replaces timeupdate for subtitles)
-    let rafId = null;
-    function subtitleSyncLoop() {
-      if (!videoPlayer.paused && !videoPlayer.ended) {
-        updateSubtitleHighlight();
-      }
-      rafId = requestAnimationFrame(subtitleSyncLoop);
-    }
-
-    videoPlayer.addEventListener('play', () => {
-      if (rafId === null) {
-        rafId = requestAnimationFrame(subtitleSyncLoop);
+      } catch (e) {
+        alert(`Create failed: ${e.message}`);
+      } finally {
+        modalRunBtn.disabled = false;
+        modalRunBtn.textContent = 'Run';
       }
     });
 
-    videoPlayer.addEventListener('pause', () => {
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
-    });
+    // 暂时不支持 open/delete（需要文件系统权限/接口）；保留按钮但禁用
+    openBtn.disabled = true;
+    deleteBtn.disabled = true;
 
-    videoPlayer.addEventListener('ended', () => {
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
-    });
+    // === init ===
+    toolbar.classList.add('hidden');
+    articleOutput.innerHTML = '';
+    summaryOutput.innerHTML = '';
 
-    // Keep timeupdate for progress bar (less frequent is fine)
-    videoPlayer.addEventListener('timeupdate', () => {
-      updateProgress();
-    });
+    const serviceInfo = await window.service.getServiceInfo();
+    client = new ServiceClient(serviceInfo);
 
-    async function loadVideo(id) {
-      const media = await window.api.getMediaPath(id);
-      const { video: videoPath, audio: audioPath } = media;
-
-      // Clear previous state
-      videoPlayer.src = '';
-      const videoPanel = document.querySelector('.video-panel');
-
-      if (videoPath) {
-        videoPlayer.src = `file://${videoPath}`;
-        showVideo();
-        videoPanel.classList.remove('disabled');
-      } else if (audioPath) {
-        videoPlayer.src = `file://${audioPath}`;
-        showVideo();
-        videoPanel.classList.remove('disabled');
-      } else {
-        // No media available - show disabled state
-        videoPlayer.src = '';
-        hideVideo();
-        videoPanel.classList.add('disabled');
-      }
-
-      // Load subtitles
-      await loadSubtitles(id);
-    }
-
-    // Resizer
-    const resizer = document.getElementById('resizer');
-    const videoPanel = document.querySelector('.video-panel');
-    let isResizing = false;
-
-    resizer.addEventListener('mousedown', (e) => {
-      isResizing = true;
-      resizer.classList.add('active');
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (!isResizing) return;
-
-      const appRect = document.querySelector('.app').getBoundingClientRect();
-      const newWidth = appRect.right - e.clientX;
-
-      if (newWidth >= 200) {
-        document.documentElement.style.setProperty('--video-panel-width', `${newWidth}px`);
-      }
-    });
-
-    document.addEventListener('mouseup', () => {
-      isResizing = false;
-      resizer.classList.remove('active');
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    });
-
-    // Video Player Vertical Resizer
-    const videoResizer = document.getElementById('videoResizer');
-    const videoContainer = document.querySelector('.video-container');
-    let isVideoResizing = false;
-
-    videoResizer.addEventListener('mousedown', (e) => {
-      isVideoResizing = true;
-      videoResizer.classList.add('active');
-      document.body.style.cursor = 'row-resize';
-      document.body.style.userSelect = 'none';
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (!isVideoResizing) return;
-
-      const containerRect = videoContainer.getBoundingClientRect();
-      const newHeight = e.clientY - containerRect.top;
-
-      if (newHeight >= 100 && newHeight <= 600) {
-        videoContainer.style.height = `${newHeight}px`;
-      }
-    });
-
-    document.addEventListener('mouseup', () => {
-      isVideoResizing = false;
-      videoResizer.classList.remove('active');
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    });
-
+    await refreshHistory();
+    await setupEvents();
   </script>
 </body>
 </html>
