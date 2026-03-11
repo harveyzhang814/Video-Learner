@@ -11,6 +11,9 @@ if [ -z "$URL" ] || [ -z "$DIR" ]; then
     exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/yt-dlp-cookies.sh"
+
 # Trap for cleanup on interrupt
 trap 'rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null; exit 1' INT TERM
 
@@ -34,7 +37,7 @@ rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
 # Download audio using yt-dlp
 # Priority: m4a > webm > any audio
 echo "[INFO] Downloading audio..."
-yt-dlp -f "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio" \
+yt-dlp $YT_DLP_COOKIE_OPTS -f "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio" \
     -o "$DIR/media/audio.temp.m4a" "$URL" 2>&1
 PIPESTATUS_CODE=(${PIPESTATUS[@]})
 YTDLP_EXIT_CODE=${PIPESTATUS_CODE[0]}

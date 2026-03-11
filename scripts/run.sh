@@ -114,8 +114,11 @@ echo "URL: $URL"
 echo "ID: $id"
 echo "DIR: $DIR"
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/yt-dlp-cookies.sh"
+
 # Tool versions
-YT_DLP_VER=$(yt-dlp --version 2>/dev/null || echo "unknown")
+YT_DLP_VER=$(yt-dlp $YT_DLP_COOKIE_OPTS --version 2>/dev/null || echo "unknown")
 FFMPEG_VER=$(ffmpeg -version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1 || echo "unknown")
 JQ_VER=$(jq --version 2>/dev/null || echo "unknown")
 
@@ -164,7 +167,7 @@ fi
 # === STEP 0: Get Video Info ===
 if [ "$FORCE" = "1" ] || [ "$(echo "$META" | jq -r '.title')" = "" ]; then
     status "info_start"
-    info_json=$(yt-dlp --dump-json --no-download "$URL" 2>/dev/null || echo "{}")
+    info_json=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null || echo "{}")
     title=$(echo "$info_json" | jq -r '.title // ""')
     duration=$(echo "$info_json" | jq -r '.duration // ""')
     lang=$(echo "$info_json" | jq -r '.language // "auto"')
@@ -206,7 +209,7 @@ fi
 if mode_has_audio; then
     if ! ls "$DIR/media/audio."* 1>/dev/null 2>&1; then
         status "audio_start"
-        yt-dlp -x --audio-format m4a -o "$DIR/media/audio.%(ext)s" "$URL" 2>/dev/null || echo "Audio extraction failed (non-blocking)"
+        yt-dlp $YT_DLP_COOKIE_OPTS -x --audio-format m4a -o "$DIR/media/audio.%(ext)s" "$URL" 2>/dev/null || echo "Audio extraction failed (non-blocking)"
         if ls "$DIR/media/audio."* 1>/dev/null 2>&1; then
             status "audio_done"
         fi
@@ -240,9 +243,9 @@ get_transcript() {
     # Detect available subtitles
     echo "Detecting available subtitles..."
     # Match specific language codes: en, en-orig, zh, zh-Hans, zh-Hant
-    available_subs=$(yt-dlp --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh-Hans|zh-Hant|zh)[[:space:]]/{print $1}' | head -20)
+    available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh-Hans|zh-Hant|zh)[[:space:]]/{print $1}' | head -20)
     if [ -z "$available_subs" ]; then
-        available_subs=$(yt-dlp --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20)
+        available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20)
     fi
     echo "Available subtitles: ${available_subs:-none}"
 
@@ -268,10 +271,10 @@ get_transcript() {
 
         if [ "$sub_type" = "original" ]; then
             # Use --write-subs for original subtitles
-            yt-dlp --skip-download --write-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null
+            yt-dlp $YT_DLP_COOKIE_OPTS --skip-download --write-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null
         else
             # Use --write-auto-subs for auto-generated subtitles
-            yt-dlp --skip-download --write-auto-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null
+            yt-dlp $YT_DLP_COOKIE_OPTS --skip-download --write-auto-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null
         fi
 
         # Find and rename the downloaded file

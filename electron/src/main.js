@@ -25,8 +25,9 @@ let currentProcessId = null;
 
 // 初始化编排层（延迟到 createWindow 后获取 mainWindow）
 function initOrchestrator() {
-    let outputCounter = 0;
-    orchestrator = new Orchestrator(baseDir,
+    try {
+        let outputCounter = 0;
+        orchestrator = new Orchestrator(baseDir,
         (text) => {
             outputCounter++;
             // Debug: log first few outputs to trace duplicates
@@ -62,6 +63,10 @@ function initOrchestrator() {
             }
         }
     );
+    } catch (err) {
+        console.error('[initOrchestrator] 初始化失败:', err);
+        orchestrator = undefined;
+    }
 }
 
 function createWindow() {
@@ -92,15 +97,26 @@ function createWindow() {
   // 初始化编排层（在 mainWindow 创建之后）
   initOrchestrator();
 
-  // 初始化数据库
-  db = new DatabaseManager(DB_PATH);
+  // 初始化数据库（失败不影响窗口与 WebSocket）
+  try {
+    db = new DatabaseManager(DB_PATH);
+  } catch (err) {
+    console.error('[main] DatabaseManager 初始化失败:', err);
+    db = null;
+  }
 
-  // 启动 WebSocket 服务器
-  wsServer = new WebSocketServer(8765);
-  wsServer.start();
+  // 启动 WebSocket 服务器（失败只打日志，避免整窗崩溃）
+  try {
+    wsServer = new WebSocketServer(8765);
+    wsServer.start();
+  } catch (err) {
+    console.error('[main] WebSocket 服务器启动失败:', err);
+    wsServer = null;
+  }
 
-  // 设置命令处理回调
-  wsServer.onCommand = async (data) => {
+  // 设置命令处理回调（仅当 WebSocket 已启动时）
+  if (wsServer) {
+    wsServer.onCommand = async (data) => {
       console.log('[WS] Received command:', data);
       switch (data.type) {
           case 'task:run':
@@ -108,6 +124,10 @@ function createWindow() {
               const { url, focus, downloadVideo, force } = data.payload || {};
               if (!url) {
                   wsServer.send('task:error', { error: 'URL is required' });
+                  return;
+              }
+              if (!orchestrator) {
+                  wsServer.send('task:error', { error: '编排层未初始化，请重启应用' });
                   return;
               }
               try {
@@ -139,12 +159,15 @@ function createWindow() {
           case 'task:refresh':
               // Handle refresh - send current status
               if (orchestrator) {
-                  const status = orchestrator.getStatus(data.payload.id);
+                  const status = await orchestrator.getStatus(data.payload.id);
                   wsServer.send('task:status', status);
+              } else {
+                  wsServer.send('task:error', { error: '编排层未初始化' });
               }
               break;
       }
   };
+  }
 }
 
 app.whenReady().then(createWindow);
@@ -166,6 +189,9 @@ app.on('activate', () => {
  */
 ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo, id }) => {
   try {
+    if (!orchestrator || typeof orchestrator.generateId !== 'function') {
+      return { success: false, error: '编排层未初始化，请重启应用' };
+    }
     console.log('[DEBUG] run-pipeline called with:', { url, focus, force, downloadVideo, id });
 
     // 确定是否下载视频
@@ -190,33 +216,37 @@ ipcMain.handle('run-pipeline', async (event, { url, focus, force, downloadVideo,
       force: force || false,
       output_lang: 'zh-CN'
     }).then(result => {
-      // 任务完成后广播 task:complete 消息
       console.log('[DEBUG] background task completed:', result.id);
-      if (wsServer) {
-        wsServer.broadcast('task:complete', { id: result.id, success: true });
-      }
-      // 更新数据库中的任务完成状态
+      if (wsServer) wsServer.broadcast('task:complete', { id: result.id, success: true });
       if (db) {
-        db.updateStep(result.id, 'summary', 'completed');
-        db.updateDownload(result.id, 'completed');
+        try {
+          db.updateStep(result.id, 'summary', 'completed');
+          db.updateDownload(result.id, 'completed');
+        } catch (e) {
+          console.error('[main] db update after task complete:', e);
+        }
       }
     }).catch(err => {
       console.error('[DEBUG] background task error:', err);
-      if (wsServer) {
-        wsServer.broadcast('task:error', { id: taskId, error: err.message });
-      }
+      const payload = { id: taskId, error: err.message || String(err) };
+      if (err.step) payload.step = err.step;
+      if (wsServer) wsServer.broadcast('task:error', payload);
     });
 
     // 立即返回 ID 给前端
     return { success: true, id: taskId };
   } catch (e) {
-    return { success: false, error: e.message };
+    const msg = (e && e.message) ? e.message : String(e);
+    return { success: false, error: msg || '执行失败' };
   }
 });
 
 // 单步执行
 ipcMain.handle('run-step', async (event, { id, step, options = {} }) => {
   try {
+    if (!orchestrator) {
+      return { success: false, error: '编排层未初始化，请重启应用' };
+    }
     const result = await orchestrator.runStep(id, step, options);
     return result;
   } catch (e) {
@@ -227,6 +257,9 @@ ipcMain.handle('run-step', async (event, { id, step, options = {} }) => {
 // 重试步骤
 ipcMain.handle('retry-step', async (event, { id, step }) => {
   try {
+    if (!orchestrator) {
+      return { success: false, error: '编排层未初始化，请重启应用' };
+    }
     const result = await orchestrator.retryStep(id, step);
     return result;
   } catch (e) {
@@ -237,6 +270,9 @@ ipcMain.handle('retry-step', async (event, { id, step }) => {
 // 跳过步骤
 ipcMain.handle('skip-step', async (event, { id, step }) => {
   try {
+    if (!orchestrator) {
+      return { success: false, error: '编排层未初始化，请重启应用' };
+    }
     const result = orchestrator.skipStep(id, step);
     return result;
   } catch (e) {
@@ -247,7 +283,8 @@ ipcMain.handle('skip-step', async (event, { id, step }) => {
 // 获取任务状态
 ipcMain.handle('get-task-status', async (event, id) => {
   try {
-    const status = orchestrator.getStatus(id);
+    if (!orchestrator) return null;
+    const status = await orchestrator.getStatus(id);
     return status;
   } catch (e) {
     return null;
@@ -556,7 +593,9 @@ ipcMain.handle('get-available-subtitles', async (event, id) => {
 
 // Reset task step
 ipcMain.handle('reset-task-step', async (event, { id, step }) => {
-  // Check if task exists in database
+  if (!db) {
+    return { success: false, error: 'Database not initialized' };
+  }
   const task = db.getTask(id);
   if (!task) {
     throw new Error('任务不存在');
