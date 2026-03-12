@@ -190,6 +190,68 @@ function createApp(options = {}) {
   }
   });
 
+  router.get('/tasks/:taskId/result/content', async (ctx) => {
+  const { taskId } = ctx.params;
+  const type = (ctx.query && ctx.query.type) || '';
+  if (type !== 'article' && type !== 'summary') {
+    ctx.status = 400;
+    ctx.type = 'json';
+    ctx.body = { error: 'Missing or invalid query: type=article|summary' };
+    return;
+  }
+
+  try {
+    const result = await orchestrator.getTaskResult(taskId, { rootDir: ROOT_DIR });
+    const pathKey = type === 'article' ? 'article_path' : 'summary_path';
+    const outPath = result && result.outputs ? result.outputs[pathKey] : undefined;
+
+    if (!outPath || typeof outPath !== 'string') {
+      ctx.status = 404;
+      ctx.type = 'json';
+      ctx.body = { error: 'file not found', type };
+      return;
+    }
+
+    const taskIdInMeta = result && result.meta ? result.meta.id : undefined;
+    if (!taskIdInMeta || typeof taskIdInMeta !== 'string') {
+      ctx.status = 404;
+      ctx.type = 'json';
+      ctx.body = { error: 'task not found' };
+      return;
+    }
+
+    const writingDir = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'writing');
+    const allowedPath = path.resolve(writingDir, type === 'article' ? 'article.md' : 'summary.md');
+
+    const resolved = path.resolve(path.isAbsolute(outPath) ? outPath : path.resolve(ROOT_DIR, outPath));
+    const normalized = path.normalize(resolved);
+
+    if (normalized !== allowedPath) {
+      ctx.status = 404;
+      ctx.type = 'json';
+      ctx.body = { error: 'file not found', type };
+      return;
+    }
+
+    await fs.promises.access(normalized, fs.constants.R_OK);
+    const content = await fs.promises.readFile(normalized, 'utf8');
+
+    ctx.status = 200;
+    ctx.set('Content-Type', 'text/markdown; charset=utf-8');
+    ctx.body = content;
+  } catch (err) {
+    if (err && /task not found/.test(err.message || '')) {
+      ctx.status = 404;
+    } else if (err && (err.code === 'ENOENT' || err.code === 'EACCES')) {
+      ctx.status = 404;
+    } else {
+      ctx.status = 500;
+    }
+    ctx.type = 'json';
+    ctx.body = { error: (err && err.message) || 'failed to get content' };
+  }
+  });
+
   router.get('/tasks/:taskId/steps', async (ctx) => {
   const { taskId } = ctx.params;
   try {

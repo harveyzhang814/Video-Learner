@@ -1672,8 +1672,32 @@
       }
       if (st.logs.length) modalLogs.scrollTop = modalLogs.scrollHeight;
 
-      articleOutput.innerHTML = '<div style="padding:16px;color:#999">（当前 renderer 已迁移到 HTTP+SSE；文章/总结内容读取接口暂未暴露，后续可加 /api/tasks/:id/result/content）</div>';
-      summaryOutput.innerHTML = '<div style="padding:16px;color:#999">（同上）</div>';
+      // Load article/summary raw markdown text (avoid XSS by using textContent).
+      const selectedTaskId = taskId;
+      articleOutput.textContent = 'Loading article...';
+      summaryOutput.textContent = 'Loading summary...';
+      articleOutput.style.whiteSpace = 'pre-wrap';
+      summaryOutput.style.whiteSpace = 'pre-wrap';
+
+      const [articleRes, summaryRes] = await Promise.allSettled([
+        client.getTaskContent(selectedTaskId, 'article'),
+        client.getTaskContent(selectedTaskId, 'summary')
+      ]);
+
+      // If user switched tasks while fetching, don't overwrite current view.
+      if (currentTaskId !== selectedTaskId) return;
+
+      if (articleRes.status === 'fulfilled' && articleRes.value) {
+        articleOutput.textContent = articleRes.value;
+      } else {
+        articleOutput.textContent = '文章尚未生成（或读取失败）';
+      }
+
+      if (summaryRes.status === 'fulfilled' && summaryRes.value) {
+        summaryOutput.textContent = summaryRes.value;
+      } else {
+        summaryOutput.textContent = '总结尚未生成（或读取失败）';
+      }
 
       await refreshHistory();
       switchTab('article');
