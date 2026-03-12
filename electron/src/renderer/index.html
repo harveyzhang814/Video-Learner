@@ -1382,6 +1382,11 @@
             <button data-lang="en">English</button>
           </div>
           <select class="hidden" id="subtitleTrackSelect"></select>
+          <label class="checkbox-label" style="margin-left: 8px;">
+            <input type="checkbox" id="onScreenSubtitleToggle">
+            <span class="checkbox-custom"></span>
+            <span>画面内字幕</span>
+          </label>
         </div>
         <div class="subtitle-list" id="subtitleList"></div>
       </div>
@@ -1517,6 +1522,7 @@
     const subtitleList = document.getElementById('subtitleList');
     const languageSwitcher = document.getElementById('languageSwitcher');
     const subtitleTrackSelect = document.getElementById('subtitleTrackSelect');
+    const onScreenSubtitleToggle = document.getElementById('onScreenSubtitleToggle');
 
     const newTaskModal = document.getElementById('newTaskModal');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
@@ -1541,6 +1547,7 @@
     let currentTrackId = null;
     let currentCues = [];
     let lastActiveCueIndex = -1;
+    let currentTextTrack = null;
 
     // taskId -> { seenSeq:Set<number|string>, logs:string[] }
     const logState = new Map();
@@ -1776,6 +1783,44 @@
 
         subtitleList.appendChild(item);
       });
+    }
+
+    function rebuildTextTrackFromCues() {
+      if (!videoPlayer || !onScreenSubtitleToggle) return;
+      const enabled = onScreenSubtitleToggle.checked;
+      if (!enabled) {
+        if (currentTextTrack) {
+          currentTextTrack.mode = 'disabled';
+          currentTextTrack = null;
+        }
+        return;
+      }
+      const CueCtor = window.VTTCue || window.TextTrackCue;
+      if (!CueCtor) return;
+      if (!currentCues || !currentCues.length) {
+        if (currentTextTrack) {
+          currentTextTrack.mode = 'disabled';
+          currentTextTrack = null;
+        }
+        return;
+      }
+      if (currentTextTrack) {
+        currentTextTrack.mode = 'disabled';
+        currentTextTrack = null;
+      }
+      const label = (currentTracks.find((t) => (t.id || '') === currentTrackId) || {}).label || 'Subtitles';
+      const lang = (currentTracks.find((t) => (t.id || '') === currentTrackId) || {}).lang || 'en';
+      const track = videoPlayer.addTextTrack('subtitles', label, lang);
+      track.mode = 'showing';
+      currentCues.forEach((cue) => {
+        try {
+          const vttCue = new CueCtor(cue.startSec, cue.endSec, cue.text);
+          track.addCue(vttCue);
+        } catch (_) {
+          // ignore invalid cue
+        }
+      });
+      currentTextTrack = track;
     }
 
     function updateActiveSubtitleByTime(currentTime) {
@@ -2052,6 +2097,12 @@
     if (videoPlayer) {
       videoPlayer.addEventListener('timeupdate', () => {
         updateActiveSubtitleByTime(videoPlayer.currentTime || 0);
+      });
+    }
+
+    if (onScreenSubtitleToggle) {
+      onScreenSubtitleToggle.addEventListener('change', () => {
+        rebuildTextTrackFromCues();
       });
     }
 
