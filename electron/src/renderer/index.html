@@ -2135,6 +2135,16 @@
       videoPlayer.addEventListener('loadedmetadata', () => {
         updateVideoTimeUi();
       });
+      videoPlayer.addEventListener('play', () => {
+        if (playPauseBtn) {
+          playPauseBtn.textContent = '⏸';
+        }
+      });
+      videoPlayer.addEventListener('pause', () => {
+        if (playPauseBtn) {
+          playPauseBtn.textContent = '▶';
+        }
+      });
       videoPlayer.addEventListener('ended', () => {
         updateVideoTimeUi();
         if (playPauseBtn) {
@@ -2146,12 +2156,9 @@
     if (playPauseBtn && videoPlayer) {
       playPauseBtn.addEventListener('click', () => {
         if (videoPlayer.paused || videoPlayer.ended) {
-          videoPlayer.play().then(() => {
-            playPauseBtn.textContent = '⏸';
-          }).catch(() => {});
+          videoPlayer.play().catch(() => {});
         } else {
           videoPlayer.pause();
-          playPauseBtn.textContent = '▶';
         }
       });
     }
@@ -2161,9 +2168,6 @@
         videoPlayer.pause();
         videoPlayer.currentTime = 0;
         updateVideoTimeUi();
-        if (playPauseBtn) {
-          playPauseBtn.textContent = '▶';
-        }
       });
     }
 
