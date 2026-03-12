@@ -190,6 +190,52 @@ function createApp(options = {}) {
   }
   });
 
+  router.get('/tasks/:taskId/media', async (ctx) => {
+  const { taskId } = ctx.params;
+  try {
+    const result = await orchestrator.getTaskResult(taskId, { rootDir: ROOT_DIR });
+
+    const taskIdInMeta = result && result.meta ? result.meta.id : undefined;
+    if (!taskIdInMeta || typeof taskIdInMeta !== 'string') {
+      ctx.status = 404;
+      ctx.type = 'json';
+      ctx.body = { error: 'task not found' };
+      return;
+    }
+
+    const allowedPath = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'media', 'video.mp4');
+
+    const outPath = result && result.outputs ? result.outputs.video_path : undefined;
+    if (outPath && typeof outPath === 'string') {
+      const resolved = path.resolve(path.isAbsolute(outPath) ? outPath : path.resolve(ROOT_DIR, outPath));
+      const normalized = path.normalize(resolved);
+      if (normalized !== allowedPath) {
+        ctx.status = 404;
+        ctx.type = 'json';
+        ctx.body = { error: 'file not found', type: 'video' };
+        return;
+      }
+    }
+
+    ctx.status = 200;
+    ctx.type = 'json';
+    ctx.body = {
+      video: {
+        path: allowedPath,
+        exists: fs.existsSync(allowedPath)
+      }
+    };
+  } catch (err) {
+    if (err && /task not found/.test(err.message || '')) {
+      ctx.status = 404;
+    } else {
+      ctx.status = 500;
+    }
+    ctx.type = 'json';
+    ctx.body = { error: (err && err.message) || 'failed to get task media' };
+  }
+  });
+
   router.get('/tasks/:taskId/result/content', async (ctx) => {
   const { taskId } = ctx.params;
   const type = (ctx.query && ctx.query.type) || '';
