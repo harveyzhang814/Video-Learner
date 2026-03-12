@@ -52,6 +52,26 @@ export class ServiceClient {
     return this._fetchJson(`/api/tasks/${encodeURIComponent(taskId)}`);
   }
 
+  async getTaskContent(taskId, type) {
+    if (type !== 'article' && type !== 'summary') {
+      throw new Error('type must be article or summary');
+    }
+    const url = `${this.baseUrl}/api/tasks/${encodeURIComponent(taskId)}/result/content?type=${encodeURIComponent(type)}`;
+    const res = await fetch(url, { headers: this._headers() });
+    if (!res.ok) {
+      const text = await res.text();
+      let msg = res.statusText;
+      try {
+        const data = JSON.parse(text);
+        if (data && data.error) msg = data.error;
+      } catch (_) {
+        // ignore
+      }
+      throw new Error(`${res.status} ${msg}`);
+    }
+    return await res.text();
+  }
+
   getTaskSteps(taskId) {
     return this._fetchJson(`/api/tasks/${encodeURIComponent(taskId)}/steps`);
   }
