@@ -1778,6 +1778,31 @@
       });
     }
 
+    function updateActiveSubtitleByTime(currentTime) {
+      if (!currentCues || !currentCues.length) return;
+      const t = currentTime || 0;
+      let idx = lastActiveCueIndex;
+      if (idx < 0 || idx >= currentCues.length || t < currentCues[idx].startSec || t > currentCues[idx].endSec) {
+        idx = -1;
+        for (let i = 0; i < currentCues.length; i++) {
+          const cue = currentCues[i];
+          if (t >= cue.startSec && t <= cue.endSec) {
+            idx = i;
+            break;
+          }
+        }
+      }
+      if (idx === lastActiveCueIndex) return;
+      lastActiveCueIndex = idx;
+      const items = subtitleList.querySelectorAll('.subtitle-item');
+      items.forEach((el, i) => {
+        el.classList.toggle('active', i === idx);
+        if (i === idx && el.classList.contains('active')) {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      });
+    }
+
     async function selectTask(taskId) {
       currentTaskId = taskId;
       toolbar.classList.remove('hidden');
@@ -2023,6 +2048,12 @@
       const cues = parseVtt(track.vtt);
       renderSubtitleList(cues);
     });
+
+    if (videoPlayer) {
+      videoPlayer.addEventListener('timeupdate', () => {
+        updateActiveSubtitleByTime(videoPlayer.currentTime || 0);
+      });
+    }
 
     async function setupEvents() {
       const lastEventId = sessionStorage.getItem('agent_lastEventId') || '';
