@@ -1947,12 +1947,10 @@
       }
       if (st.logs.length) modalLogs.scrollTop = modalLogs.scrollHeight;
 
-      // Load article/summary raw markdown text (avoid XSS by using textContent).
+      // Load article/summary markdown content and render via marked.
       const selectedTaskId = taskId;
       articleOutput.textContent = 'Loading article...';
       summaryOutput.textContent = 'Loading summary...';
-      articleOutput.style.whiteSpace = 'pre-wrap';
-      summaryOutput.style.whiteSpace = 'pre-wrap';
 
       const [articleRes, summaryRes] = await Promise.allSettled([
         client.getTaskContent(selectedTaskId, 'article'),
@@ -1963,13 +1961,13 @@
       if (currentTaskId !== selectedTaskId) return;
 
       if (articleRes.status === 'fulfilled' && articleRes.value) {
-        articleOutput.textContent = articleRes.value;
+        articleOutput.innerHTML = marked.parse(articleRes.value || '');
       } else {
         articleOutput.textContent = '文章尚未生成（或读取失败）';
       }
 
       if (summaryRes.status === 'fulfilled' && summaryRes.value) {
-        summaryOutput.textContent = summaryRes.value;
+        summaryOutput.innerHTML = marked.parse(summaryRes.value || '');
       } else {
         summaryOutput.textContent = '总结尚未生成（或读取失败）';
       }
