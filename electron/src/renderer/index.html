@@ -210,14 +210,6 @@
       padding: 0;
     }
 
-    .info-status {
-      display: flex;
-      gap: 8px;
-      padding: 12px 0;
-      flex-wrap: wrap;
-      font-size: 12px;
-    }
-
     .info-row {
       display: flex;
       padding: 8px 0;
@@ -228,6 +220,21 @@
       border-bottom: none;
     }
 
+    .info-status-bar {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 4px 0;
+      margin-top: 4px;
+    }
+
+    .info-status {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      font-size: 11px;
+    }
+
+    /* Title/URL 行样式 */
     .info-label {
       width: 60px;
       color: var(--text-muted);
@@ -240,6 +247,21 @@
       font-size: 13px;
       word-break: break-all;
       color: var(--text);
+    }
+
+    .info-title {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .info-url {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* 额外元信息行保留 DOM 以兼容 JS，但不参与展示 */
+    .info-row.meta-extra {
+      display: none;
     }
 
     /* Hidden inputs for JS compatibility */
@@ -497,21 +519,25 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      padding: calc(var(--grid-unit) * 3);
+      padding: 0;
       min-height: 0;
     }
 
-    /* Tabs */
+    /* ContentCard Header + Body */
+    .content-card-header {
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3) 0 calc(var(--grid-unit) * 3);
+      border-bottom: 1px solid var(--border);
+    }
+
     .tabs {
       display: flex;
       gap: calc(var(--grid-unit) * 3);
-      border-bottom: 1px solid var(--border);
       margin-bottom: calc(var(--grid-unit) * 2);
     }
 
     .tab {
-      padding: 8px 0;
-      font-size: 13px;
+      padding: 4px 0;
+      font-size: 12px;
       font-weight: 500;
       color: var(--text-muted);
       cursor: pointer;
@@ -619,17 +645,23 @@
       display: flex;
       flex-direction: column;
       background: var(--bg);
-      border: 1px solid var(--border);
+      border: none;
       overflow: hidden;
       min-height: 0;
+    }
+
+    .content-card-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 calc(var(--grid-unit) * 3) calc(var(--grid-unit) * 3) calc(var(--grid-unit) * 3);
     }
 
     .pane {
       display: none;
       flex: 1;
       flex-direction: column;
-      overflow-y: auto;
       padding: 0;
+      min-height: 0;
     }
 
     .pane.active {
@@ -663,8 +695,7 @@
       line-height: 1.7;
       color: var(--text);
       min-height: 0;
-      overflow-y: auto;
-      padding: calc(var(--grid-unit) * 3);
+      padding: 0;
     }
 
     .markdown-content h1 {
@@ -1124,8 +1155,8 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px;
-      border-radius: 12px;
+      padding: 2px 8px;
+      border-radius: 10px;
       background: var(--bg-alt);
       color: var(--text-muted);
       border: 1px solid var(--border);
@@ -1133,8 +1164,8 @@
     }
 
     .status-pill .icon {
-      font-size: 11px;
-      width: 14px;
+      font-size: 10px;
+      width: 12px;
       text-align: center;
     }
 
@@ -1261,24 +1292,26 @@
         <div class="info-content" id="infoContent">
           <div class="info-row">
             <span class="info-label">标题</span>
-            <span class="info-value" id="infoTitle">-</span>
+            <span class="info-value info-title" id="infoTitle">-</span>
           </div>
           <div class="info-row">
-            <span class="info-label">URL</span>
-            <span class="info-value" id="infoUrl">-</span>
+            <span class="info-value info-url" id="infoUrl">-</span>
           </div>
-          <div class="info-row">
+          <!-- 兼容 JS 的隐藏元信息行：语言 / 时长 / Focus -->
+          <div class="info-row meta-extra">
             <span class="info-label">语言</span>
             <span class="info-value" id="infoLang">-</span>
           </div>
-          <div class="info-row">
+          <div class="info-row meta-extra">
             <span class="info-label">时长</span>
             <span class="info-value" id="infoDuration">-</span>
           </div>
-          <div class="info-row">
+          <div class="info-row meta-extra">
             <span class="info-label">Focus</span>
             <span class="info-value" id="infoFocus">-</span>
           </div>
+        </div>
+        <div class="info-status-bar">
           <div class="info-status" id="infoStatus">
             <span class="status-pill" data-step="fetch">
               <span class="icon">○</span>
@@ -1324,34 +1357,36 @@
       </div>
 
       <div class="output-section">
-        <div class="tabs">
-          <div class="tab active" data-tab="article">Article</div>
-          <div class="tab" data-tab="summary">Summary</div>
-        </div>
-
-        <div class="progress-section hidden" id="progressSection">
-          <div class="progress-bar">
-            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-          </div>
-          <div class="progress-steps">
-            <div class="progress-step" data-step="fetch"><span class="dot"></span>Fetch</div>
-            <div class="progress-step" data-step="video"><span class="dot"></span>Video</div>
-            <div class="progress-step" data-step="audio"><span class="dot"></span>Audio</div>
-            <div class="progress-step" data-step="subs"><span class="dot"></span>Subs</div>
-            <div class="progress-step" data-step="vtt2md"><span class="dot"></span>VTT2MD</div>
-            <div class="progress-step" data-step="md2vtt"><span class="dot"></span>MD2VTT</div>
-            <div class="progress-step" data-step="article"><span class="dot"></span>Article</div>
-            <div class="progress-step" data-step="summary"><span class="dot"></span>Summary</div>
-          </div>
-        </div>
-
         <div class="content">
-          <div id="articlePane" class="pane active">
-            <div class="empty" id="emptyState">Enter a YouTube URL to begin</div>
-            <div class="markdown-content" id="articleOutput"></div>
+          <div class="content-card-header">
+            <div class="tabs">
+              <div class="tab active" data-tab="article">Article</div>
+              <div class="tab" data-tab="summary">Summary</div>
+            </div>
+            <div class="progress-section hidden" id="progressSection">
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+              </div>
+              <div class="progress-steps">
+                <div class="progress-step" data-step="fetch"><span class="dot"></span>Fetch</div>
+                <div class="progress-step" data-step="video"><span class="dot"></span>Video</div>
+                <div class="progress-step" data-step="audio"><span class="dot"></span>Audio</div>
+                <div class="progress-step" data-step="subs"><span class="dot"></span>Subs</div>
+                <div class="progress-step" data-step="vtt2md"><span class="dot"></span>VTT2MD</div>
+                <div class="progress-step" data-step="md2vtt"><span class="dot"></span>MD2VTT</div>
+                <div class="progress-step" data-step="article"><span class="dot"></span>Article</div>
+                <div class="progress-step" data-step="summary"><span class="dot"></span>Summary</div>
+              </div>
+            </div>
           </div>
-          <div id="summaryPane" class="pane">
-            <div class="markdown-content" id="summaryOutput"></div>
+          <div class="content-card-body">
+            <div id="articlePane" class="pane active">
+              <div class="empty" id="emptyState">Enter a YouTube URL to begin</div>
+              <div class="markdown-content" id="articleOutput"></div>
+            </div>
+            <div id="summaryPane" class="pane">
+              <div class="markdown-content" id="summaryOutput"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -2110,8 +2145,24 @@
 
     function switchTab(name) {
       tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-      document.getElementById('articlePane').classList.toggle('active', name === 'article');
-      document.getElementById('summaryPane').classList.toggle('active', name === 'summary');
+      const articlePaneEl = document.getElementById('articlePane');
+      const summaryPaneEl = document.getElementById('summaryPane');
+      const bodyEl = document.querySelector('.content-card-body');
+      if (articlePaneEl && summaryPaneEl) {
+        const showArticle = name === 'article';
+        articlePaneEl.classList.toggle('active', showArticle);
+        summaryPaneEl.classList.toggle('active', !showArticle);
+      }
+      // 切换时将内容区滚动重置到顶部
+      if (bodyEl && bodyEl instanceof HTMLElement) {
+        bodyEl.scrollTop = 0;
+      }
+      if (name === 'article' && articleOutput) {
+        articleOutput.scrollTop = 0;
+      }
+      if (name === 'summary' && summaryOutput) {
+        summaryOutput.scrollTop = 0;
+      }
     }
     tabs.forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
 
