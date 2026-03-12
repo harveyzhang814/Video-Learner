@@ -191,7 +191,7 @@
     .input-section {
       padding: calc(var(--grid-unit) * 3);
       background: var(--bg);
-      border-bottom: 1px solid #E0E0E0;
+      border-bottom: 1px solid var(--border);
     }
 
     /* Info Section */
@@ -221,10 +221,9 @@
     }
 
     .info-status-bar {
-      border-top: 1px solid #F0F0F0;
       border-bottom: 1px solid var(--border);
       padding: 4px calc(var(--grid-unit) * 3);
-      background: var(--bg-alt);
+      background: var(--bg);
     }
 
     .info-status {
@@ -526,7 +525,6 @@
     /* ContentCard Header + Body */
     .content-card-header {
       padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3) 0 calc(var(--grid-unit) * 3);
-      border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
       background: var(--bg-alt);
     }
@@ -1313,41 +1311,42 @@
             <span class="info-value" id="infoFocus">-</span>
           </div>
         </div>
-        <div class="info-status-bar">
-          <div class="info-status" id="infoStatus">
-            <span class="status-pill" data-step="fetch">
-              <span class="icon">○</span>
-              <span class="label">获取信息</span>
-            </span>
-            <span class="status-pill" data-step="video">
-              <span class="icon">○</span>
-              <span class="label">视频下载</span>
-            </span>
-            <span class="status-pill" data-step="audio">
-              <span class="icon">○</span>
-              <span class="label">音频下载</span>
-            </span>
-            <span class="status-pill" data-step="subs">
-              <span class="icon">○</span>
-              <span class="label">字幕下载</span>
-            </span>
-            <span class="status-pill" data-step="vtt2md">
-              <span class="icon">○</span>
-              <span class="label">转换文案</span>
-            </span>
-            <span class="status-pill" data-step="md2vtt">
-              <span class="icon">○</span>
-              <span class="label">转寒字幕</span>
-            </span>
-            <span class="status-pill" data-step="article">
-              <span class="icon">○</span>
-              <span class="label">文章生产</span>
-            </span>
-            <span class="status-pill" data-step="summary">
-              <span class="icon">○</span>
-              <span class="label">提炼总结</span>
-            </span>
-          </div>
+      </div>
+
+      <div class="info-status-bar">
+        <div class="info-status" id="infoStatus">
+          <span class="status-pill" data-step="fetch">
+            <span class="icon">○</span>
+            <span class="label">获取信息</span>
+          </span>
+          <span class="status-pill" data-step="video">
+            <span class="icon">○</span>
+            <span class="label">视频下载</span>
+          </span>
+          <span class="status-pill" data-step="audio">
+            <span class="icon">○</span>
+            <span class="label">音频下载</span>
+          </span>
+          <span class="status-pill" data-step="subs">
+            <span class="icon">○</span>
+            <span class="label">字幕下载</span>
+          </span>
+          <span class="status-pill" data-step="vtt2md">
+            <span class="icon">○</span>
+            <span class="label">转换文案</span>
+          </span>
+          <span class="status-pill" data-step="md2vtt">
+            <span class="icon">○</span>
+            <span class="label">转寒字幕</span>
+          </span>
+          <span class="status-pill" data-step="article">
+            <span class="icon">○</span>
+            <span class="label">文章生产</span>
+          </span>
+          <span class="status-pill" data-step="summary">
+            <span class="icon">○</span>
+            <span class="label">提炼总结</span>
+          </span>
         </div>
       </div>
 
