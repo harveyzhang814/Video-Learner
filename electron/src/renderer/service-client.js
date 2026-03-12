@@ -52,6 +52,14 @@ export class ServiceClient {
     return this._fetchJson(`/api/tasks/${encodeURIComponent(taskId)}`);
   }
 
+  getTaskMedia(taskId) {
+    return this._fetchJson(`/api/tasks/${encodeURIComponent(taskId)}/media`);
+  }
+
+  getTaskSubtitles(taskId) {
+    return this._fetchJson(`/api/tasks/${encodeURIComponent(taskId)}/subtitles`);
+  }
+
   async getTaskContent(taskId, type) {
     if (type !== 'article' && type !== 'summary') {
       throw new Error('type must be article or summary');
