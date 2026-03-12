@@ -1510,6 +1510,12 @@
     const articleOutput = document.getElementById('articleOutput');
     const summaryOutput = document.getElementById('summaryOutput');
 
+    const videoPlayer = document.getElementById('videoPlayer');
+    const videoEmpty = document.getElementById('videoEmpty');
+    const subtitleModule = document.getElementById('subtitleModule');
+    const subtitleList = document.getElementById('subtitleList');
+    const languageSwitcher = document.getElementById('languageSwitcher');
+
     const newTaskModal = document.getElementById('newTaskModal');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
     const modalUrlInput = document.getElementById('modalUrlInput');
@@ -1650,6 +1656,13 @@
       }, REFRESH_DEBOUNCE_MS);
     }
 
+    function pathToFileUrl(absPath) {
+      if (!absPath) return '';
+      // Basic POSIX-friendly conversion; Electron on macOS/Linux can handle this.
+      const encoded = encodeURI(absPath);
+      return `file://${encoded}`;
+    }
+
     async function selectTask(taskId) {
       currentTaskId = taskId;
       toolbar.classList.remove('hidden');
@@ -1697,6 +1710,33 @@
         summaryOutput.textContent = summaryRes.value;
       } else {
         summaryOutput.textContent = '总结尚未生成（或读取失败）';
+      }
+
+      // Load media info for local video playback.
+      try {
+        const media = await client.getTaskMedia(selectedTaskId);
+        const videoInfo = media && media.video ? media.video : null;
+        if (videoInfo && videoInfo.exists && videoInfo.path) {
+          const fileUrl = pathToFileUrl(videoInfo.path);
+          if (fileUrl) {
+            videoPlayer.src = fileUrl;
+            videoPlayer.classList.remove('hidden');
+            videoEmpty.classList.add('hidden');
+          } else {
+            videoPlayer.removeAttribute('src');
+            videoPlayer.classList.add('hidden');
+            videoEmpty.classList.remove('hidden');
+          }
+        } else {
+          videoPlayer.removeAttribute('src');
+          videoPlayer.classList.add('hidden');
+          videoEmpty.classList.remove('hidden');
+        }
+      } catch (e) {
+        console.error('Failed to load media info for task', selectedTaskId, e);
+        videoPlayer.removeAttribute('src');
+        videoPlayer.classList.add('hidden');
+        videoEmpty.classList.remove('hidden');
       }
 
       await refreshHistory();
