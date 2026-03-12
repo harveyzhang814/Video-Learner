@@ -1567,6 +1567,9 @@
     let videoResizeStartY = 0;
     let videoResizeStartHeight = 0;
 
+    // Current aspect ratio (videoHeight / videoWidth); fallback 9/16 before metadata is loaded
+    let videoHeightPerWidth = 9 / 16;
+
     // taskId -> { seenSeq:Set<number|string>, logs:string[] }
     const logState = new Map();
     // taskId -> last task snapshot
@@ -2146,6 +2149,9 @@
         updateVideoTimeUi();
       });
       videoPlayer.addEventListener('loadedmetadata', () => {
+        if (videoPlayer.videoWidth > 0 && videoPlayer.videoHeight > 0) {
+          videoHeightPerWidth = videoPlayer.videoHeight / videoPlayer.videoWidth;
+        }
         updateVideoTimeUi();
       });
       videoPlayer.addEventListener('play', () => {
@@ -2215,8 +2221,8 @@
         const dx = e.clientX - resizeStartX;
         const next = clampVideoPanelWidth(resizeStartWidth - dx);
         rootStyle.style.setProperty('--video-panel-width', `${next}px`);
-        // Maintain roughly 16:9 aspect ratio between panel width and video container height.
-        const targetHeight = clampVideoContainerHeight((next * 9) / 16);
+        // Maintain aspect ratio based on actual video dimensions when available.
+        const targetHeight = clampVideoContainerHeight(next * videoHeightPerWidth);
         rootStyle.style.setProperty('--video-container-height', `${targetHeight}px`);
       };
 
