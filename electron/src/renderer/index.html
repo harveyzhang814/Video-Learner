@@ -1639,6 +1639,17 @@
       renderHistory(rows);
     }
 
+    // SSE 事件风暴时防抖：避免每条 task.updated/step.* 都刷整表导致卡死
+    let refreshHistoryDebounceTimer = null;
+    const REFRESH_DEBOUNCE_MS = 400;
+    function refreshHistoryDebounced() {
+      if (refreshHistoryDebounceTimer) clearTimeout(refreshHistoryDebounceTimer);
+      refreshHistoryDebounceTimer = setTimeout(() => {
+        refreshHistoryDebounceTimer = null;
+        refreshHistory().catch((e) => console.error('refreshHistory debounced failed', e));
+      }, REFRESH_DEBOUNCE_MS);
+    }
+
     async function selectTask(taskId) {
       currentTaskId = taskId;
       toolbar.classList.remove('hidden');
@@ -1649,13 +1660,18 @@
       taskCache.set(taskId, task);
       applyTaskToInfo(task);
 
-      // render cached logs (if any)
+      // 只把已有日志渲染到 DOM，不调用 appendLogLine（避免重复 push 到 st.logs 导致翻倍卡死）
       const st = ensureLogState(taskId);
       for (const line of st.logs) {
-        appendLogLine(taskId, line);
+        const ts = new Date().toLocaleTimeString();
+        const div = document.createElement('div');
+        div.className = 'log-line';
+        const cls = /error|failed/i.test(line) ? 'log-err' : '';
+        div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${escapeHtml(line)}</span>`;
+        modalLogs.appendChild(div);
       }
+      if (st.logs.length) modalLogs.scrollTop = modalLogs.scrollHeight;
 
-      // 内容区先保持核心子集：提示 HTTP 未暴露文件内容
       articleOutput.innerHTML = '<div style="padding:16px;color:#999">（当前 renderer 已迁移到 HTTP+SSE；文章/总结内容读取接口暂未暴露，后续可加 /api/tasks/:id/result/content）</div>';
       summaryOutput.innerHTML = '<div style="padding:16px;color:#999">（同上）</div>';
 
@@ -1676,16 +1692,56 @@
       modalUrlInput.focus();
     }
 
-    function openManageModal() {
-      if (!currentTaskId) return;
+    async function openManageModal() {
+      if (!currentTaskId) {
+        alert('请先在左侧列表选中一个任务');
+        return;
+      }
+      let task = taskCache.get(currentTaskId);
+      if (!task && client) {
+        try {
+          task = await client.getTask(currentTaskId);
+          taskCache.set(currentTaskId, task);
+        } catch (e) {
+          console.error('getTask failed:', e);
+        }
+      }
       newTaskModal.setAttribute('data-mode', 'edit');
       modalTitle.textContent = 'Manage Task';
-      modalRunBtn.classList.add('hidden'); // 目前 HTTP 侧是 create 后自动 runTask
+      modalRunBtn.classList.add('hidden');
       modalSaveBtn.classList.add('hidden');
       modalStopBtn.classList.add('hidden');
+      if (task && task.meta) {
+        modalUrlInput.value = task.meta.url || '';
+        modalFocusInput.value = task.meta.focus || '';
+        modalUrlInput.readOnly = true;
+        modalFocusInput.readOnly = true;
+        const steps = task.steps || {};
+        for (const step of STEPS) {
+          const s = steps[step] && steps[step].status ? steps[step].status : 'pending';
+          const ui = s === 'running' ? 'active' : s === 'completed' || s === 'skipped' ? 'done' : s === 'failed' ? 'error' : 'pending';
+          setPillState('#modalStatus', step, ui);
+        }
+      }
       modalLogs.textContent = '';
       const st = ensureLogState(currentTaskId);
-      for (const line of st.logs) appendLogLine(currentTaskId, line);
+      if (st.logs.length === 0) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'log-line';
+        placeholder.style.color = '#999';
+        placeholder.textContent = '日志将随任务运行通过 SSE 追加…';
+        modalLogs.appendChild(placeholder);
+      } else {
+        for (const line of st.logs) {
+          const ts = new Date().toLocaleTimeString();
+          const div = document.createElement('div');
+          div.className = 'log-line';
+          const cls = /error|failed/i.test(line) ? 'log-err' : '';
+          div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${escapeHtml(line)}</span>`;
+          modalLogs.appendChild(div);
+        }
+        modalLogs.scrollTop = modalLogs.scrollHeight;
+      }
       newTaskModal.classList.remove('hidden');
       modalFocusInput.focus();
     }
@@ -1736,19 +1792,18 @@
         }
 
         if (type === 'task.created') {
-          await refreshHistory();
+          refreshHistoryDebounced();
           return;
         }
 
         if (type === 'task.updated' || type === 'step.started' || type === 'step.finished') {
           if (taskId) {
-            // 轻量：只在当前任务命中时刷新快照
             if (taskId === currentTaskId) {
               const snap = await client.getTask(taskId);
               taskCache.set(taskId, snap);
               applyTaskToInfo(snap);
             }
-            await refreshHistory();
+            refreshHistoryDebounced();
           }
           if (taskId && data.payload && data.payload.stepName) {
             appendLogLine(taskId, `${type}: ${data.payload.stepName} ${data.payload.status || data.payload.stepStatus || ''}`.trim());
@@ -1786,8 +1841,13 @@
       if (e.target === newTaskModal) closeModal();
     });
 
-    // Core: create task via HTTP
+    // Core: create task via HTTP (timeout 60s; defer post-create work so UI stays responsive)
+    const CREATE_TASK_TIMEOUT_MS = 60000;
     modalRunBtn.addEventListener('click', async () => {
+      if (!client) {
+        alert('Service not ready. Please wait for the app to finish loading, or restart the app.');
+        return;
+      }
       const url = modalUrlInput.value.trim();
       if (!url) return alert('Enter a URL');
 
@@ -1799,36 +1859,71 @@
       const mode = dlMode === 'audio' ? 'audio' : 'both';
 
       try {
-        const created = await client.createTask({ url, focus, mode, force: false });
+        const createPromise = client.createTask({ url, focus, mode, force: false });
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timeout (60s). Server may be busy.')), CREATE_TASK_TIMEOUT_MS)
+        );
+        const created = await Promise.race([createPromise, timeoutPromise]);
         const taskId = created && created.task_id ? created.task_id : created.taskId;
         closeModal();
-        await refreshHistory();
-        if (taskId) {
-          await selectTask(taskId);
-          openManageModal();
-        }
+        modalRunBtn.disabled = false;
+        modalRunBtn.textContent = 'Run';
+        // 分步执行并让出主线程，避免 refreshHistory + selectTask + openManageModal 连续跑导致卡死
+        if (!taskId) return;
+        const runAfterCreate = async () => {
+          try {
+            await refreshHistory();
+            setTimeout(async () => {
+              try {
+                await selectTask(taskId);
+                setTimeout(() => openManageModal(), 0);
+              } catch (e) {
+                console.error('Post-create selectTask failed:', e);
+              }
+            }, 0);
+          } catch (e) {
+            console.error('Post-create refresh failed:', e);
+          }
+        };
+        setTimeout(runAfterCreate, 0);
       } catch (e) {
         alert(`Create failed: ${e.message}`);
-      } finally {
         modalRunBtn.disabled = false;
         modalRunBtn.textContent = 'Run';
       }
     });
 
-    // 暂时不支持 open/delete（需要文件系统权限/接口）；保留按钮但禁用
+    // 暂时不支持 open/delete（需要 HTTP API 暴露后再启用）
     openBtn.disabled = true;
+    openBtn.title = '暂不可用：需后续通过 HTTP API 暴露「打开输出文件夹」';
     deleteBtn.disabled = true;
+    deleteBtn.title = '暂不可用：需后续通过 HTTP API 暴露「删除任务」';
 
     // === init ===
     toolbar.classList.add('hidden');
     articleOutput.innerHTML = '';
     summaryOutput.innerHTML = '';
 
-    const serviceInfo = await window.service.getServiceInfo();
-    client = new ServiceClient(serviceInfo);
-
-    await refreshHistory();
-    await setupEvents();
+    try {
+      if (typeof window.service === 'undefined' || typeof window.service.getServiceInfo !== 'function') {
+        throw new Error('Preload did not expose window.service.getServiceInfo. Check that the app is running in Electron (not in a browser).');
+      }
+      const serviceInfo = await window.service.getServiceInfo();
+      if (serviceInfo && serviceInfo.error) {
+        throw new Error(serviceInfo.error);
+      }
+      if (!serviceInfo || !serviceInfo.baseUrl || !serviceInfo.token) {
+        throw new Error('Invalid service info: missing baseUrl or token');
+      }
+      client = new ServiceClient(serviceInfo);
+      await refreshHistory();
+      await setupEvents();
+    } catch (e) {
+      console.error('Init failed:', e);
+      client = null;
+      const msg = (e && e.message) ? e.message : String(e);
+      if (historyList) historyList.innerHTML = '<li class="error">Failed to connect: ' + (msg.replace(/</g, '&lt;')) + '. Run from repo root and ensure npm install was done there.</li>';
+    }
   </script>
 </body>
 </html>
