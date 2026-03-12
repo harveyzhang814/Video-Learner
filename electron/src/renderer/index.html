@@ -228,6 +228,7 @@
       border-bottom: none;
     }
 
+    /* Title/URL 行样式 */
     .info-label {
       width: 60px;
       color: var(--text-muted);
@@ -240,6 +241,21 @@
       font-size: 13px;
       word-break: break-all;
       color: var(--text);
+    }
+
+    .info-title {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .info-url {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* 额外元信息行保留 DOM 以兼容 JS，但不参与展示 */
+    .info-row.meta-extra {
+      display: none;
     }
 
     /* Hidden inputs for JS compatibility */
@@ -1261,21 +1277,21 @@
         <div class="info-content" id="infoContent">
           <div class="info-row">
             <span class="info-label">标题</span>
-            <span class="info-value" id="infoTitle">-</span>
+            <span class="info-value info-title" id="infoTitle">-</span>
           </div>
           <div class="info-row">
-            <span class="info-label">URL</span>
-            <span class="info-value" id="infoUrl">-</span>
+            <span class="info-value info-url" id="infoUrl">-</span>
           </div>
-          <div class="info-row">
+          <!-- 兼容 JS 的隐藏元信息行：语言 / 时长 / Focus -->
+          <div class="info-row meta-extra">
             <span class="info-label">语言</span>
             <span class="info-value" id="infoLang">-</span>
           </div>
-          <div class="info-row">
+          <div class="info-row meta-extra">
             <span class="info-label">时长</span>
             <span class="info-value" id="infoDuration">-</span>
           </div>
-          <div class="info-row">
+          <div class="info-row meta-extra">
             <span class="info-label">Focus</span>
             <span class="info-value" id="infoFocus">-</span>
           </div>
