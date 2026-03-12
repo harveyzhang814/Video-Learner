@@ -133,6 +133,9 @@ function loadTaskFromDb(taskId, rootDir) {
       url: row.url,
       id: taskId,
       ts: row.ts || row.created_at,
+      title: row.title || '',
+      duration: row.duration != null ? String(row.duration) : '',
+      lang: row.lang || '',
       output_lang: row.output_lang || 'zh-CN',
       focus: row.focus || '',
       download_status: 'pending',
@@ -564,7 +567,16 @@ async function runTask(taskId, options = {}) {
 
 async function getTask(taskId, options = {}) {
   const task = ensureTask(taskId, options);
-
+  const rootDir = task.params && task.params.rootDir;
+  if (rootDir) {
+    const db = ensureDb(rootDir);
+    const row = db.getTask(task.meta.id);
+    if (row) {
+      if (row.title != null && row.title !== '') task.meta.title = row.title;
+      if (row.duration != null && row.duration !== '') task.meta.duration = row.duration;
+      if (row.lang != null && row.lang !== '') task.meta.lang = row.lang;
+    }
+  }
   if (task.status === 'completed' || task.status === 'failed') {
     updateTaskMetaFromFilesystem(task);
   }
