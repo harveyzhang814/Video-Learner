@@ -210,14 +210,6 @@
       padding: 0;
     }
 
-    .info-status {
-      display: flex;
-      gap: 8px;
-      padding: 12px 0;
-      flex-wrap: wrap;
-      font-size: 12px;
-    }
-
     .info-row {
       display: flex;
       padding: 8px 0;
@@ -226,6 +218,20 @@
 
     .info-row:last-child {
       border-bottom: none;
+    }
+
+    .info-status-bar {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 4px 0;
+      margin-top: 4px;
+    }
+
+    .info-status {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      font-size: 11px;
     }
 
     /* Title/URL 行样式 */
@@ -1140,8 +1146,8 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px;
-      border-radius: 12px;
+      padding: 2px 8px;
+      border-radius: 10px;
       background: var(--bg-alt);
       color: var(--text-muted);
       border: 1px solid var(--border);
@@ -1149,8 +1155,8 @@
     }
 
     .status-pill .icon {
-      font-size: 11px;
-      width: 14px;
+      font-size: 10px;
+      width: 12px;
       text-align: center;
     }
 
@@ -1295,6 +1301,8 @@
             <span class="info-label">Focus</span>
             <span class="info-value" id="infoFocus">-</span>
           </div>
+        </div>
+        <div class="info-status-bar">
           <div class="info-status" id="infoStatus">
             <span class="status-pill" data-step="fetch">
               <span class="icon">○</span>
