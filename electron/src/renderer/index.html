@@ -2215,6 +2215,9 @@
         const dx = e.clientX - resizeStartX;
         const next = clampVideoPanelWidth(resizeStartWidth - dx);
         rootStyle.style.setProperty('--video-panel-width', `${next}px`);
+        // Maintain roughly 16:9 aspect ratio between panel width and video container height.
+        const targetHeight = clampVideoContainerHeight((next * 9) / 16);
+        rootStyle.style.setProperty('--video-container-height', `${targetHeight}px`);
       };
 
       const stopResizing = () => {
