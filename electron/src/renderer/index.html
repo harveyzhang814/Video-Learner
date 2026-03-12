@@ -1954,6 +1954,7 @@
         buttons.forEach((btn) => {
           btn.classList.remove('active');
           btn.dataset.trackId = '';
+          btn.classList.add('hidden');
         });
         subtitleTrackSelect.classList.add('hidden');
         subtitleTrackSelect.innerHTML = '';
@@ -1962,12 +1963,13 @@
           currentCues = [];
           lastActiveCueIndex = -1;
         } else if (tracks.length <= 2) {
-          // Map tracks to existing buttons as best-effort.
+          // Map tracks to existing buttons as best-effort; only show buttons that have a track.
           tracks.forEach((track, idx) => {
             const btn = buttons[idx];
             if (!btn) return;
             btn.dataset.trackId = track.id || String(idx);
             btn.textContent = track.label || btn.textContent;
+            btn.classList.remove('hidden');
           });
           const firstTrack = tracks[0];
           currentTrackId = firstTrack.id || 'track0';
