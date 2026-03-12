@@ -1381,6 +1381,12 @@
             <button class="active" data-lang="zh">中文</button>
             <button data-lang="en">English</button>
           </div>
+          <select class="hidden" id="subtitleTrackSelect"></select>
+          <label class="checkbox-label" style="margin-left: 8px;">
+            <input type="checkbox" id="onScreenSubtitleToggle">
+            <span class="checkbox-custom"></span>
+            <span>画面内字幕</span>
+          </label>
         </div>
         <div class="subtitle-list" id="subtitleList"></div>
       </div>
@@ -1510,6 +1516,14 @@
     const articleOutput = document.getElementById('articleOutput');
     const summaryOutput = document.getElementById('summaryOutput');
 
+    const videoPlayer = document.getElementById('videoPlayer');
+    const videoEmpty = document.getElementById('videoEmpty');
+    const subtitleModule = document.getElementById('subtitleModule');
+    const subtitleList = document.getElementById('subtitleList');
+    const languageSwitcher = document.getElementById('languageSwitcher');
+    const subtitleTrackSelect = document.getElementById('subtitleTrackSelect');
+    const onScreenSubtitleToggle = document.getElementById('onScreenSubtitleToggle');
+
     const newTaskModal = document.getElementById('newTaskModal');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
     const modalUrlInput = document.getElementById('modalUrlInput');
@@ -1527,6 +1541,13 @@
     let client = null;
     let es = null;
     let currentTaskId = null;
+
+    // Subtitle + media state
+    let currentTracks = [];
+    let currentTrackId = null;
+    let currentCues = [];
+    let lastActiveCueIndex = -1;
+    let currentTextTrack = null;
 
     // taskId -> { seenSeq:Set<number|string>, logs:string[] }
     const logState = new Map();
@@ -1650,6 +1671,183 @@
       }, REFRESH_DEBOUNCE_MS);
     }
 
+    function pathToFileUrl(absPath) {
+      if (!absPath) return '';
+      // Basic POSIX-friendly conversion; Electron on macOS/Linux can handle this.
+      const encoded = encodeURI(absPath);
+      return `file://${encoded}`;
+    }
+
+    function parseVttTimeToSeconds(time) {
+      if (!time) return 0;
+      const parts = time.split(':');
+      let h = 0;
+      let m = 0;
+      let s = 0;
+      if (parts.length === 3) {
+        h = Number(parts[0]) || 0;
+        m = Number(parts[1]) || 0;
+        s = Number(parts[2].replace(',', '.')) || 0;
+      } else if (parts.length === 2) {
+        m = Number(parts[0]) || 0;
+        s = Number(parts[1].replace(',', '.')) || 0;
+      } else {
+        s = Number(parts[0].replace(',', '.')) || 0;
+      }
+      return h * 3600 + m * 60 + s;
+    }
+
+    function parseVtt(vttText) {
+      const lines = String(vttText || '').split(/\r?\n/);
+      const cues = [];
+      let i = 0;
+      // Skip header
+      if (lines[i] && /^WEBVTT/i.test(lines[i])) {
+        i++;
+      }
+      while (i < lines.length) {
+        let line = lines[i].trim();
+        if (!line) {
+          i++;
+          continue;
+        }
+        if (/^(NOTE|STYLE|REGION)/i.test(line)) {
+          while (i < lines.length && lines[i].trim() !== '') i++;
+          continue;
+        }
+        if (!line.includes('-->') && i + 1 < lines.length && lines[i + 1].includes('-->')) {
+          i++;
+          line = lines[i].trim();
+        }
+        if (!line.includes('-->')) {
+          i++;
+          continue;
+        }
+        const [startRaw, endRaw] = line.split('-->').map((s) => s.trim());
+        const startSec = parseVttTimeToSeconds(startRaw);
+        const endSec = parseVttTimeToSeconds(endRaw);
+        i++;
+        const textLines = [];
+        while (i < lines.length && lines[i].trim() !== '') {
+          textLines.push(lines[i]);
+          i++;
+        }
+        const text = textLines.join('\n').trim();
+        if (text) {
+          cues.push({ startSec, endSec, text });
+        }
+        while (i < lines.length && lines[i].trim() === '') i++;
+      }
+      return cues;
+    }
+
+    function formatSecondsToTimestamp(sec) {
+      const s = Math.max(0, Math.floor(sec || 0));
+      const minutes = Math.floor(s / 60);
+      const seconds = s % 60;
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function renderSubtitleList(cues) {
+      subtitleList.innerHTML = '';
+      currentCues = cues || [];
+      lastActiveCueIndex = -1;
+      if (!currentCues.length) {
+        subtitleModule.classList.add('hidden');
+        return;
+      }
+      subtitleModule.classList.remove('hidden');
+      currentCues.forEach((cue, index) => {
+        const item = document.createElement('div');
+        item.className = 'subtitle-item';
+        item.dataset.index = String(index);
+
+        const tsSpan = document.createElement('span');
+        tsSpan.className = 'timestamp';
+        tsSpan.textContent = formatSecondsToTimestamp(cue.startSec);
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'text';
+        textSpan.textContent = cue.text;
+
+        item.appendChild(tsSpan);
+        item.appendChild(textSpan);
+
+        item.addEventListener('click', () => {
+          if (!videoPlayer) return;
+          videoPlayer.currentTime = (cue.startSec || 0) + 0.01;
+          if (videoPlayer.paused) {
+            videoPlayer.play().catch(() => {});
+          }
+        });
+
+        subtitleList.appendChild(item);
+      });
+    }
+
+    function rebuildTextTrackFromCues() {
+      if (!videoPlayer || !onScreenSubtitleToggle) return;
+      const enabled = onScreenSubtitleToggle.checked;
+      if (!enabled) {
+        if (currentTextTrack) {
+          currentTextTrack.mode = 'disabled';
+          currentTextTrack = null;
+        }
+        return;
+      }
+      const CueCtor = window.VTTCue || window.TextTrackCue;
+      if (!CueCtor) return;
+      if (!currentCues || !currentCues.length) {
+        if (currentTextTrack) {
+          currentTextTrack.mode = 'disabled';
+          currentTextTrack = null;
+        }
+        return;
+      }
+      if (currentTextTrack) {
+        currentTextTrack.mode = 'disabled';
+        currentTextTrack = null;
+      }
+      const label = (currentTracks.find((t) => (t.id || '') === currentTrackId) || {}).label || 'Subtitles';
+      const lang = (currentTracks.find((t) => (t.id || '') === currentTrackId) || {}).lang || 'en';
+      const track = videoPlayer.addTextTrack('subtitles', label, lang);
+      track.mode = 'showing';
+      currentCues.forEach((cue) => {
+        try {
+          const vttCue = new CueCtor(cue.startSec, cue.endSec, cue.text);
+          track.addCue(vttCue);
+        } catch (_) {
+          // ignore invalid cue
+        }
+      });
+      currentTextTrack = track;
+    }
+
+    function updateActiveSubtitleByTime(currentTime) {
+      if (!currentCues || !currentCues.length) return;
+      const t = currentTime || 0;
+      let idx = lastActiveCueIndex;
+      if (idx < 0 || idx >= currentCues.length || t < currentCues[idx].startSec || t > currentCues[idx].endSec) {
+        idx = -1;
+        for (let i = 0; i < currentCues.length; i++) {
+          const cue = currentCues[i];
+          if (t >= cue.startSec && t <= cue.endSec) {
+            idx = i;
+            break;
+          }
+        }
+      }
+      if (idx === lastActiveCueIndex) return;
+      lastActiveCueIndex = idx;
+      const items = subtitleList.querySelectorAll('.subtitle-item');
+      items.forEach((el, i) => {
+        el.classList.toggle('active', i === idx);
+        if (i === idx && el.classList.contains('active')) {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      });
+    }
+
     async function selectTask(taskId) {
       currentTaskId = taskId;
       toolbar.classList.remove('hidden');
@@ -1697,6 +1895,90 @@
         summaryOutput.textContent = summaryRes.value;
       } else {
         summaryOutput.textContent = '总结尚未生成（或读取失败）';
+      }
+
+      // Load media info for local video playback.
+      try {
+        const media = await client.getTaskMedia(selectedTaskId);
+        const videoInfo = media && media.video ? media.video : null;
+        if (videoInfo && videoInfo.exists && videoInfo.path) {
+          const fileUrl = pathToFileUrl(videoInfo.path);
+          if (fileUrl) {
+            videoPlayer.src = fileUrl;
+            videoPlayer.classList.remove('hidden');
+            videoEmpty.classList.add('hidden');
+          } else {
+            videoPlayer.removeAttribute('src');
+            videoPlayer.classList.add('hidden');
+            videoEmpty.classList.remove('hidden');
+          }
+        } else {
+          videoPlayer.removeAttribute('src');
+          videoPlayer.classList.add('hidden');
+          videoEmpty.classList.remove('hidden');
+        }
+      } catch (e) {
+        console.error('Failed to load media info for task', selectedTaskId, e);
+        videoPlayer.removeAttribute('src');
+        videoPlayer.classList.add('hidden');
+        videoEmpty.classList.remove('hidden');
+      }
+
+      // Load subtitles for this task.
+      try {
+        const resp = await client.getTaskSubtitles(selectedTaskId);
+        const tracks = (resp && Array.isArray(resp.tracks)) ? resp.tracks : [];
+        currentTracks = tracks;
+        currentTrackId = null;
+        subtitleModule.classList.add('hidden');
+        subtitleList.innerHTML = '';
+
+        const buttons = languageSwitcher.querySelectorAll('button');
+        buttons.forEach((btn) => {
+          btn.classList.remove('active');
+          btn.dataset.trackId = '';
+        });
+        subtitleTrackSelect.classList.add('hidden');
+        subtitleTrackSelect.innerHTML = '';
+
+        if (!tracks.length) {
+          currentCues = [];
+          lastActiveCueIndex = -1;
+        } else if (tracks.length <= 2) {
+          // Map tracks to existing buttons as best-effort.
+          tracks.forEach((track, idx) => {
+            const btn = buttons[idx];
+            if (!btn) return;
+            btn.dataset.trackId = track.id || String(idx);
+            btn.textContent = track.label || btn.textContent;
+          });
+          const firstTrack = tracks[0];
+          currentTrackId = firstTrack.id || 'track0';
+          buttons.forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.trackId === currentTrackId);
+          });
+          const cues = parseVtt(firstTrack.vtt);
+          renderSubtitleList(cues);
+        } else {
+          // Use select when more than 2 tracks.
+          subtitleTrackSelect.classList.remove('hidden');
+          tracks.forEach((track, idx) => {
+            const opt = document.createElement('option');
+            opt.value = track.id || String(idx);
+            opt.textContent = track.label || track.id || `Track ${idx + 1}`;
+            subtitleTrackSelect.appendChild(opt);
+          });
+          const firstTrack = tracks[0];
+          currentTrackId = firstTrack.id || 'track0';
+          subtitleTrackSelect.value = currentTrackId;
+          const cues = parseVtt(firstTrack.vtt);
+          renderSubtitleList(cues);
+        }
+      } catch (e) {
+        console.error('Failed to load subtitles for task', selectedTaskId, e);
+        currentTracks = [];
+        currentTrackId = null;
+        renderSubtitleList([]);
       }
 
       await refreshHistory();
@@ -1784,6 +2066,45 @@
       document.getElementById('summaryPane').classList.toggle('active', name === 'summary');
     }
     tabs.forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+    languageSwitcher.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      const button = target.closest('button');
+      if (!button) return;
+      const trackId = button.dataset.trackId;
+      if (!trackId) return;
+      const track = currentTracks.find((t) => (t.id || '') === trackId);
+      if (!track) return;
+      currentTrackId = trackId;
+      const buttons = languageSwitcher.querySelectorAll('button');
+      buttons.forEach((btn) => {
+        btn.classList.toggle('active', btn === button);
+      });
+      const cues = parseVtt(track.vtt);
+      renderSubtitleList(cues);
+    });
+
+    subtitleTrackSelect.addEventListener('change', () => {
+      const trackId = subtitleTrackSelect.value;
+      const track = currentTracks.find((t) => (t.id || '') === trackId);
+      if (!track) return;
+      currentTrackId = trackId;
+      const cues = parseVtt(track.vtt);
+      renderSubtitleList(cues);
+    });
+
+    if (videoPlayer) {
+      videoPlayer.addEventListener('timeupdate', () => {
+        updateActiveSubtitleByTime(videoPlayer.currentTime || 0);
+      });
+    }
+
+    if (onScreenSubtitleToggle) {
+      onScreenSubtitleToggle.addEventListener('change', () => {
+        rebuildTextTrackFromCues();
+      });
+    }
 
     async function setupEvents() {
       const lastEventId = sessionStorage.getItem('agent_lastEventId') || '';
