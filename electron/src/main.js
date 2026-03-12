@@ -52,6 +52,12 @@ app.on('before-quit', () => {
 ipcMain.handle('service:getInfo', async () => {
   const info = helpers.getHttpServiceInfo();
   if (info) return { ...info };
-  const started = await helpers.startLocalHttpService();
-  return { ...started };
+  try {
+    const started = await helpers.startLocalHttpService();
+    return { ...started };
+  } catch (e) {
+    const msg = (e && e.message) ? e.message : String(e);
+    console.error('[agent-http] getInfo start failed:', msg);
+    return { error: msg };
+  }
 });
