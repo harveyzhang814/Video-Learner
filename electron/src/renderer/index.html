@@ -1516,6 +1516,8 @@
     const articleOutput = document.getElementById('articleOutput');
     const summaryOutput = document.getElementById('summaryOutput');
 
+    const appEl = document.querySelector('.app');
+    const resizer = document.getElementById('resizer');
     const videoPlayer = document.getElementById('videoPlayer');
     const videoEmpty = document.getElementById('videoEmpty');
     const playPauseBtn = document.getElementById('playPauseBtn');
@@ -1552,6 +1554,11 @@
     let currentCues = [];
     let lastActiveCueIndex = -1;
     let currentTextTrack = null;
+
+    // Horizontal split state (main panel <-> video panel)
+    let isResizing = false;
+    let resizeStartX = 0;
+    let resizeStartWidth = 0;
 
     // taskId -> { seenSeq:Set<number|string>, logs:string[] }
     const logState = new Map();
@@ -1686,6 +1693,12 @@
         progressBar.value = '0';
       }
       timeDisplay.textContent = `${formatSecondsToTimestamp(current)} / ${formatSecondsToTimestamp(duration)}`;
+    }
+
+    function clampVideoPanelWidth(px) {
+      const min = 260;
+      const max = 720;
+      return Math.max(min, Math.min(max, px));
     }
 
     function pathToFileUrl(absPath) {
@@ -2169,6 +2182,40 @@
     if (onScreenSubtitleToggle) {
       onScreenSubtitleToggle.addEventListener('change', () => {
         rebuildTextTrackFromCues();
+      });
+    }
+
+    if (resizer && appEl) {
+      const rootStyle = document.documentElement;
+      const getCurrentVideoWidth = () => {
+        const raw = getComputedStyle(rootStyle).getPropertyValue('--video-panel-width') || '400px';
+        const n = parseFloat(raw);
+        return Number.isFinite(n) && n > 0 ? n : 400;
+      };
+
+      const onMouseMove = (e) => {
+        if (!isResizing) return;
+        const dx = e.clientX - resizeStartX;
+        const next = clampVideoPanelWidth(resizeStartWidth - dx);
+        rootStyle.style.setProperty('--video-panel-width', `${next}px`);
+      };
+
+      const stopResizing = () => {
+        if (!isResizing) return;
+        isResizing = false;
+        resizer.classList.remove('active');
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', stopResizing);
+      };
+
+      resizer.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        isResizing = true;
+        resizeStartX = e.clientX;
+        resizeStartWidth = getCurrentVideoWidth();
+        resizer.classList.add('active');
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', stopResizing);
       });
     }
 
