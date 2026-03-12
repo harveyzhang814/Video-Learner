@@ -13,6 +13,7 @@
       --grid-unit: 8px;
       --sidebar-width: 240px;
       --video-panel-width: 400px;
+      --video-container-height: 225px;
 
       /* Swiss Minimal */
       --bg: #FFFFFF;
@@ -849,7 +850,7 @@
       justify-content: center;
       background: #000;
       position: relative;
-      height: 225px;
+      height: var(--video-container-height);
       flex-shrink: 0;
     }
 
@@ -1367,13 +1368,13 @@
           <div>No video</div>
         </div>
       </div>
-      <div class="video-resizer" id="videoResizer"></div>
       <div class="video-controls">
         <button class="video-btn" id="playPauseBtn">▶</button>
         <button class="video-btn" id="stopBtn">■</button>
         <input type="range" class="video-progress" id="progressBar" value="0" min="0" max="100">
         <span class="video-time" id="timeDisplay">0:00 / 0:00</span>
       </div>
+      <div class="video-resizer" id="videoResizer"></div>
       <div class="subtitle-module hidden" id="subtitleModule">
         <div class="subtitle-header">
           <span class="subtitle-header-label">Subtitle</span>
@@ -1518,6 +1519,7 @@
 
     const appEl = document.querySelector('.app');
     const resizer = document.getElementById('resizer');
+    const videoResizer = document.getElementById('videoResizer');
     const videoPlayer = document.getElementById('videoPlayer');
     const videoEmpty = document.getElementById('videoEmpty');
     const playPauseBtn = document.getElementById('playPauseBtn');
@@ -1559,6 +1561,11 @@
     let isResizing = false;
     let resizeStartX = 0;
     let resizeStartWidth = 0;
+
+    // Vertical split state (video container <-> subtitle module)
+    let isVideoResizing = false;
+    let videoResizeStartY = 0;
+    let videoResizeStartHeight = 0;
 
     // taskId -> { seenSeq:Set<number|string>, logs:string[] }
     const logState = new Map();
@@ -1698,6 +1705,12 @@
     function clampVideoPanelWidth(px) {
       const min = 260;
       const max = 720;
+      return Math.max(min, Math.min(max, px));
+    }
+
+    function clampVideoContainerHeight(px) {
+      const min = 160;
+      const max = 480;
       return Math.max(min, Math.min(max, px));
     }
 
@@ -2220,6 +2233,40 @@
         resizer.classList.add('active');
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', stopResizing);
+      });
+    }
+
+    if (videoResizer && appEl) {
+      const rootStyle = document.documentElement;
+      const getCurrentVideoHeight = () => {
+        const raw = getComputedStyle(rootStyle).getPropertyValue('--video-container-height') || '225px';
+        const n = parseFloat(raw);
+        return Number.isFinite(n) && n > 0 ? n : 225;
+      };
+
+      const onVideoMouseMove = (e) => {
+        if (!isVideoResizing) return;
+        const dy = e.clientY - videoResizeStartY;
+        const next = clampVideoContainerHeight(videoResizeStartHeight + dy);
+        rootStyle.style.setProperty('--video-container-height', `${next}px`);
+      };
+
+      const stopVideoResizing = () => {
+        if (!isVideoResizing) return;
+        isVideoResizing = false;
+        videoResizer.classList.remove('active');
+        window.removeEventListener('mousemove', onVideoMouseMove);
+        window.removeEventListener('mouseup', stopVideoResizing);
+      };
+
+      videoResizer.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        isVideoResizing = true;
+        videoResizeStartY = e.clientY;
+        videoResizeStartHeight = getCurrentVideoHeight();
+        videoResizer.classList.add('active');
+        window.addEventListener('mousemove', onVideoMouseMove);
+        window.addEventListener('mouseup', stopVideoResizing);
       });
     }
 
