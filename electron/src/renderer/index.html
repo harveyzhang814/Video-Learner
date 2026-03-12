@@ -530,19 +530,24 @@
     }
 
     .tabs {
-      display: flex;
-      gap: calc(var(--grid-unit) * 3);
+      display: inline-flex;
+      background: var(--bg-alt);
+      border-radius: 4px;
+      padding: 2px;
       margin-bottom: calc(var(--grid-unit) * 2);
+      gap: 0;
     }
 
     .tab {
-      padding: 4px 0;
-      font-size: 12px;
+      padding: 4px 10px;
+      font-size: 11px;
       font-weight: 500;
+      border: none;
+      background: transparent;
       color: var(--text-muted);
       cursor: pointer;
-      position: relative;
-      transition: color var(--transition);
+      border-radius: 3px;
+      transition: all var(--transition);
     }
 
     .tab:hover {
@@ -550,17 +555,8 @@
     }
 
     .tab.active {
-      color: var(--text);
-    }
-
-    .tab.active::after {
-      content: '';
-      position: absolute;
-      bottom: -9px;
-      left: 0;
-      right: 0;
-      height: 1px;
       background: var(--accent);
+      color: var(--bg);
     }
 
     /* Progress Bar */
