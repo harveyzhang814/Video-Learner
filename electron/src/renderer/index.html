@@ -1082,7 +1082,7 @@
       display: none;
     }
 
-    /* 删除确认：独立全屏蒙版 + 居中弹窗，z-index 高于其他 overlay，避免弹窗不出现 */
+    /* 删除确认：独立全屏蒙版 + 居中弹窗（对齐 Swiss Minimal + 8px 栅格） */
     .confirm-delete-overlay {
       position: fixed;
       top: 0;
@@ -1100,13 +1100,112 @@
     }
     .confirm-delete-modal {
       background: var(--bg);
+      width: 420px;
       max-width: 90vw;
       max-height: 80vh;
       display: flex;
       flex-direction: column;
       border: 1px solid var(--border);
-      padding: 20px;
+      padding: calc(var(--grid-unit) * 3);
       overflow-y: auto;
+    }
+    .confirm-delete-modal .confirm-delete-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: calc(var(--grid-unit) * 2);
+    }
+    .confirm-delete-modal .confirm-delete-desc {
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: calc(var(--grid-unit) * 2);
+    }
+    .confirm-delete-modal .confirm-delete-options {
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--grid-unit) * 1);
+      margin-bottom: calc(var(--grid-unit) * 2);
+    }
+    .confirm-delete-modal .confirm-delete-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .confirm-delete-select-wrap {
+      position: relative;
+      width: 100%;
+    }
+    .confirm-delete-select-trigger {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .confirm-delete-select-trigger:hover,
+    .confirm-delete-select-trigger:focus {
+      border-color: var(--accent);
+      outline: none;
+    }
+    .confirm-delete-select-trigger::after {
+      content: '';
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid var(--text-muted);
+      margin-left: 8px;
+    }
+    .confirm-delete-select-dropdown {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 100%;
+      margin-top: 2px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      z-index: 10;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+    .confirm-delete-select-dropdown.open {
+      display: block;
+    }
+    .confirm-delete-select-option {
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition);
+      border-left: 2px solid transparent;
+      border-right: 2px solid transparent;
+    }
+    .confirm-delete-select-option:hover {
+      background: var(--bg-alt);
+    }
+    .confirm-delete-select-option.selected {
+      background: var(--bg-alt);
+      border-left-color: var(--accent);
+    }
+    .confirm-delete-modal .confirm-delete-actions {
+      display: flex;
+      gap: calc(var(--grid-unit) * 1);
+      justify-content: flex-end;
+      margin-top: calc(var(--grid-unit) * 1);
+    }
+    .confirm-delete-modal .confirm-delete-actions .btn {
+      cursor: pointer;
+      transition: all var(--transition);
     }
 
     .modal {
@@ -1554,30 +1653,26 @@
     </div>
   </div>
 
-  <!-- Confirm Delete Modal: 独立蒙版层 + 全局居中弹窗（避免与主布局 stacking 冲突） -->
+  <!-- Confirm Delete Modal: 独立蒙版层 + 全局居中弹窗（风格对齐 Swiss Minimal） -->
   <div class="confirm-delete-overlay hidden" id="confirmDeleteModal">
-    <div class="confirm-delete-modal" style="width: 420px;">
-      <div class="modal-content">
-        <div class="modal-title">确认删除</div>
-        <p style="color: var(--text-muted); margin: 0 0 12px 0;">选择删除方式后点击删除。硬删除将同时删除任务文件，且不可恢复。</p>
-        <div class="delete-mode-options" style="margin-bottom: 16px;">
-          <label class="radio-label" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-            <input type="radio" name="deleteMode" value="hard" checked />
-            <span>硬删除：删除记录并删除该任务下所有文件（不可恢复）</span>
-          </label>
-          <label class="radio-label" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-            <input type="radio" name="deleteMode" value="state" />
-            <span>仅删记录：只删除任务与步骤记录，保留文件</span>
-          </label>
-          <label class="radio-label" style="display: flex; align-items: center; gap: 8px;">
-            <input type="radio" name="deleteMode" value="soft" />
-            <span>标记删除：仅在列表中隐藏，不删记录与文件</span>
-          </label>
+    <div class="confirm-delete-modal">
+      <div class="confirm-delete-title">确认删除</div>
+      <p class="confirm-delete-desc">选择删除方式后点击删除。硬删除将同时删除任务文件，且不可恢复。</p>
+      <div class="confirm-delete-options">
+        <label class="confirm-delete-label">删除方式</label>
+        <div class="confirm-delete-select-wrap">
+          <input type="hidden" id="confirmDeleteModeSelect" value="hard">
+          <button type="button" class="confirm-delete-select-trigger" id="confirmDeleteModeTrigger" aria-haspopup="listbox" aria-expanded="false">硬删除：删除记录并删除该任务下所有文件（不可恢复）</button>
+          <div class="confirm-delete-select-dropdown" id="confirmDeleteModeDropdown" role="listbox">
+            <div class="confirm-delete-select-option selected" data-value="hard" role="option">硬删除：删除记录并删除该任务下所有文件（不可恢复）</div>
+            <div class="confirm-delete-select-option" data-value="state" role="option">仅删记录：只删除任务与步骤记录，保留文件</div>
+            <div class="confirm-delete-select-option" data-value="soft" role="option">标记删除：仅在列表中隐藏，不删记录与文件</div>
+          </div>
         </div>
-        <div class="modal-actions" style="justify-content: flex-end; margin-top: 16px;">
-          <button class="btn" id="confirmDeleteCancel">取消</button>
-          <button class="btn danger" id="confirmDeleteOk">删除</button>
-        </div>
+      </div>
+      <div class="confirm-delete-actions">
+        <button type="button" class="btn" id="confirmDeleteCancel">取消</button>
+        <button type="button" class="btn danger" id="confirmDeleteOk">删除</button>
       </div>
     </div>
   </div>
@@ -2541,13 +2636,39 @@
       showConfirmDelete();
     });
     console.log('[delete-modal] deleteBtn click listener attached');
+    const confirmDeleteModeTrigger = document.getElementById('confirmDeleteModeTrigger');
+    const confirmDeleteModeDropdown = document.getElementById('confirmDeleteModeDropdown');
+    const confirmDeleteModeSelect = document.getElementById('confirmDeleteModeSelect');
+    if (confirmDeleteModeTrigger && confirmDeleteModeDropdown && confirmDeleteModeSelect) {
+      confirmDeleteModeTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = confirmDeleteModeDropdown.classList.toggle('open');
+        confirmDeleteModeTrigger.setAttribute('aria-expanded', open);
+      });
+      confirmDeleteModeDropdown.querySelectorAll('.confirm-delete-select-option').forEach((opt) => {
+        opt.addEventListener('click', () => {
+          const value = opt.dataset.value;
+          const label = opt.textContent;
+          confirmDeleteModeSelect.value = value;
+          confirmDeleteModeTrigger.textContent = label;
+          confirmDeleteModeDropdown.querySelectorAll('.confirm-delete-select-option').forEach((o) => o.classList.remove('selected'));
+          opt.classList.add('selected');
+          confirmDeleteModeDropdown.classList.remove('open');
+          confirmDeleteModeTrigger.setAttribute('aria-expanded', 'false');
+        });
+      });
+      document.addEventListener('click', () => {
+        confirmDeleteModeDropdown.classList.remove('open');
+        confirmDeleteModeTrigger.setAttribute('aria-expanded', 'false');
+      });
+    }
     confirmDeleteCancel.addEventListener('click', hideConfirmDelete);
     confirmDeleteModal.addEventListener('click', (e) => {
       if (e.target === confirmDeleteModal) hideConfirmDelete();
     });
     confirmDeleteOk.addEventListener('click', async () => {
-      const modeEl = document.querySelector('input[name="deleteMode"]:checked');
-      const mode = (modeEl && modeEl.value) || 'hard';
+      const modeSelect = document.getElementById('confirmDeleteModeSelect');
+      const mode = (modeSelect && modeSelect.value) || 'hard';
       const idToDelete = currentTaskId;
       hideConfirmDelete();
       if (!idToDelete) return;

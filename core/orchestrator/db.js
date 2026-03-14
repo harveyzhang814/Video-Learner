@@ -124,8 +124,16 @@ function createDbManager(dbPath) {
     },
 
     deleteTask(id) {
-      db.prepare('DELETE FROM steps WHERE task_id = ?').run(id);
-      db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
+      db.pragma('foreign_keys = OFF');
+      try {
+        const run = db.transaction((taskId) => {
+          db.prepare('DELETE FROM steps WHERE task_id = ?').run(taskId);
+          db.prepare('DELETE FROM tasks WHERE id = ?').run(taskId);
+        });
+        run(id);
+      } finally {
+        db.pragma('foreign_keys = ON');
+      }
     },
     softDeleteTask(id) {
       return db.prepare("UPDATE tasks SET deleted_at = datetime('now') WHERE id = ?").run(id);
