@@ -175,6 +175,28 @@ function createApp(options = {}) {
   }
   });
 
+  router.delete('/tasks/:taskId', async (ctx) => {
+    const { taskId } = ctx.params;
+    const mode = (ctx.query.mode || (ctx.request.body && ctx.request.body.mode) || 'hard').toLowerCase();
+    if (!['hard', 'state', 'soft'].includes(mode)) {
+      ctx.status = 400;
+      ctx.body = { error: 'invalid mode' };
+      return;
+    }
+    try {
+      await orchestrator.deleteTask(taskId, { rootDir: ROOT_DIR, mode });
+      ctx.status = 204;
+      ctx.body = null;
+    } catch (err) {
+      if (/task not found/.test(err.message)) {
+        ctx.status = 404;
+      } else {
+        ctx.status = 500;
+      }
+      ctx.body = { error: err.message || 'delete failed' };
+    }
+  });
+
   router.get('/tasks/:taskId/result', async (ctx) => {
   const { taskId } = ctx.params;
   try {
