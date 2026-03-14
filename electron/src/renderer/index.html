@@ -1602,6 +1602,9 @@
     const modalStopBtn = document.getElementById('modalStopBtn');
     const modalTitle = document.getElementById('modalTitle');
     const modalLogs = document.getElementById('modalLogs');
+    const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+    const confirmDeleteCancel = document.getElementById('confirmDeleteCancel');
+    const confirmDeleteOk = document.getElementById('confirmDeleteOk');
 
     // 任务状态 pills（主界面 & 弹窗共用同一套 step 名）
     const STEPS = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
@@ -1609,6 +1612,15 @@
     let client = null;
     let es = null;
     let currentTaskId = null;
+
+    function showConfirmDelete() {
+      if (!currentTaskId) return;
+      if (confirmDeleteModal) confirmDeleteModal.classList.remove('hidden');
+    }
+    function hideConfirmDelete() {
+      if (confirmDeleteModal) confirmDeleteModal.classList.add('hidden');
+    }
+    window.showDeleteConfirm = showConfirmDelete;
 
     // Subtitle + media state
     let currentTracks = [];
@@ -2485,11 +2497,50 @@
       }
     });
 
-    // 暂时不支持 open/delete（需要 HTTP API 暴露后再启用）
+    // 暂时不支持 open（需要 HTTP API 暴露后再启用）
     openBtn.disabled = true;
     openBtn.title = '暂不可用：需后续通过 HTTP API 暴露「打开输出文件夹」';
-    deleteBtn.disabled = true;
-    deleteBtn.title = '暂不可用：需后续通过 HTTP API 暴露「删除任务」';
+
+    deleteBtn.title = '删除当前任务';
+    confirmDeleteCancel.addEventListener('click', hideConfirmDelete);
+    confirmDeleteModal.addEventListener('click', (e) => {
+      if (e.target === confirmDeleteModal) hideConfirmDelete();
+    });
+    confirmDeleteOk.addEventListener('click', async () => {
+      const modeEl = document.querySelector('input[name="deleteMode"]:checked');
+      const mode = (modeEl && modeEl.value) || 'hard';
+      const idToDelete = currentTaskId;
+      hideConfirmDelete();
+      if (!idToDelete) return;
+      try {
+        await client.deleteTask(idToDelete, { mode });
+      } catch (e) {
+        console.error('delete failed', e);
+        alert(e.message || '删除失败');
+        return;
+      }
+      currentTaskId = null;
+      toolbar.classList.add('hidden');
+      articleOutput.innerHTML = '';
+      summaryOutput.innerHTML = '';
+      emptyState.classList.remove('hidden');
+      videoPlayer.pause();
+      videoPlayer.removeAttribute('src');
+      videoPlayer.classList.add('hidden');
+      if (videoEmpty) videoEmpty.classList.remove('hidden');
+      infoTitle.textContent = '-';
+      infoUrl.textContent = '-';
+      infoLang.textContent = '-';
+      infoDuration.textContent = '-';
+      infoFocus.textContent = '-';
+      ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'].forEach((s) => setPillState('#infoStatus', s, {}));
+      await refreshHistory();
+      const works = await client.listTasks({ limit: 200 });
+      if (works && works.length > 0) {
+        const last = works[works.length - 1];
+        await selectTask(last.id);
+      }
+    });
 
     // === init ===
     toolbar.classList.add('hidden');
