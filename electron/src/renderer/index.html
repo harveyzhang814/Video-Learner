@@ -1527,6 +1527,34 @@
     </div>
   </div>
 
+  <!-- Confirm Delete Modal: 半透明蒙版 + 弹窗 -->
+  <div class="modal-overlay hidden" id="confirmDeleteModal">
+    <div class="modal" style="width: 420px;">
+      <div class="modal-content">
+        <div class="modal-title">确认删除</div>
+        <p style="color: var(--text-muted); margin: 0 0 12px 0;">选择删除方式后点击删除。硬删除将同时删除任务文件，且不可恢复。</p>
+        <div class="delete-mode-options" style="margin-bottom: 16px;">
+          <label class="radio-label" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <input type="radio" name="deleteMode" value="hard" checked />
+            <span>硬删除：删除记录并删除该任务下所有文件（不可恢复）</span>
+          </label>
+          <label class="radio-label" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <input type="radio" name="deleteMode" value="state" />
+            <span>仅删记录：只删除任务与步骤记录，保留文件</span>
+          </label>
+          <label class="radio-label" style="display: flex; align-items: center; gap: 8px;">
+            <input type="radio" name="deleteMode" value="soft" />
+            <span>标记删除：仅在列表中隐藏，不删记录与文件</span>
+          </label>
+        </div>
+        <div class="modal-actions" style="justify-content: flex-end; margin-top: 16px;">
+          <button class="btn" id="confirmDeleteCancel">取消</button>
+          <button class="btn danger" id="confirmDeleteOk">删除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { ServiceClient } from './service-client.js';
 
