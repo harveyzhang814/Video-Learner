@@ -1082,6 +1082,33 @@
       display: none;
     }
 
+    /* 删除确认：独立全屏蒙版 + 居中弹窗，z-index 高于其他 overlay，避免弹窗不出现 */
+    .confirm-delete-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .confirm-delete-overlay.hidden {
+      display: none;
+    }
+    .confirm-delete-modal {
+      background: var(--bg);
+      max-width: 90vw;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      padding: 20px;
+      overflow-y: auto;
+    }
+
     .modal {
       background: var(--bg);
       width: 600px;
@@ -1280,7 +1307,7 @@
       <!-- Function Bar -->
       <div class="toolbar" id="toolbar">
         <button class="btn" id="openBtn">Open</button>
-        <button class="btn" id="deleteBtn" onclick="window.showDeleteConfirm()">Delete</button>
+        <button class="btn" id="deleteBtn">Delete</button>
         <button class="btn" id="manageBtn">Manage</button>
       </div>
 
@@ -1527,9 +1554,9 @@
     </div>
   </div>
 
-  <!-- Confirm Delete Modal: 半透明蒙版 + 弹窗 -->
-  <div class="modal-overlay hidden" id="confirmDeleteModal">
-    <div class="modal" style="width: 420px;">
+  <!-- Confirm Delete Modal: 独立蒙版层 + 全局居中弹窗（避免与主布局 stacking 冲突） -->
+  <div class="confirm-delete-overlay hidden" id="confirmDeleteModal">
+    <div class="confirm-delete-modal" style="width: 420px;">
       <div class="modal-content">
         <div class="modal-title">确认删除</div>
         <p style="color: var(--text-muted); margin: 0 0 12px 0;">选择删除方式后点击删除。硬删除将同时删除任务文件，且不可恢复。</p>
@@ -1557,6 +1584,7 @@
 
   <script type="module">
     import { ServiceClient } from './service-client.js';
+    console.log('[delete-modal] renderer module loaded');
 
     // === DOM ===
     const historyList = document.getElementById('historyList');
@@ -1605,6 +1633,7 @@
     const confirmDeleteModal = document.getElementById('confirmDeleteModal');
     const confirmDeleteCancel = document.getElementById('confirmDeleteCancel');
     const confirmDeleteOk = document.getElementById('confirmDeleteOk');
+    console.log('[delete-modal] DOM refs:', { confirmDeleteModal: !!confirmDeleteModal, confirmDeleteCancel: !!confirmDeleteCancel, confirmDeleteOk: !!confirmDeleteOk });
 
     // 任务状态 pills（主界面 & 弹窗共用同一套 step 名）
     const STEPS = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
@@ -1614,8 +1643,13 @@
     let currentTaskId = null;
 
     function showConfirmDelete() {
+      console.log('[delete-modal] showConfirmDelete called', { currentTaskId, hasModal: !!confirmDeleteModal });
       if (!currentTaskId) return;
-      if (confirmDeleteModal) confirmDeleteModal.classList.remove('hidden');
+      if (confirmDeleteModal) {
+        document.body.appendChild(confirmDeleteModal);
+        confirmDeleteModal.classList.remove('hidden');
+        console.log('[delete-modal] modal moved to body end, hidden removed');
+      }
     }
     function hideConfirmDelete() {
       if (confirmDeleteModal) confirmDeleteModal.classList.add('hidden');
@@ -2502,6 +2536,11 @@
     openBtn.title = '暂不可用：需后续通过 HTTP API 暴露「打开输出文件夹」';
 
     deleteBtn.title = '删除当前任务';
+    deleteBtn.addEventListener('click', () => {
+      console.log('[delete-modal] deleteBtn clicked');
+      showConfirmDelete();
+    });
+    console.log('[delete-modal] deleteBtn click listener attached');
     confirmDeleteCancel.addEventListener('click', hideConfirmDelete);
     confirmDeleteModal.addEventListener('click', (e) => {
       if (e.target === confirmDeleteModal) hideConfirmDelete();

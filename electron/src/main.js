@@ -1,10 +1,18 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const helpers = require('./main-helpers');
 
 let mainWindow;
 
+// 将 renderer console 写入项目内文件，便于排查（agent 可直接 read_file）
+const RENDERER_LOG_PATH = path.join(__dirname, '..', 'renderer-console.log');
+
 function createWindow() {
+  try {
+    fs.writeFileSync(RENDERER_LOG_PATH, `[${new Date().toISOString()}] Electron launch, log started\n`, 'utf8');
+  } catch (_) {}
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 800,
@@ -20,7 +28,12 @@ function createWindow() {
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
     const levelMap = { 0: 'debug', 1: 'info', 2: 'warn', 3: 'error' };
     const levelName = levelMap[level] || 'log';
-    if (message) console.log(`[Renderer ${levelName}] ${message}`);
+    if (message) {
+      console.log(`[Renderer ${levelName}] ${message}`);
+      try {
+        fs.appendFileSync(RENDERER_LOG_PATH, `[${new Date().toISOString()}] [${levelName}] ${message}\n`, 'utf8');
+      } catch (_) {}
+    }
   });
 
   mainWindow.webContents.on('render-process-gone', (event, details) => {
