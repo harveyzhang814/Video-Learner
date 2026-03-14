@@ -91,6 +91,11 @@ export class ServiceClient {
     });
   }
 
+  deleteTask(taskId, { mode = 'hard' } = {}) {
+    const q = new URLSearchParams({ mode }).toString();
+    return this._fetchJson(`/api/tasks/${encodeURIComponent(taskId)}?${q}`, { method: 'DELETE' });
+  }
+
   subscribeEvents({ lastEventId } = {}) {
     const url = new URL(`${this.baseUrl}/api/events`);
     url.searchParams.set('token', this.token);
