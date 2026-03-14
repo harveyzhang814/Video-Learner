@@ -41,6 +41,16 @@ function initTables(db) {
     // ignore
   }
 
+  // Migration: add deleted_at for soft delete
+  try {
+    const cols = db.prepare('PRAGMA table_info(tasks)').all();
+    if (!cols.some((c) => c.name === 'deleted_at')) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN deleted_at TEXT`);
+    }
+  } catch (_) {
+    // ignore
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS steps (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,7 +78,7 @@ function createDbManager(dbPath) {
         .prepare(
           `
           SELECT id, url, ts, title, lang, duration, output_lang, focus, transcripts, created_at, updated_at
-          FROM tasks
+          FROM tasks WHERE deleted_at IS NULL
           ORDER BY datetime(created_at) DESC, datetime(ts) DESC
           LIMIT ?
         `
@@ -100,7 +110,7 @@ function createDbManager(dbPath) {
     },
 
     getTask(id) {
-      const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
+      const task = db.prepare("SELECT * FROM tasks WHERE id = ? AND deleted_at IS NULL").get(id);
       if (task && task.transcripts) {
         try {
           let parsed = JSON.parse(task.transcripts);
@@ -111,6 +121,14 @@ function createDbManager(dbPath) {
         }
       }
       return task;
+    },
+
+    deleteTask(id) {
+      db.prepare('DELETE FROM steps WHERE task_id = ?').run(id);
+      db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
+    },
+    softDeleteTask(id) {
+      return db.prepare("UPDATE tasks SET deleted_at = datetime('now') WHERE id = ?").run(id);
     },
 
     updateTask(id, data) {
