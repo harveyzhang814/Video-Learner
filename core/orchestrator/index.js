@@ -641,6 +641,36 @@ function skipStep(taskId, stepName, options = {}) {
   return { success: true };
 }
 
+const VALID_DELETE_MODES = ['hard', 'state', 'soft'];
+
+function deleteTask(taskId, options = {}) {
+  const { rootDir, mode = 'hard' } = options;
+  if (!VALID_DELETE_MODES.includes(mode)) {
+    throw new Error(`invalid delete mode: ${mode}`);
+  }
+  const workDir = rootDir ? getWorkDir(rootDir, taskId) : null;
+  const db = rootDir ? ensureDb(rootDir) : null;
+
+  if (mode === 'soft') {
+    if (!db) throw new Error('rootDir required for delete');
+    const row = db.getTask(taskId);
+    if (!row) throw new Error(`task not found: ${taskId}`);
+    db.softDeleteTask(taskId);
+    tasks.delete(taskId);
+    return;
+  }
+
+  if (!db) throw new Error('rootDir required for delete');
+  const row = db.getTask(taskId);
+  if (!row) throw new Error(`task not found: ${taskId}`);
+  db.deleteTask(taskId);
+  tasks.delete(taskId);
+
+  if (mode === 'hard' && workDir && fs.existsSync(workDir)) {
+    fs.rmSync(workDir, { recursive: true });
+  }
+}
+
 /** For tests: drop task from memory to simulate process restart and test restore from DB */
 function _dropTaskFromMemory(taskId) {
   tasks.delete(taskId);
@@ -652,6 +682,7 @@ module.exports = {
   runTask,
   runStep,
   skipStep,
+  deleteTask,
   getTask,
   getTaskResult,
   getTaskSteps,
