@@ -94,6 +94,21 @@ async function run() {
   }
   console.log('[test] result outputs:', resultRes.body.outputs);
 
+  // 6) Delete task (state mode: only DB, keep files)
+  const deleteRes = await fetch(base + `/api/tasks/${taskId}?mode=state`, { method: 'DELETE' });
+  if (deleteRes.status !== 204 && deleteRes.status !== 200) {
+    const t = await deleteRes.text();
+    throw new Error('delete task failed: ' + t);
+  }
+  console.log('[test] task deleted (state)');
+
+  // 7) GET after delete -> 404
+  const afterGet = await jsonRequest(`/api/tasks/${taskId}`);
+  if (afterGet.status !== 404) {
+    throw new Error('expected 404 after delete, got ' + afterGet.status);
+  }
+  console.log('[test] get after delete returns 404');
+
   server.close();
   console.log('[test] agent-http.test.js completed successfully');
 }

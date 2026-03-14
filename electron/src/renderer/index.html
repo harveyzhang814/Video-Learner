@@ -13,6 +13,7 @@
       --grid-unit: 8px;
       --sidebar-width: 240px;
       --video-panel-width: 400px;
+      --video-container-height: 225px;
 
       /* Swiss Minimal */
       --bg: #FFFFFF;
@@ -206,27 +207,33 @@
     }
 
     .info-content {
-      padding: 0;
-    }
-
-    .info-status {
-      display: flex;
-      gap: 8px;
-      padding: 12px 0;
-      flex-wrap: wrap;
-      font-size: 12px;
+      padding: 0 calc(var(--grid-unit) * 3);
     }
 
     .info-row {
       display: flex;
       padding: 8px 0;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid rgba(0,0,0,0.03);
     }
 
     .info-row:last-child {
       border-bottom: none;
     }
 
+    .info-status-bar {
+      border-bottom: 1px solid var(--border);
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      background: var(--bg);
+    }
+
+    .info-status {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      font-size: 11px;
+    }
+
+    /* Title/URL 行样式 */
     .info-label {
       width: 60px;
       color: var(--text-muted);
@@ -239,6 +246,21 @@
       font-size: 13px;
       word-break: break-all;
       color: var(--text);
+    }
+
+    .info-title {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .info-url {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* 额外元信息行保留 DOM 以兼容 JS，但不参与展示 */
+    .info-row.meta-extra {
+      display: none;
     }
 
     /* Hidden inputs for JS compatibility */
@@ -496,26 +518,36 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      padding: calc(var(--grid-unit) * 3);
+      padding: 0;
       min-height: 0;
     }
 
-    /* Tabs */
-    .tabs {
-      display: flex;
-      gap: calc(var(--grid-unit) * 3);
+    /* ContentCard Header + Body */
+    .content-card-header {
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3) 0 calc(var(--grid-unit) * 3);
       border-bottom: 1px solid var(--border);
+      background: var(--bg-alt);
+    }
+
+    .tabs {
+      display: inline-flex;
+      background: var(--bg-alt);
+      border-radius: 4px;
+      padding: 2px;
       margin-bottom: calc(var(--grid-unit) * 2);
+      gap: 0;
     }
 
     .tab {
-      padding: 8px 0;
-      font-size: 13px;
+      padding: 4px 10px;
+      font-size: 11px;
       font-weight: 500;
+      border: none;
+      background: transparent;
       color: var(--text-muted);
       cursor: pointer;
-      position: relative;
-      transition: color var(--transition);
+      border-radius: 3px;
+      transition: all var(--transition);
     }
 
     .tab:hover {
@@ -523,17 +555,8 @@
     }
 
     .tab.active {
-      color: var(--text);
-    }
-
-    .tab.active::after {
-      content: '';
-      position: absolute;
-      bottom: -9px;
-      left: 0;
-      right: 0;
-      height: 1px;
       background: var(--accent);
+      color: var(--bg);
     }
 
     /* Progress Bar */
@@ -618,17 +641,23 @@
       display: flex;
       flex-direction: column;
       background: var(--bg);
-      border: 1px solid var(--border);
+      border: none;
       overflow: hidden;
       min-height: 0;
+    }
+
+    .content-card-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3) calc(var(--grid-unit) * 3) calc(var(--grid-unit) * 3);
     }
 
     .pane {
       display: none;
       flex: 1;
       flex-direction: column;
-      overflow-y: auto;
       padding: 0;
+      min-height: 0;
     }
 
     .pane.active {
@@ -662,8 +691,7 @@
       line-height: 1.7;
       color: var(--text);
       min-height: 0;
-      overflow-y: auto;
-      padding: calc(var(--grid-unit) * 3);
+      padding: 0;
     }
 
     .markdown-content h1 {
@@ -849,7 +877,7 @@
       justify-content: center;
       background: #000;
       position: relative;
-      height: 225px;
+      height: var(--video-container-height);
       flex-shrink: 0;
     }
 
@@ -1054,6 +1082,132 @@
       display: none;
     }
 
+    /* 删除确认：独立全屏蒙版 + 居中弹窗（对齐 Swiss Minimal + 8px 栅格） */
+    .confirm-delete-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .confirm-delete-overlay.hidden {
+      display: none;
+    }
+    .confirm-delete-modal {
+      background: var(--bg);
+      width: 420px;
+      max-width: 90vw;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      padding: calc(var(--grid-unit) * 3);
+      overflow-y: auto;
+    }
+    .confirm-delete-modal .confirm-delete-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: calc(var(--grid-unit) * 2);
+    }
+    .confirm-delete-modal .confirm-delete-desc {
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: calc(var(--grid-unit) * 2);
+    }
+    .confirm-delete-modal .confirm-delete-options {
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--grid-unit) * 1);
+      margin-bottom: calc(var(--grid-unit) * 2);
+    }
+    .confirm-delete-modal .confirm-delete-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .confirm-delete-select-wrap {
+      position: relative;
+      width: 100%;
+    }
+    .confirm-delete-select-trigger {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .confirm-delete-select-trigger:hover,
+    .confirm-delete-select-trigger:focus {
+      border-color: var(--accent);
+      outline: none;
+    }
+    .confirm-delete-select-trigger::after {
+      content: '';
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 5px solid var(--text-muted);
+      margin-left: 8px;
+    }
+    .confirm-delete-select-dropdown {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 100%;
+      margin-top: 2px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      z-index: 10;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+    .confirm-delete-select-dropdown.open {
+      display: block;
+    }
+    .confirm-delete-select-option {
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition);
+      border-left: 2px solid transparent;
+      border-right: 2px solid transparent;
+    }
+    .confirm-delete-select-option:hover {
+      background: var(--bg-alt);
+    }
+    .confirm-delete-select-option.selected {
+      background: var(--bg-alt);
+      border-left-color: var(--accent);
+    }
+    .confirm-delete-modal .confirm-delete-actions {
+      display: flex;
+      gap: calc(var(--grid-unit) * 1);
+      justify-content: flex-end;
+      margin-top: calc(var(--grid-unit) * 1);
+    }
+    .confirm-delete-modal .confirm-delete-actions .btn {
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
     .modal {
       background: var(--bg);
       width: 600px;
@@ -1123,8 +1277,8 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px;
-      border-radius: 12px;
+      padding: 2px 8px;
+      border-radius: 10px;
       background: var(--bg-alt);
       color: var(--text-muted);
       border: 1px solid var(--border);
@@ -1132,8 +1286,8 @@
     }
 
     .status-pill .icon {
-      font-size: 11px;
-      width: 14px;
+      font-size: 10px;
+      width: 12px;
       text-align: center;
     }
 
@@ -1252,7 +1406,7 @@
       <!-- Function Bar -->
       <div class="toolbar" id="toolbar">
         <button class="btn" id="openBtn">Open</button>
-        <button class="btn" id="deleteBtn" onclick="window.showDeleteConfirm()">Delete</button>
+        <button class="btn" id="deleteBtn">Delete</button>
         <button class="btn" id="manageBtn">Manage</button>
       </div>
 
@@ -1260,58 +1414,61 @@
         <div class="info-content" id="infoContent">
           <div class="info-row">
             <span class="info-label">标题</span>
-            <span class="info-value" id="infoTitle">-</span>
+            <span class="info-value info-title" id="infoTitle">-</span>
           </div>
           <div class="info-row">
-            <span class="info-label">URL</span>
-            <span class="info-value" id="infoUrl">-</span>
+            <span class="info-value info-url" id="infoUrl">-</span>
           </div>
-          <div class="info-row">
+          <!-- 兼容 JS 的隐藏元信息行：语言 / 时长 / Focus -->
+          <div class="info-row meta-extra">
             <span class="info-label">语言</span>
             <span class="info-value" id="infoLang">-</span>
           </div>
-          <div class="info-row">
+          <div class="info-row meta-extra">
             <span class="info-label">时长</span>
             <span class="info-value" id="infoDuration">-</span>
           </div>
-          <div class="info-row">
+          <div class="info-row meta-extra">
             <span class="info-label">Focus</span>
             <span class="info-value" id="infoFocus">-</span>
           </div>
-          <div class="info-status" id="infoStatus">
-            <span class="status-pill" data-step="fetch">
-              <span class="icon">○</span>
-              <span class="label">获取信息</span>
-            </span>
-            <span class="status-pill" data-step="video">
-              <span class="icon">○</span>
-              <span class="label">视频下载</span>
-            </span>
-            <span class="status-pill" data-step="audio">
-              <span class="icon">○</span>
-              <span class="label">音频下载</span>
-            </span>
-            <span class="status-pill" data-step="subs">
-              <span class="icon">○</span>
-              <span class="label">字幕下载</span>
-            </span>
-            <span class="status-pill" data-step="vtt2md">
-              <span class="icon">○</span>
-              <span class="label">转换文案</span>
-            </span>
-            <span class="status-pill" data-step="md2vtt">
-              <span class="icon">○</span>
-              <span class="label">转寒字幕</span>
-            </span>
-            <span class="status-pill" data-step="article">
-              <span class="icon">○</span>
-              <span class="label">文章生产</span>
-            </span>
-            <span class="status-pill" data-step="summary">
-              <span class="icon">○</span>
-              <span class="label">提炼总结</span>
-            </span>
-          </div>
+        </div>
+      </div>
+
+      <div class="info-status-bar">
+        <div class="info-status" id="infoStatus">
+          <span class="status-pill" data-step="fetch">
+            <span class="icon">○</span>
+            <span class="label">获取信息</span>
+          </span>
+          <span class="status-pill" data-step="video">
+            <span class="icon">○</span>
+            <span class="label">视频下载</span>
+          </span>
+          <span class="status-pill" data-step="audio">
+            <span class="icon">○</span>
+            <span class="label">音频下载</span>
+          </span>
+          <span class="status-pill" data-step="subs">
+            <span class="icon">○</span>
+            <span class="label">字幕下载</span>
+          </span>
+          <span class="status-pill" data-step="vtt2md">
+            <span class="icon">○</span>
+            <span class="label">转换文案</span>
+          </span>
+          <span class="status-pill" data-step="md2vtt">
+            <span class="icon">○</span>
+            <span class="label">转寒字幕</span>
+          </span>
+          <span class="status-pill" data-step="article">
+            <span class="icon">○</span>
+            <span class="label">文章生产</span>
+          </span>
+          <span class="status-pill" data-step="summary">
+            <span class="icon">○</span>
+            <span class="label">提炼总结</span>
+          </span>
         </div>
       </div>
 
@@ -1323,34 +1480,36 @@
       </div>
 
       <div class="output-section">
-        <div class="tabs">
-          <div class="tab active" data-tab="article">Article</div>
-          <div class="tab" data-tab="summary">Summary</div>
-        </div>
-
-        <div class="progress-section hidden" id="progressSection">
-          <div class="progress-bar">
-            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-          </div>
-          <div class="progress-steps">
-            <div class="progress-step" data-step="fetch"><span class="dot"></span>Fetch</div>
-            <div class="progress-step" data-step="video"><span class="dot"></span>Video</div>
-            <div class="progress-step" data-step="audio"><span class="dot"></span>Audio</div>
-            <div class="progress-step" data-step="subs"><span class="dot"></span>Subs</div>
-            <div class="progress-step" data-step="vtt2md"><span class="dot"></span>VTT2MD</div>
-            <div class="progress-step" data-step="md2vtt"><span class="dot"></span>MD2VTT</div>
-            <div class="progress-step" data-step="article"><span class="dot"></span>Article</div>
-            <div class="progress-step" data-step="summary"><span class="dot"></span>Summary</div>
-          </div>
-        </div>
-
         <div class="content">
-          <div id="articlePane" class="pane active">
-            <div class="empty" id="emptyState">Enter a YouTube URL to begin</div>
-            <div class="markdown-content" id="articleOutput"></div>
+          <div class="content-card-header">
+            <div class="tabs">
+              <div class="tab active" data-tab="article">Article</div>
+              <div class="tab" data-tab="summary">Summary</div>
+            </div>
+            <div class="progress-section hidden" id="progressSection">
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+              </div>
+              <div class="progress-steps">
+                <div class="progress-step" data-step="fetch"><span class="dot"></span>Fetch</div>
+                <div class="progress-step" data-step="video"><span class="dot"></span>Video</div>
+                <div class="progress-step" data-step="audio"><span class="dot"></span>Audio</div>
+                <div class="progress-step" data-step="subs"><span class="dot"></span>Subs</div>
+                <div class="progress-step" data-step="vtt2md"><span class="dot"></span>VTT2MD</div>
+                <div class="progress-step" data-step="md2vtt"><span class="dot"></span>MD2VTT</div>
+                <div class="progress-step" data-step="article"><span class="dot"></span>Article</div>
+                <div class="progress-step" data-step="summary"><span class="dot"></span>Summary</div>
+              </div>
+            </div>
           </div>
-          <div id="summaryPane" class="pane">
-            <div class="markdown-content" id="summaryOutput"></div>
+          <div class="content-card-body">
+            <div id="articlePane" class="pane active">
+              <div class="empty" id="emptyState">Enter a YouTube URL to begin</div>
+              <div class="markdown-content" id="articleOutput"></div>
+            </div>
+            <div id="summaryPane" class="pane">
+              <div class="markdown-content" id="summaryOutput"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -1367,13 +1526,13 @@
           <div>No video</div>
         </div>
       </div>
-      <div class="video-resizer" id="videoResizer"></div>
       <div class="video-controls">
         <button class="video-btn" id="playPauseBtn">▶</button>
         <button class="video-btn" id="stopBtn">■</button>
         <input type="range" class="video-progress" id="progressBar" value="0" min="0" max="100">
         <span class="video-time" id="timeDisplay">0:00 / 0:00</span>
       </div>
+      <div class="video-resizer" id="videoResizer"></div>
       <div class="subtitle-module hidden" id="subtitleModule">
         <div class="subtitle-header">
           <span class="subtitle-header-label">Subtitle</span>
@@ -1381,6 +1540,12 @@
             <button class="active" data-lang="zh">中文</button>
             <button data-lang="en">English</button>
           </div>
+          <select class="hidden" id="subtitleTrackSelect"></select>
+          <label class="checkbox-label" style="margin-left: 8px;">
+            <input type="checkbox" id="onScreenSubtitleToggle">
+            <span class="checkbox-custom"></span>
+            <span>画面内字幕</span>
+          </label>
         </div>
         <div class="subtitle-list" id="subtitleList"></div>
       </div>
@@ -1488,8 +1653,33 @@
     </div>
   </div>
 
+  <!-- Confirm Delete Modal: 独立蒙版层 + 全局居中弹窗（风格对齐 Swiss Minimal） -->
+  <div class="confirm-delete-overlay hidden" id="confirmDeleteModal">
+    <div class="confirm-delete-modal">
+      <div class="confirm-delete-title">确认删除</div>
+      <p class="confirm-delete-desc">选择删除方式后点击删除。硬删除将同时删除任务文件，且不可恢复。</p>
+      <div class="confirm-delete-options">
+        <label class="confirm-delete-label">删除方式</label>
+        <div class="confirm-delete-select-wrap">
+          <input type="hidden" id="confirmDeleteModeSelect" value="hard">
+          <button type="button" class="confirm-delete-select-trigger" id="confirmDeleteModeTrigger" aria-haspopup="listbox" aria-expanded="false">硬删除：删除记录并删除该任务下所有文件（不可恢复）</button>
+          <div class="confirm-delete-select-dropdown" id="confirmDeleteModeDropdown" role="listbox">
+            <div class="confirm-delete-select-option selected" data-value="hard" role="option">硬删除：删除记录并删除该任务下所有文件（不可恢复）</div>
+            <div class="confirm-delete-select-option" data-value="state" role="option">仅删记录：只删除任务与步骤记录，保留文件</div>
+            <div class="confirm-delete-select-option" data-value="soft" role="option">标记删除：仅在列表中隐藏，不删记录与文件</div>
+          </div>
+        </div>
+      </div>
+      <div class="confirm-delete-actions">
+        <button type="button" class="btn" id="confirmDeleteCancel">取消</button>
+        <button type="button" class="btn danger" id="confirmDeleteOk">删除</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { ServiceClient } from './service-client.js';
+    console.log('[delete-modal] renderer module loaded');
 
     // === DOM ===
     const historyList = document.getElementById('historyList');
@@ -1510,6 +1700,21 @@
     const articleOutput = document.getElementById('articleOutput');
     const summaryOutput = document.getElementById('summaryOutput');
 
+    const appEl = document.querySelector('.app');
+    const resizer = document.getElementById('resizer');
+    const videoResizer = document.getElementById('videoResizer');
+    const videoPlayer = document.getElementById('videoPlayer');
+    const videoEmpty = document.getElementById('videoEmpty');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const progressBar = document.getElementById('progressBar');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const subtitleModule = document.getElementById('subtitleModule');
+    const subtitleList = document.getElementById('subtitleList');
+    const languageSwitcher = document.getElementById('languageSwitcher');
+    const subtitleTrackSelect = document.getElementById('subtitleTrackSelect');
+    const onScreenSubtitleToggle = document.getElementById('onScreenSubtitleToggle');
+
     const newTaskModal = document.getElementById('newTaskModal');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
     const modalUrlInput = document.getElementById('modalUrlInput');
@@ -1520,6 +1725,10 @@
     const modalStopBtn = document.getElementById('modalStopBtn');
     const modalTitle = document.getElementById('modalTitle');
     const modalLogs = document.getElementById('modalLogs');
+    const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+    const confirmDeleteCancel = document.getElementById('confirmDeleteCancel');
+    const confirmDeleteOk = document.getElementById('confirmDeleteOk');
+    console.log('[delete-modal] DOM refs:', { confirmDeleteModal: !!confirmDeleteModal, confirmDeleteCancel: !!confirmDeleteCancel, confirmDeleteOk: !!confirmDeleteOk });
 
     // 任务状态 pills（主界面 & 弹窗共用同一套 step 名）
     const STEPS = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
@@ -1527,6 +1736,40 @@
     let client = null;
     let es = null;
     let currentTaskId = null;
+
+    function showConfirmDelete() {
+      console.log('[delete-modal] showConfirmDelete called', { currentTaskId, hasModal: !!confirmDeleteModal });
+      if (!currentTaskId) return;
+      if (confirmDeleteModal) {
+        document.body.appendChild(confirmDeleteModal);
+        confirmDeleteModal.classList.remove('hidden');
+        console.log('[delete-modal] modal moved to body end, hidden removed');
+      }
+    }
+    function hideConfirmDelete() {
+      if (confirmDeleteModal) confirmDeleteModal.classList.add('hidden');
+    }
+    window.showDeleteConfirm = showConfirmDelete;
+
+    // Subtitle + media state
+    let currentTracks = [];
+    let currentTrackId = null;
+    let currentCues = [];
+    let lastActiveCueIndex = -1;
+    let currentTextTrack = null;
+
+    // Horizontal split state (main panel <-> video panel)
+    let isResizing = false;
+    let resizeStartX = 0;
+    let resizeStartWidth = 0;
+
+    // Vertical split state (video container <-> subtitle module)
+    let isVideoResizing = false;
+    let videoResizeStartY = 0;
+    let videoResizeStartHeight = 0;
+
+    // Current aspect ratio (videoHeight / videoWidth); fallback 9/16 before metadata is loaded
+    let videoHeightPerWidth = 9 / 16;
 
     // taskId -> { seenSeq:Set<number|string>, logs:string[] }
     const logState = new Map();
@@ -1639,6 +1882,219 @@
       renderHistory(rows);
     }
 
+    // SSE 事件风暴时防抖：避免每条 task.updated/step.* 都刷整表导致卡死
+    let refreshHistoryDebounceTimer = null;
+    const REFRESH_DEBOUNCE_MS = 400;
+    function refreshHistoryDebounced() {
+      if (refreshHistoryDebounceTimer) clearTimeout(refreshHistoryDebounceTimer);
+      refreshHistoryDebounceTimer = setTimeout(() => {
+        refreshHistoryDebounceTimer = null;
+        refreshHistory().catch((e) => console.error('refreshHistory debounced failed', e));
+      }, REFRESH_DEBOUNCE_MS);
+    }
+
+    function updateVideoTimeUi() {
+      if (!videoPlayer || !progressBar || !timeDisplay) return;
+      const current = videoPlayer.currentTime || 0;
+      const duration = Number.isFinite(videoPlayer.duration) && videoPlayer.duration > 0 ? videoPlayer.duration : 0;
+      if (duration > 0) {
+        const ratio = Math.max(0, Math.min(1, current / duration));
+        progressBar.value = String(Math.round(ratio * 100));
+      } else {
+        progressBar.value = '0';
+      }
+      timeDisplay.textContent = `${formatSecondsToTimestamp(current)} / ${formatSecondsToTimestamp(duration)}`;
+    }
+
+    function clampVideoPanelWidth(px) {
+      const min = 260;
+      const max = 720;
+      return Math.max(min, Math.min(max, px));
+    }
+
+    function clampVideoContainerHeight(px) {
+      const min = 160;
+      const max = 480;
+      return Math.max(min, Math.min(max, px));
+    }
+
+    function pathToFileUrl(absPath) {
+      if (!absPath) return '';
+      // Basic POSIX-friendly conversion; Electron on macOS/Linux can handle this.
+      const encoded = encodeURI(absPath);
+      return `file://${encoded}`;
+    }
+
+    function parseVttTimeToSeconds(time) {
+      if (!time) return 0;
+      const parts = time.split(':');
+      let h = 0;
+      let m = 0;
+      let s = 0;
+      if (parts.length === 3) {
+        h = Number(parts[0]) || 0;
+        m = Number(parts[1]) || 0;
+        s = Number(parts[2].replace(',', '.')) || 0;
+      } else if (parts.length === 2) {
+        m = Number(parts[0]) || 0;
+        s = Number(parts[1].replace(',', '.')) || 0;
+      } else {
+        s = Number(parts[0].replace(',', '.')) || 0;
+      }
+      return h * 3600 + m * 60 + s;
+    }
+
+    function parseVtt(vttText) {
+      const lines = String(vttText || '').split(/\r?\n/);
+      const cues = [];
+      let i = 0;
+      // Skip header
+      if (lines[i] && /^WEBVTT/i.test(lines[i])) {
+        i++;
+      }
+      while (i < lines.length) {
+        let line = lines[i].trim();
+        if (!line) {
+          i++;
+          continue;
+        }
+        if (/^(NOTE|STYLE|REGION)/i.test(line)) {
+          while (i < lines.length && lines[i].trim() !== '') i++;
+          continue;
+        }
+        if (!line.includes('-->') && i + 1 < lines.length && lines[i + 1].includes('-->')) {
+          i++;
+          line = lines[i].trim();
+        }
+        if (!line.includes('-->')) {
+          i++;
+          continue;
+        }
+        const [startRaw, endRaw] = line.split('-->').map((s) => s.trim());
+        const startSec = parseVttTimeToSeconds(startRaw);
+        const endSec = parseVttTimeToSeconds(endRaw);
+        i++;
+        const textLines = [];
+        while (i < lines.length && lines[i].trim() !== '') {
+          textLines.push(lines[i]);
+          i++;
+        }
+        const text = textLines.join('\n').trim();
+        if (text) {
+          cues.push({ startSec, endSec, text });
+        }
+        while (i < lines.length && lines[i].trim() === '') i++;
+      }
+      return cues;
+    }
+
+    function formatSecondsToTimestamp(sec) {
+      const s = Math.max(0, Math.floor(sec || 0));
+      const minutes = Math.floor(s / 60);
+      const seconds = s % 60;
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function renderSubtitleList(cues) {
+      subtitleList.innerHTML = '';
+      currentCues = cues || [];
+      lastActiveCueIndex = -1;
+      if (!currentCues.length) {
+        subtitleModule.classList.add('hidden');
+        return;
+      }
+      subtitleModule.classList.remove('hidden');
+      currentCues.forEach((cue, index) => {
+        const item = document.createElement('div');
+        item.className = 'subtitle-item';
+        item.dataset.index = String(index);
+
+        const tsSpan = document.createElement('span');
+        tsSpan.className = 'timestamp';
+        tsSpan.textContent = formatSecondsToTimestamp(cue.startSec);
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'text';
+        textSpan.textContent = cue.text;
+
+        item.appendChild(tsSpan);
+        item.appendChild(textSpan);
+
+        item.addEventListener('click', () => {
+          if (!videoPlayer) return;
+          videoPlayer.currentTime = (cue.startSec || 0) + 0.01;
+          if (videoPlayer.paused) {
+            videoPlayer.play().catch(() => {});
+          }
+        });
+
+        subtitleList.appendChild(item);
+      });
+    }
+
+    function rebuildTextTrackFromCues() {
+      if (!videoPlayer || !onScreenSubtitleToggle) return;
+      const enabled = onScreenSubtitleToggle.checked;
+      if (!enabled) {
+        if (currentTextTrack) {
+          currentTextTrack.mode = 'disabled';
+          currentTextTrack = null;
+        }
+        return;
+      }
+      const CueCtor = window.VTTCue || window.TextTrackCue;
+      if (!CueCtor) return;
+      if (!currentCues || !currentCues.length) {
+        if (currentTextTrack) {
+          currentTextTrack.mode = 'disabled';
+          currentTextTrack = null;
+        }
+        return;
+      }
+      if (currentTextTrack) {
+        currentTextTrack.mode = 'disabled';
+        currentTextTrack = null;
+      }
+      const label = (currentTracks.find((t) => (t.id || '') === currentTrackId) || {}).label || 'Subtitles';
+      const lang = (currentTracks.find((t) => (t.id || '') === currentTrackId) || {}).lang || 'en';
+      const track = videoPlayer.addTextTrack('subtitles', label, lang);
+      track.mode = 'showing';
+      currentCues.forEach((cue) => {
+        try {
+          const vttCue = new CueCtor(cue.startSec, cue.endSec, cue.text);
+          track.addCue(vttCue);
+        } catch (_) {
+          // ignore invalid cue
+        }
+      });
+      currentTextTrack = track;
+    }
+
+    function updateActiveSubtitleByTime(currentTime) {
+      if (!currentCues || !currentCues.length) return;
+      const t = currentTime || 0;
+      let idx = lastActiveCueIndex;
+      if (idx < 0 || idx >= currentCues.length || t < currentCues[idx].startSec || t > currentCues[idx].endSec) {
+        idx = -1;
+        for (let i = 0; i < currentCues.length; i++) {
+          const cue = currentCues[i];
+          if (t >= cue.startSec && t <= cue.endSec) {
+            idx = i;
+            break;
+          }
+        }
+      }
+      if (idx === lastActiveCueIndex) return;
+      lastActiveCueIndex = idx;
+      const items = subtitleList.querySelectorAll('.subtitle-item');
+      items.forEach((el, i) => {
+        el.classList.toggle('active', i === idx);
+        if (i === idx && el.classList.contains('active')) {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      });
+    }
+
     async function selectTask(taskId) {
       currentTaskId = taskId;
       toolbar.classList.remove('hidden');
@@ -1649,15 +2105,128 @@
       taskCache.set(taskId, task);
       applyTaskToInfo(task);
 
-      // render cached logs (if any)
+      // 只把已有日志渲染到 DOM，不调用 appendLogLine（避免重复 push 到 st.logs 导致翻倍卡死）
       const st = ensureLogState(taskId);
       for (const line of st.logs) {
-        appendLogLine(taskId, line);
+        const ts = new Date().toLocaleTimeString();
+        const div = document.createElement('div');
+        div.className = 'log-line';
+        const cls = /error|failed/i.test(line) ? 'log-err' : '';
+        div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${escapeHtml(line)}</span>`;
+        modalLogs.appendChild(div);
+      }
+      if (st.logs.length) modalLogs.scrollTop = modalLogs.scrollHeight;
+
+      // Load article/summary markdown content and render via marked.
+      const selectedTaskId = taskId;
+      articleOutput.textContent = 'Loading article...';
+      summaryOutput.textContent = 'Loading summary...';
+
+      const [articleRes, summaryRes] = await Promise.allSettled([
+        client.getTaskContent(selectedTaskId, 'article'),
+        client.getTaskContent(selectedTaskId, 'summary')
+      ]);
+
+      // If user switched tasks while fetching, don't overwrite current view.
+      if (currentTaskId !== selectedTaskId) return;
+
+      if (articleRes.status === 'fulfilled' && articleRes.value) {
+        articleOutput.innerHTML = marked.parse(articleRes.value || '');
+      } else {
+        articleOutput.textContent = '文章尚未生成（或读取失败）';
       }
 
-      // 内容区先保持核心子集：提示 HTTP 未暴露文件内容
-      articleOutput.innerHTML = '<div style="padding:16px;color:#999">（当前 renderer 已迁移到 HTTP+SSE；文章/总结内容读取接口暂未暴露，后续可加 /api/tasks/:id/result/content）</div>';
-      summaryOutput.innerHTML = '<div style="padding:16px;color:#999">（同上）</div>';
+      if (summaryRes.status === 'fulfilled' && summaryRes.value) {
+        summaryOutput.innerHTML = marked.parse(summaryRes.value || '');
+      } else {
+        summaryOutput.textContent = '总结尚未生成（或读取失败）';
+      }
+
+      // Load media info for local video playback.
+      try {
+        const media = await client.getTaskMedia(selectedTaskId);
+        const videoInfo = media && media.video ? media.video : null;
+        if (videoInfo && videoInfo.exists && videoInfo.path) {
+          const fileUrl = pathToFileUrl(videoInfo.path);
+          if (fileUrl) {
+            videoPlayer.src = fileUrl;
+            videoPlayer.classList.remove('hidden');
+            videoEmpty.classList.add('hidden');
+          } else {
+            videoPlayer.removeAttribute('src');
+            videoPlayer.classList.add('hidden');
+            videoEmpty.classList.remove('hidden');
+          }
+        } else {
+          videoPlayer.removeAttribute('src');
+          videoPlayer.classList.add('hidden');
+          videoEmpty.classList.remove('hidden');
+        }
+      } catch (e) {
+        console.error('Failed to load media info for task', selectedTaskId, e);
+        videoPlayer.removeAttribute('src');
+        videoPlayer.classList.add('hidden');
+        videoEmpty.classList.remove('hidden');
+      }
+
+      // Load subtitles for this task.
+      try {
+        const resp = await client.getTaskSubtitles(selectedTaskId);
+        const tracks = (resp && Array.isArray(resp.tracks)) ? resp.tracks : [];
+        currentTracks = tracks;
+        currentTrackId = null;
+        subtitleModule.classList.add('hidden');
+        subtitleList.innerHTML = '';
+
+        const buttons = languageSwitcher.querySelectorAll('button');
+        buttons.forEach((btn) => {
+          btn.classList.remove('active');
+          btn.dataset.trackId = '';
+          btn.classList.add('hidden');
+        });
+        subtitleTrackSelect.classList.add('hidden');
+        subtitleTrackSelect.innerHTML = '';
+
+        if (!tracks.length) {
+          currentCues = [];
+          lastActiveCueIndex = -1;
+        } else if (tracks.length <= 2) {
+          // Map tracks to existing buttons as best-effort; only show buttons that have a track.
+          tracks.forEach((track, idx) => {
+            const btn = buttons[idx];
+            if (!btn) return;
+            btn.dataset.trackId = track.id || String(idx);
+            btn.textContent = track.label || btn.textContent;
+            btn.classList.remove('hidden');
+          });
+          const firstTrack = tracks[0];
+          currentTrackId = firstTrack.id || 'track0';
+          buttons.forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.trackId === currentTrackId);
+          });
+          const cues = parseVtt(firstTrack.vtt);
+          renderSubtitleList(cues);
+        } else {
+          // Use select when more than 2 tracks.
+          subtitleTrackSelect.classList.remove('hidden');
+          tracks.forEach((track, idx) => {
+            const opt = document.createElement('option');
+            opt.value = track.id || String(idx);
+            opt.textContent = track.label || track.id || `Track ${idx + 1}`;
+            subtitleTrackSelect.appendChild(opt);
+          });
+          const firstTrack = tracks[0];
+          currentTrackId = firstTrack.id || 'track0';
+          subtitleTrackSelect.value = currentTrackId;
+          const cues = parseVtt(firstTrack.vtt);
+          renderSubtitleList(cues);
+        }
+      } catch (e) {
+        console.error('Failed to load subtitles for task', selectedTaskId, e);
+        currentTracks = [];
+        currentTrackId = null;
+        renderSubtitleList([]);
+      }
 
       await refreshHistory();
       switchTab('article');
@@ -1676,16 +2245,56 @@
       modalUrlInput.focus();
     }
 
-    function openManageModal() {
-      if (!currentTaskId) return;
+    async function openManageModal() {
+      if (!currentTaskId) {
+        alert('请先在左侧列表选中一个任务');
+        return;
+      }
+      let task = taskCache.get(currentTaskId);
+      if (!task && client) {
+        try {
+          task = await client.getTask(currentTaskId);
+          taskCache.set(currentTaskId, task);
+        } catch (e) {
+          console.error('getTask failed:', e);
+        }
+      }
       newTaskModal.setAttribute('data-mode', 'edit');
       modalTitle.textContent = 'Manage Task';
-      modalRunBtn.classList.add('hidden'); // 目前 HTTP 侧是 create 后自动 runTask
+      modalRunBtn.classList.add('hidden');
       modalSaveBtn.classList.add('hidden');
       modalStopBtn.classList.add('hidden');
+      if (task && task.meta) {
+        modalUrlInput.value = task.meta.url || '';
+        modalFocusInput.value = task.meta.focus || '';
+        modalUrlInput.readOnly = true;
+        modalFocusInput.readOnly = true;
+        const steps = task.steps || {};
+        for (const step of STEPS) {
+          const s = steps[step] && steps[step].status ? steps[step].status : 'pending';
+          const ui = s === 'running' ? 'active' : s === 'completed' || s === 'skipped' ? 'done' : s === 'failed' ? 'error' : 'pending';
+          setPillState('#modalStatus', step, ui);
+        }
+      }
       modalLogs.textContent = '';
       const st = ensureLogState(currentTaskId);
-      for (const line of st.logs) appendLogLine(currentTaskId, line);
+      if (st.logs.length === 0) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'log-line';
+        placeholder.style.color = '#999';
+        placeholder.textContent = '日志将随任务运行通过 SSE 追加…';
+        modalLogs.appendChild(placeholder);
+      } else {
+        for (const line of st.logs) {
+          const ts = new Date().toLocaleTimeString();
+          const div = document.createElement('div');
+          div.className = 'log-line';
+          const cls = /error|failed/i.test(line) ? 'log-err' : '';
+          div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${escapeHtml(line)}</span>`;
+          modalLogs.appendChild(div);
+        }
+        modalLogs.scrollTop = modalLogs.scrollHeight;
+      }
       newTaskModal.classList.remove('hidden');
       modalFocusInput.focus();
     }
@@ -1700,10 +2309,190 @@
 
     function switchTab(name) {
       tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-      document.getElementById('articlePane').classList.toggle('active', name === 'article');
-      document.getElementById('summaryPane').classList.toggle('active', name === 'summary');
+      const articlePaneEl = document.getElementById('articlePane');
+      const summaryPaneEl = document.getElementById('summaryPane');
+      const bodyEl = document.querySelector('.content-card-body');
+      if (articlePaneEl && summaryPaneEl) {
+        const showArticle = name === 'article';
+        articlePaneEl.classList.toggle('active', showArticle);
+        summaryPaneEl.classList.toggle('active', !showArticle);
+      }
+      // 切换时将内容区滚动重置到顶部
+      if (bodyEl && bodyEl instanceof HTMLElement) {
+        bodyEl.scrollTop = 0;
+      }
+      if (name === 'article' && articleOutput) {
+        articleOutput.scrollTop = 0;
+      }
+      if (name === 'summary' && summaryOutput) {
+        summaryOutput.scrollTop = 0;
+      }
     }
     tabs.forEach((t) => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+    languageSwitcher.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      const button = target.closest('button');
+      if (!button) return;
+      const trackId = button.dataset.trackId;
+      if (!trackId) return;
+      const track = currentTracks.find((t) => (t.id || '') === trackId);
+      if (!track) return;
+      currentTrackId = trackId;
+      const buttons = languageSwitcher.querySelectorAll('button');
+      buttons.forEach((btn) => {
+        btn.classList.toggle('active', btn === button);
+      });
+      const cues = parseVtt(track.vtt);
+      renderSubtitleList(cues);
+    });
+
+    subtitleTrackSelect.addEventListener('change', () => {
+      const trackId = subtitleTrackSelect.value;
+      const track = currentTracks.find((t) => (t.id || '') === trackId);
+      if (!track) return;
+      currentTrackId = trackId;
+      const cues = parseVtt(track.vtt);
+      renderSubtitleList(cues);
+    });
+
+    if (videoPlayer) {
+      videoPlayer.addEventListener('timeupdate', () => {
+        const t = videoPlayer.currentTime || 0;
+        updateActiveSubtitleByTime(t);
+        updateVideoTimeUi();
+      });
+      videoPlayer.addEventListener('loadedmetadata', () => {
+        if (videoPlayer.videoWidth > 0 && videoPlayer.videoHeight > 0) {
+          videoHeightPerWidth = videoPlayer.videoHeight / videoPlayer.videoWidth;
+        }
+        updateVideoTimeUi();
+      });
+      videoPlayer.addEventListener('play', () => {
+        if (playPauseBtn) {
+          playPauseBtn.textContent = '⏸';
+        }
+      });
+      videoPlayer.addEventListener('pause', () => {
+        if (playPauseBtn) {
+          playPauseBtn.textContent = '▶';
+        }
+      });
+      videoPlayer.addEventListener('ended', () => {
+        updateVideoTimeUi();
+        if (playPauseBtn) {
+          playPauseBtn.textContent = '▶';
+        }
+      });
+    }
+
+    if (playPauseBtn && videoPlayer) {
+      playPauseBtn.addEventListener('click', () => {
+        if (videoPlayer.paused || videoPlayer.ended) {
+          videoPlayer.play().catch(() => {});
+        } else {
+          videoPlayer.pause();
+        }
+      });
+    }
+
+    if (stopBtn && videoPlayer) {
+      stopBtn.addEventListener('click', () => {
+        videoPlayer.pause();
+        videoPlayer.currentTime = 0;
+        updateVideoTimeUi();
+      });
+    }
+
+    if (progressBar && videoPlayer) {
+      progressBar.addEventListener('input', () => {
+        const val = Number(progressBar.value) || 0;
+        const ratio = Math.max(0, Math.min(100, val)) / 100;
+        const duration = Number.isFinite(videoPlayer.duration) && videoPlayer.duration > 0 ? videoPlayer.duration : 0;
+        if (duration > 0) {
+          videoPlayer.currentTime = duration * ratio;
+          updateVideoTimeUi();
+        }
+      });
+    }
+
+    if (onScreenSubtitleToggle) {
+      onScreenSubtitleToggle.addEventListener('change', () => {
+        rebuildTextTrackFromCues();
+      });
+    }
+
+    if (resizer && appEl) {
+      const rootStyle = document.documentElement;
+      const getCurrentVideoWidth = () => {
+        const raw = getComputedStyle(rootStyle).getPropertyValue('--video-panel-width') || '400px';
+        const n = parseFloat(raw);
+        return Number.isFinite(n) && n > 0 ? n : 400;
+      };
+
+      const onMouseMove = (e) => {
+        if (!isResizing) return;
+        const dx = e.clientX - resizeStartX;
+        const next = clampVideoPanelWidth(resizeStartWidth - dx);
+        rootStyle.style.setProperty('--video-panel-width', `${next}px`);
+        // Maintain aspect ratio based on actual video dimensions when available.
+        const targetHeight = clampVideoContainerHeight(next * videoHeightPerWidth);
+        rootStyle.style.setProperty('--video-container-height', `${targetHeight}px`);
+      };
+
+      const stopResizing = () => {
+        if (!isResizing) return;
+        isResizing = false;
+        resizer.classList.remove('active');
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', stopResizing);
+      };
+
+      resizer.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        isResizing = true;
+        resizeStartX = e.clientX;
+        resizeStartWidth = getCurrentVideoWidth();
+        resizer.classList.add('active');
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', stopResizing);
+      });
+    }
+
+    if (videoResizer && appEl) {
+      const rootStyle = document.documentElement;
+      const getCurrentVideoHeight = () => {
+        const raw = getComputedStyle(rootStyle).getPropertyValue('--video-container-height') || '225px';
+        const n = parseFloat(raw);
+        return Number.isFinite(n) && n > 0 ? n : 225;
+      };
+
+      const onVideoMouseMove = (e) => {
+        if (!isVideoResizing) return;
+        const dy = e.clientY - videoResizeStartY;
+        const next = clampVideoContainerHeight(videoResizeStartHeight + dy);
+        rootStyle.style.setProperty('--video-container-height', `${next}px`);
+      };
+
+      const stopVideoResizing = () => {
+        if (!isVideoResizing) return;
+        isVideoResizing = false;
+        videoResizer.classList.remove('active');
+        window.removeEventListener('mousemove', onVideoMouseMove);
+        window.removeEventListener('mouseup', stopVideoResizing);
+      };
+
+      videoResizer.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        isVideoResizing = true;
+        videoResizeStartY = e.clientY;
+        videoResizeStartHeight = getCurrentVideoHeight();
+        videoResizer.classList.add('active');
+        window.addEventListener('mousemove', onVideoMouseMove);
+        window.addEventListener('mouseup', stopVideoResizing);
+      });
+    }
 
     async function setupEvents() {
       const lastEventId = sessionStorage.getItem('agent_lastEventId') || '';
@@ -1736,19 +2525,18 @@
         }
 
         if (type === 'task.created') {
-          await refreshHistory();
+          refreshHistoryDebounced();
           return;
         }
 
         if (type === 'task.updated' || type === 'step.started' || type === 'step.finished') {
           if (taskId) {
-            // 轻量：只在当前任务命中时刷新快照
             if (taskId === currentTaskId) {
               const snap = await client.getTask(taskId);
               taskCache.set(taskId, snap);
               applyTaskToInfo(snap);
             }
-            await refreshHistory();
+            refreshHistoryDebounced();
           }
           if (taskId && data.payload && data.payload.stepName) {
             appendLogLine(taskId, `${type}: ${data.payload.stepName} ${data.payload.status || data.payload.stepStatus || ''}`.trim());
@@ -1786,8 +2574,13 @@
       if (e.target === newTaskModal) closeModal();
     });
 
-    // Core: create task via HTTP
+    // Core: create task via HTTP (timeout 60s; defer post-create work so UI stays responsive)
+    const CREATE_TASK_TIMEOUT_MS = 60000;
     modalRunBtn.addEventListener('click', async () => {
+      if (!client) {
+        alert('Service not ready. Please wait for the app to finish loading, or restart the app.');
+        return;
+      }
       const url = modalUrlInput.value.trim();
       if (!url) return alert('Enter a URL');
 
@@ -1799,36 +2592,141 @@
       const mode = dlMode === 'audio' ? 'audio' : 'both';
 
       try {
-        const created = await client.createTask({ url, focus, mode, force: false });
+        const createPromise = client.createTask({ url, focus, mode, force: false });
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timeout (60s). Server may be busy.')), CREATE_TASK_TIMEOUT_MS)
+        );
+        const created = await Promise.race([createPromise, timeoutPromise]);
         const taskId = created && created.task_id ? created.task_id : created.taskId;
         closeModal();
-        await refreshHistory();
-        if (taskId) {
-          await selectTask(taskId);
-          openManageModal();
-        }
+        modalRunBtn.disabled = false;
+        modalRunBtn.textContent = 'Run';
+        // 分步执行并让出主线程，避免 refreshHistory + selectTask + openManageModal 连续跑导致卡死
+        if (!taskId) return;
+        const runAfterCreate = async () => {
+          try {
+            await refreshHistory();
+            setTimeout(async () => {
+              try {
+                await selectTask(taskId);
+                setTimeout(() => openManageModal(), 0);
+              } catch (e) {
+                console.error('Post-create selectTask failed:', e);
+              }
+            }, 0);
+          } catch (e) {
+            console.error('Post-create refresh failed:', e);
+          }
+        };
+        setTimeout(runAfterCreate, 0);
       } catch (e) {
         alert(`Create failed: ${e.message}`);
-      } finally {
         modalRunBtn.disabled = false;
         modalRunBtn.textContent = 'Run';
       }
     });
 
-    // 暂时不支持 open/delete（需要文件系统权限/接口）；保留按钮但禁用
+    // 暂时不支持 open（需要 HTTP API 暴露后再启用）
     openBtn.disabled = true;
-    deleteBtn.disabled = true;
+    openBtn.title = '暂不可用：需后续通过 HTTP API 暴露「打开输出文件夹」';
+
+    deleteBtn.title = '删除当前任务';
+    deleteBtn.addEventListener('click', () => {
+      console.log('[delete-modal] deleteBtn clicked');
+      showConfirmDelete();
+    });
+    console.log('[delete-modal] deleteBtn click listener attached');
+    const confirmDeleteModeTrigger = document.getElementById('confirmDeleteModeTrigger');
+    const confirmDeleteModeDropdown = document.getElementById('confirmDeleteModeDropdown');
+    const confirmDeleteModeSelect = document.getElementById('confirmDeleteModeSelect');
+    if (confirmDeleteModeTrigger && confirmDeleteModeDropdown && confirmDeleteModeSelect) {
+      confirmDeleteModeTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = confirmDeleteModeDropdown.classList.toggle('open');
+        confirmDeleteModeTrigger.setAttribute('aria-expanded', open);
+      });
+      confirmDeleteModeDropdown.querySelectorAll('.confirm-delete-select-option').forEach((opt) => {
+        opt.addEventListener('click', () => {
+          const value = opt.dataset.value;
+          const label = opt.textContent;
+          confirmDeleteModeSelect.value = value;
+          confirmDeleteModeTrigger.textContent = label;
+          confirmDeleteModeDropdown.querySelectorAll('.confirm-delete-select-option').forEach((o) => o.classList.remove('selected'));
+          opt.classList.add('selected');
+          confirmDeleteModeDropdown.classList.remove('open');
+          confirmDeleteModeTrigger.setAttribute('aria-expanded', 'false');
+        });
+      });
+      document.addEventListener('click', () => {
+        confirmDeleteModeDropdown.classList.remove('open');
+        confirmDeleteModeTrigger.setAttribute('aria-expanded', 'false');
+      });
+    }
+    confirmDeleteCancel.addEventListener('click', hideConfirmDelete);
+    confirmDeleteModal.addEventListener('click', (e) => {
+      if (e.target === confirmDeleteModal) hideConfirmDelete();
+    });
+    confirmDeleteOk.addEventListener('click', async () => {
+      const modeSelect = document.getElementById('confirmDeleteModeSelect');
+      const mode = (modeSelect && modeSelect.value) || 'hard';
+      const idToDelete = currentTaskId;
+      hideConfirmDelete();
+      if (!idToDelete) return;
+      try {
+        await client.deleteTask(idToDelete, { mode });
+      } catch (e) {
+        console.error('delete failed', e);
+        alert(e.message || '删除失败');
+        return;
+      }
+      currentTaskId = null;
+      toolbar.classList.add('hidden');
+      articleOutput.innerHTML = '';
+      summaryOutput.innerHTML = '';
+      emptyState.classList.remove('hidden');
+      videoPlayer.pause();
+      videoPlayer.removeAttribute('src');
+      videoPlayer.classList.add('hidden');
+      if (videoEmpty) videoEmpty.classList.remove('hidden');
+      infoTitle.textContent = '-';
+      infoUrl.textContent = '-';
+      infoLang.textContent = '-';
+      infoDuration.textContent = '-';
+      infoFocus.textContent = '-';
+      ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'].forEach((s) => setPillState('#infoStatus', s, {}));
+      await refreshHistory();
+      const works = await client.listTasks({ limit: 200 });
+      if (works && works.length > 0) {
+        const last = works[works.length - 1];
+        await selectTask(last.id);
+      }
+    });
 
     // === init ===
     toolbar.classList.add('hidden');
     articleOutput.innerHTML = '';
     summaryOutput.innerHTML = '';
 
-    const serviceInfo = await window.service.getServiceInfo();
-    client = new ServiceClient(serviceInfo);
-
-    await refreshHistory();
-    await setupEvents();
+    try {
+      if (typeof window.service === 'undefined' || typeof window.service.getServiceInfo !== 'function') {
+        throw new Error('Preload did not expose window.service.getServiceInfo. Check that the app is running in Electron (not in a browser).');
+      }
+      const serviceInfo = await window.service.getServiceInfo();
+      if (serviceInfo && serviceInfo.error) {
+        throw new Error(serviceInfo.error);
+      }
+      if (!serviceInfo || !serviceInfo.baseUrl || !serviceInfo.token) {
+        throw new Error('Invalid service info: missing baseUrl or token');
+      }
+      client = new ServiceClient(serviceInfo);
+      await refreshHistory();
+      await setupEvents();
+    } catch (e) {
+      console.error('Init failed:', e);
+      client = null;
+      const msg = (e && e.message) ? e.message : String(e);
+      if (historyList) historyList.innerHTML = '<li class="error">Failed to connect: ' + (msg.replace(/</g, '&lt;')) + '. Run from repo root and ensure npm install was done there.</li>';
+    }
   </script>
 </body>
 </html>

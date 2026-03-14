@@ -133,6 +133,9 @@ function loadTaskFromDb(taskId, rootDir) {
       url: row.url,
       id: taskId,
       ts: row.ts || row.created_at,
+      title: row.title || '',
+      duration: row.duration != null ? String(row.duration) : '',
+      lang: row.lang || '',
       output_lang: row.output_lang || 'zh-CN',
       focus: row.focus || '',
       download_status: 'pending',
@@ -564,7 +567,16 @@ async function runTask(taskId, options = {}) {
 
 async function getTask(taskId, options = {}) {
   const task = ensureTask(taskId, options);
-
+  const rootDir = task.params && task.params.rootDir;
+  if (rootDir) {
+    const db = ensureDb(rootDir);
+    const row = db.getTask(task.meta.id);
+    if (row) {
+      if (row.title != null && row.title !== '') task.meta.title = row.title;
+      if (row.duration != null && row.duration !== '') task.meta.duration = row.duration;
+      if (row.lang != null && row.lang !== '') task.meta.lang = row.lang;
+    }
+  }
   if (task.status === 'completed' || task.status === 'failed') {
     updateTaskMetaFromFilesystem(task);
   }
@@ -629,6 +641,36 @@ function skipStep(taskId, stepName, options = {}) {
   return { success: true };
 }
 
+const VALID_DELETE_MODES = ['hard', 'state', 'soft'];
+
+function deleteTask(taskId, options = {}) {
+  const { rootDir, mode = 'hard' } = options;
+  if (!VALID_DELETE_MODES.includes(mode)) {
+    throw new Error(`invalid delete mode: ${mode}`);
+  }
+  const workDir = rootDir ? getWorkDir(rootDir, taskId) : null;
+  const db = rootDir ? ensureDb(rootDir) : null;
+
+  if (mode === 'soft') {
+    if (!db) throw new Error('rootDir required for delete');
+    const row = db.getTask(taskId);
+    if (!row) throw new Error(`task not found: ${taskId}`);
+    db.softDeleteTask(taskId);
+    tasks.delete(taskId);
+    return;
+  }
+
+  if (!db) throw new Error('rootDir required for delete');
+  const row = db.getTask(taskId);
+  if (!row) throw new Error(`task not found: ${taskId}`);
+  db.deleteTask(taskId);
+  tasks.delete(taskId);
+
+  if (mode === 'hard' && workDir && fs.existsSync(workDir)) {
+    fs.rmSync(workDir, { recursive: true });
+  }
+}
+
 /** For tests: drop task from memory to simulate process restart and test restore from DB */
 function _dropTaskFromMemory(taskId) {
   tasks.delete(taskId);
@@ -640,6 +682,7 @@ module.exports = {
   runTask,
   runStep,
   skipStep,
+  deleteTask,
   getTask,
   getTaskResult,
   getTaskSteps,

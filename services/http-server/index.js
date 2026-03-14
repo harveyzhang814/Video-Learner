@@ -175,6 +175,28 @@ function createApp(options = {}) {
   }
   });
 
+  router.delete('/tasks/:taskId', async (ctx) => {
+    const { taskId } = ctx.params;
+    const mode = (ctx.query.mode || (ctx.request.body && ctx.request.body.mode) || 'hard').toLowerCase();
+    if (!['hard', 'state', 'soft'].includes(mode)) {
+      ctx.status = 400;
+      ctx.body = { error: 'invalid mode' };
+      return;
+    }
+    try {
+      await orchestrator.deleteTask(taskId, { rootDir: ROOT_DIR, mode });
+      ctx.status = 204;
+      ctx.body = null;
+    } catch (err) {
+      if (/task not found/.test(err.message)) {
+        ctx.status = 404;
+      } else {
+        ctx.status = 500;
+      }
+      ctx.body = { error: err.message || 'delete failed' };
+    }
+  });
+
   router.get('/tasks/:taskId/result', async (ctx) => {
   const { taskId } = ctx.params;
   try {
@@ -187,6 +209,165 @@ function createApp(options = {}) {
       ctx.status = 500;
     }
     ctx.body = { error: err.message || 'failed to get task result' };
+  }
+  });
+
+  router.get('/tasks/:taskId/media', async (ctx) => {
+  const { taskId } = ctx.params;
+  try {
+    const result = await orchestrator.getTaskResult(taskId, { rootDir: ROOT_DIR });
+
+    const taskIdInMeta = result && result.meta ? result.meta.id : undefined;
+    if (!taskIdInMeta || typeof taskIdInMeta !== 'string') {
+      ctx.status = 404;
+      ctx.type = 'json';
+      ctx.body = { error: 'task not found' };
+      return;
+    }
+
+    const allowedPath = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'media', 'video.mp4');
+
+    const outPath = result && result.outputs ? result.outputs.video_path : undefined;
+    if (outPath && typeof outPath === 'string') {
+      const resolved = path.resolve(path.isAbsolute(outPath) ? outPath : path.resolve(ROOT_DIR, outPath));
+      const normalized = path.normalize(resolved);
+      if (normalized !== allowedPath) {
+        ctx.status = 404;
+        ctx.type = 'json';
+        ctx.body = { error: 'file not found', type: 'video' };
+        return;
+      }
+    }
+
+    ctx.status = 200;
+    ctx.type = 'json';
+    ctx.body = {
+      video: {
+        path: allowedPath,
+        exists: fs.existsSync(allowedPath)
+      }
+    };
+  } catch (err) {
+    if (err && /task not found/.test(err.message || '')) {
+      ctx.status = 404;
+    } else {
+      ctx.status = 500;
+    }
+    ctx.type = 'json';
+    ctx.body = { error: (err && err.message) || 'failed to get task media' };
+  }
+  });
+
+  router.get('/tasks/:taskId/subtitles', async (ctx) => {
+  const { taskId } = ctx.params;
+  try {
+    const result = await orchestrator.getTaskResult(taskId, { rootDir: ROOT_DIR });
+
+    const taskIdInMeta = result && result.meta ? result.meta.id : undefined;
+    if (!taskIdInMeta || typeof taskIdInMeta !== 'string') {
+      ctx.status = 404;
+      ctx.type = 'json';
+      ctx.body = { error: 'task not found' };
+      return;
+    }
+
+    const transcriptDir = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'transcript');
+    const allowed = [
+      { file: 'original_zh.vtt', id: 'original_zh', lang: 'zh', label: '中文' },
+      { file: 'original_en.vtt', id: 'original_en', lang: 'en', label: 'English' }
+    ];
+
+    const tracks = [];
+    for (const spec of allowed) {
+      const candidates = [
+        path.resolve(transcriptDir, spec.file),
+        path.resolve(transcriptDir, 'subs', spec.file)
+      ];
+
+      for (const p of candidates) {
+        const normalized = path.normalize(p);
+        if (!normalized.startsWith(transcriptDir + path.sep)) continue;
+        if (!fs.existsSync(normalized)) continue;
+
+        const vtt = fs.readFileSync(normalized, 'utf8');
+        tracks.push({ id: spec.id, lang: spec.lang, label: spec.label, vtt });
+        break;
+      }
+    }
+
+    ctx.status = 200;
+    ctx.type = 'json';
+    ctx.body = { tracks };
+  } catch (err) {
+    if (err && /task not found/.test(err.message || '')) {
+      ctx.status = 404;
+    } else {
+      ctx.status = 500;
+    }
+    ctx.type = 'json';
+    ctx.body = { error: (err && err.message) || 'failed to get task subtitles' };
+  }
+  });
+
+  router.get('/tasks/:taskId/result/content', async (ctx) => {
+  const { taskId } = ctx.params;
+  const type = (ctx.query && ctx.query.type) || '';
+  if (type !== 'article' && type !== 'summary') {
+    ctx.status = 400;
+    ctx.type = 'json';
+    ctx.body = { error: 'Missing or invalid query: type=article|summary' };
+    return;
+  }
+
+  try {
+    const result = await orchestrator.getTaskResult(taskId, { rootDir: ROOT_DIR });
+    const pathKey = type === 'article' ? 'article_path' : 'summary_path';
+    const outPath = result && result.outputs ? result.outputs[pathKey] : undefined;
+
+    if (!outPath || typeof outPath !== 'string') {
+      ctx.status = 404;
+      ctx.type = 'json';
+      ctx.body = { error: 'file not found', type };
+      return;
+    }
+
+    const taskIdInMeta = result && result.meta ? result.meta.id : undefined;
+    if (!taskIdInMeta || typeof taskIdInMeta !== 'string') {
+      ctx.status = 404;
+      ctx.type = 'json';
+      ctx.body = { error: 'task not found' };
+      return;
+    }
+
+    const writingDir = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'writing');
+    const allowedPath = path.resolve(writingDir, type === 'article' ? 'article.md' : 'summary.md');
+
+    const resolved = path.resolve(path.isAbsolute(outPath) ? outPath : path.resolve(ROOT_DIR, outPath));
+    const normalized = path.normalize(resolved);
+
+    if (normalized !== allowedPath) {
+      ctx.status = 404;
+      ctx.type = 'json';
+      ctx.body = { error: 'file not found', type };
+      return;
+    }
+
+    await fs.promises.access(normalized, fs.constants.R_OK);
+    const content = await fs.promises.readFile(normalized, 'utf8');
+
+    ctx.status = 200;
+    ctx.set('Content-Type', 'text/markdown; charset=utf-8');
+    ctx.body = content;
+  } catch (err) {
+    if (err && /task not found/.test(err.message || '')) {
+      ctx.status = 404;
+    } else if (err && (err.code === 'ENOENT' || err.code === 'EACCES')) {
+      ctx.status = 404;
+    } else {
+      ctx.status = 500;
+    }
+    ctx.type = 'json';
+    ctx.body = { error: (err && err.message) || 'failed to get content' };
   }
   });
 
