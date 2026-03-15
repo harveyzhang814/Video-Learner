@@ -1732,6 +1732,16 @@
 
     // 任务状态 pills（主界面 & 弹窗共用同一套 step 名）
     const STEPS = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
+    const STEP_LABELS = {
+      fetch: '获取信息',
+      video: '视频下载',
+      audio: '音频下载',
+      subs: '字幕下载',
+      vtt2md: '转换文案',
+      md2vtt: '转寒字幕',
+      article: '文章生产',
+      summary: '提炼总结'
+    };
 
     let client = null;
     let es = null;
