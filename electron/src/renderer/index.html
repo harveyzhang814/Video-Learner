@@ -1317,6 +1317,22 @@
       color: #dc2626;
       border-color: #fca5a5;
     }
+    .status-pill.error.clickable {
+      cursor: pointer;
+    }
+    .status-pill.error.clickable:hover {
+      filter: brightness(0.95);
+      border-color: var(--text-muted);
+    }
+    .status-pill.error .retry-hint {
+      margin-left: 4px;
+      font-size: 11px;
+      opacity: 0.9;
+    }
+
+    #retryModalPhaseRunning.visible { display: block; }
+    .retry-modal-loading { margin-bottom: 12px; color: var(--text-muted); }
+    .retry-modal-logs { max-height: 240px; overflow-y: auto; }
 
     /* 重置弹窗 */
     .reset-popup {
@@ -1649,6 +1665,35 @@
 </div>
 
         <div class="modal-logs" id="modalLogs"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Retry Step Modal -->
+  <div class="modal-overlay hidden" id="retryConfirmModal">
+    <div class="modal retry-modal">
+      <div class="modal-header">
+        <span class="modal-title" id="retryModalTitle">是否重试？</span>
+        <button class="modal-close" id="retryModalClose" type="button">&times;</button>
+      </div>
+      <div class="modal-content">
+        <div id="retryModalPhaseConfirm">
+          <div class="input-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="retryModalAutoNext" disabled>
+              <span class="checkbox-custom"></span>
+              <span>自动执行后续步骤？</span>
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn" id="retryModalCancel">取消</button>
+            <button type="button" class="btn primary" id="retryModalConfirm">确认</button>
+          </div>
+        </div>
+        <div id="retryModalPhaseRunning" class="hidden">
+          <div class="retry-modal-loading" id="retryModalLoading">重试中…</div>
+          <div class="modal-logs retry-modal-logs" id="retryModalLog"></div>
+        </div>
       </div>
     </div>
   </div>
