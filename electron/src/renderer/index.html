@@ -1773,6 +1773,14 @@
     const confirmDeleteModal = document.getElementById('confirmDeleteModal');
     const confirmDeleteCancel = document.getElementById('confirmDeleteCancel');
     const confirmDeleteOk = document.getElementById('confirmDeleteOk');
+    const retryConfirmModal = document.getElementById('retryConfirmModal');
+    const retryModalTitle = document.getElementById('retryModalTitle');
+    const retryModalClose = document.getElementById('retryModalClose');
+    const retryModalPhaseConfirm = document.getElementById('retryModalPhaseConfirm');
+    const retryModalPhaseRunning = document.getElementById('retryModalPhaseRunning');
+    const retryModalLog = document.getElementById('retryModalLog');
+    const retryModalCancel = document.getElementById('retryModalCancel');
+    const retryModalConfirm = document.getElementById('retryModalConfirm');
     console.log('[delete-modal] DOM refs:', { confirmDeleteModal: !!confirmDeleteModal, confirmDeleteCancel: !!confirmDeleteCancel, confirmDeleteOk: !!confirmDeleteOk });
 
     // 任务状态 pills（主界面 & 弹窗共用同一套 step 名）
@@ -1791,6 +1799,47 @@
     let client = null;
     let es = null;
     let currentTaskId = null;
+    let retrySession = null;
+    let pendingRetryStep = null;
+
+    function openRetryModal(taskId, stepName) {
+      if (!retryModalTitle || !retryConfirmModal) return;
+      retryModalTitle.textContent = `是否重试${STEP_LABELS[stepName] || stepName}？`;
+      pendingRetryStep = stepName;
+      if (retryModalPhaseConfirm) retryModalPhaseConfirm.classList.remove('hidden');
+      if (retryModalPhaseRunning) {
+        retryModalPhaseRunning.classList.remove('visible');
+        retryModalPhaseRunning.classList.add('hidden');
+      }
+      if (retryModalLog) retryModalLog.innerHTML = '';
+      retryConfirmModal.classList.remove('hidden');
+      if (retryModalConfirm) retryModalConfirm.disabled = false;
+    }
+    function closeRetryModal() {
+      retrySession = null;
+      pendingRetryStep = null;
+      if (retryConfirmModal) retryConfirmModal.classList.add('hidden');
+      if (retryModalPhaseConfirm) retryModalPhaseConfirm.classList.remove('hidden');
+      if (retryModalPhaseRunning) {
+        retryModalPhaseRunning.classList.add('hidden');
+        retryModalPhaseRunning.classList.remove('visible');
+      }
+      if (client && currentTaskId) {
+        client.getTask(currentTaskId).then((task) => {
+          taskCache.set(currentTaskId, task);
+          applyTaskToInfo(task);
+        }).catch((e) => console.error('closeRetryModal getTask failed', e));
+      }
+      if (retryModalConfirm) retryModalConfirm.disabled = false;
+    }
+    function switchRetryModalToRunning() {
+      if (retryModalPhaseConfirm) retryModalPhaseConfirm.classList.add('hidden');
+      if (retryModalPhaseRunning) {
+        retryModalPhaseRunning.classList.remove('hidden');
+        retryModalPhaseRunning.classList.add('visible');
+      }
+      if (retryModalLog) retryModalLog.innerHTML = '';
+    }
 
     function showConfirmDelete() {
       console.log('[delete-modal] showConfirmDelete called', { currentTaskId, hasModal: !!confirmDeleteModal });
@@ -2628,6 +2677,14 @@
     newTaskModal.addEventListener('click', (e) => {
       if (e.target === newTaskModal) closeModal();
     });
+
+    if (retryModalClose) retryModalClose.addEventListener('click', closeRetryModal);
+    if (retryModalCancel) retryModalCancel.addEventListener('click', closeRetryModal);
+    if (retryConfirmModal) {
+      retryConfirmModal.addEventListener('click', (e) => {
+        if (e.target === retryConfirmModal) closeRetryModal();
+      });
+    }
 
     // Core: create task via HTTP (timeout 60s; defer post-create work so UI stays responsive)
     const CREATE_TASK_TIMEOUT_MS = 60000;
