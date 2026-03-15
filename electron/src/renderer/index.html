@@ -1966,6 +1966,17 @@
         .replaceAll("'", '&#039;');
     }
 
+    function appendRetryModalLog(text) {
+      if (!retryModalLog) return;
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      const ts = new Date().toLocaleTimeString();
+      const cls = /error|failed/i.test(text) ? 'log-err' : '';
+      div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${escapeHtml(text)}</span>`;
+      retryModalLog.appendChild(div);
+      retryModalLog.scrollTop = retryModalLog.scrollHeight;
+    }
+
     function renderHistory(tasks) {
       if (!tasks || tasks.length === 0) {
         historyList.innerHTML = '<div style="padding: 16px; color: #999; font-size: 12px;">No history</div>';
@@ -2653,7 +2664,9 @@
             refreshHistoryDebounced();
           }
           if (taskId && data.payload && data.payload.stepName) {
-            appendLogLine(taskId, `${type}: ${data.payload.stepName} ${data.payload.status || data.payload.stepStatus || ''}`.trim());
+            const line = `${type}: ${data.payload.stepName} ${data.payload.status || data.payload.stepStatus || ''}`.trim();
+            appendLogLine(taskId, line);
+            if (retrySession && retrySession.taskId === taskId) appendRetryModalLog(line);
           }
           return;
         }
@@ -2662,7 +2675,10 @@
           if (!taskId) return;
           const text = (data.payload && data.payload.text) || (data.payload && data.payload.line) || '';
           const seq = data.payload ? data.payload.seq : undefined;
-          if (text) appendLogLine(taskId, text, { seq });
+          if (text) {
+            appendLogLine(taskId, text, { seq });
+            if (retrySession && retrySession.taskId === taskId) appendRetryModalLog(text);
+          }
           return;
         }
       };
