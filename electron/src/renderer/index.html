@@ -1919,6 +1919,16 @@
         const ui =
           s === 'running' ? 'active' : s === 'completed' || s === 'skipped' ? 'done' : s === 'failed' ? 'error' : 'pending';
         setPillState('#infoStatus', step, ui);
+        const pill = document.querySelector(`#infoStatus .status-pill[data-step="${step}"]`);
+        if (pill) {
+          if (ui === 'error') {
+            pill.classList.add('clickable');
+            pill.setAttribute('title', '重试');
+          } else {
+            pill.classList.remove('clickable');
+            pill.removeAttribute('title');
+          }
+        }
       }
     }
 
@@ -2683,6 +2693,34 @@
     if (retryConfirmModal) {
       retryConfirmModal.addEventListener('click', (e) => {
         if (e.target === retryConfirmModal) closeRetryModal();
+      });
+    }
+
+    const infoStatusEl = document.getElementById('infoStatus');
+    if (infoStatusEl) {
+      infoStatusEl.addEventListener('click', (e) => {
+        const pill = e.target.closest('.status-pill.error.clickable');
+        if (!pill || !currentTaskId) return;
+        const stepName = pill.getAttribute('data-step');
+        if (!stepName) return;
+        const task = taskCache.get(currentTaskId);
+        if (!task || !task.steps || task.steps[stepName].status !== 'failed') return;
+        openRetryModal(currentTaskId, stepName);
+      });
+    }
+
+    if (retryModalConfirm) {
+      retryModalConfirm.addEventListener('click', async () => {
+        if (!client || !currentTaskId || pendingRetryStep == null) return;
+        retryModalConfirm.disabled = true;
+        try {
+          await client.runStep(currentTaskId, pendingRetryStep, { force: true });
+          retrySession = { taskId: currentTaskId, stepName: pendingRetryStep, startTime: Date.now() };
+          switchRetryModalToRunning();
+        } catch (err) {
+          alert(`重试请求失败，请稍后再试：${err.message || err}`);
+          retryModalConfirm.disabled = false;
+        }
       });
     }
 
