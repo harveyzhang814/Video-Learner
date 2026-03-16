@@ -1328,6 +1328,10 @@
       margin-left: 4px;
       font-size: 11px;
       opacity: 0.9;
+      display: none;
+    }
+    .status-pill.error.clickable:hover .retry-hint {
+      display: inline;
     }
 
     #retryModalPhaseRunning.visible { display: block; }
@@ -1802,16 +1806,8 @@
     let retrySession = null;
     let pendingRetryStep = null;
 
-    async function openRetryModal(taskId, stepName) {
+    function openRetryModal(taskId, stepName) {
       if (!retryModalTitle || !retryConfirmModal) return;
-      if (!client) return;
-      try {
-        const task = await client.getTask(taskId);
-        if (!task || !task.steps || task.steps[stepName].status !== 'failed') return;
-      } catch (e) {
-        console.error('openRetryModal getTask failed', e);
-        return;
-      }
       retryModalTitle.textContent = `是否重试${STEP_LABELS[stepName] || stepName}？`;
       pendingRetryStep = stepName;
       if (retryModalPhaseConfirm) retryModalPhaseConfirm.classList.remove('hidden');
@@ -1932,9 +1928,18 @@
           if (ui === 'error') {
             pill.classList.add('clickable');
             pill.setAttribute('title', '重试');
+            let hint = pill.querySelector('.retry-hint');
+            if (!hint) {
+              hint = document.createElement('span');
+              hint.className = 'retry-hint';
+              hint.textContent = '重试';
+              pill.appendChild(hint);
+            }
           } else {
             pill.classList.remove('clickable');
             pill.removeAttribute('title');
+            const hint = pill.querySelector('.retry-hint');
+            if (hint) hint.remove();
           }
         }
       }
@@ -2722,13 +2727,13 @@
 
     const infoStatusEl = document.getElementById('infoStatus');
     if (infoStatusEl) {
-      infoStatusEl.addEventListener('click', async (e) => {
+      infoStatusEl.addEventListener('click', (e) => {
         if (retrySession) return;
         const pill = e.target.closest('.status-pill.error.clickable');
         if (!pill || !currentTaskId) return;
         const stepName = pill.getAttribute('data-step');
         if (!stepName) return;
-        await openRetryModal(currentTaskId, stepName);
+        openRetryModal(currentTaskId, stepName);
       });
     }
 
