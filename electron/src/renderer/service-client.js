@@ -31,7 +31,12 @@ export class ServiceClient {
       data = text;
     }
     if (!res.ok) {
-      const msg = (data && data.error && data.error.message) || (data && data.error) || (data && data.message) || res.statusText;
+      const msg =
+        (data && data.error && data.error.message) ||
+        (data && data.error) ||
+        (data && data.message) ||
+        (data && data.output) ||
+        res.statusText;
       throw new Error(`${res.status} ${msg}`);
     }
     return data;

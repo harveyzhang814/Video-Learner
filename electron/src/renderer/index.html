@@ -1098,6 +1098,22 @@
     .confirm-delete-overlay.hidden {
       display: none;
     }
+    /* 重试确认：与删除弹窗一致，独立蒙版 + 显示时 appendChild 到 body 末尾 */
+    .retry-confirm-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .retry-confirm-overlay.hidden {
+      display: none;
+    }
     .confirm-delete-modal {
       background: var(--bg);
       width: 420px;
@@ -1337,6 +1353,21 @@
     #retryModalPhaseRunning.visible { display: block; }
     .retry-modal-loading { margin-bottom: 12px; color: var(--text-muted); }
     .retry-modal-logs { max-height: 240px; overflow-y: auto; }
+    /* 重试弹窗：参数区与功能区分开，避免重叠 */
+    .retry-modal .modal-content { padding: 20px; gap: 0; }
+    #retryModalPhaseConfirm {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    #retryModalPhaseConfirm .input-group { margin: 0; }
+    #retryModalPhaseConfirm .modal-actions {
+      margin-top: 8px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      justify-content: flex-end;
+    }
+    .retry-modal { min-width: 320px; }
 
     /* 重置弹窗 */
     .reset-popup {
@@ -1673,8 +1704,8 @@
     </div>
   </div>
 
-  <!-- Retry Step Modal -->
-  <div class="modal-overlay hidden" id="retryConfirmModal">
+  <!-- Retry Step Modal（独立蒙版，显示时移至 body 末尾以保证在最前） -->
+  <div class="retry-confirm-overlay hidden" id="retryConfirmModal">
     <div class="modal retry-modal">
       <div class="modal-header">
         <span class="modal-title" id="retryModalTitle">是否重试？</span>
@@ -1816,6 +1847,7 @@
         retryModalPhaseRunning.classList.add('hidden');
       }
       if (retryModalLog) retryModalLog.innerHTML = '';
+      document.body.appendChild(retryConfirmModal);
       retryConfirmModal.classList.remove('hidden');
       if (retryModalConfirm) retryModalConfirm.disabled = false;
     }
@@ -2738,17 +2770,23 @@
     }
 
     if (retryModalConfirm) {
-      retryModalConfirm.addEventListener('click', async () => {
+      retryModalConfirm.addEventListener('click', () => {
         if (!client || !currentTaskId || pendingRetryStep == null) return;
+        // 标记本次重试会话并立即切换到进行中，让 SSE 日志可以立刻进入弹窗
+        retrySession = { taskId: currentTaskId, stepName: pendingRetryStep, startTime: Date.now() };
+        switchRetryModalToRunning();
         retryModalConfirm.disabled = true;
-        try {
-          await client.runStep(currentTaskId, pendingRetryStep, { force: true });
-          retrySession = { taskId: currentTaskId, stepName: pendingRetryStep, startTime: Date.now() };
-          switchRetryModalToRunning();
-        } catch (err) {
-          alert(`重试请求失败，请稍后再试：${err.message || err}`);
-          retryModalConfirm.disabled = false;
-        }
+        // 后台 fire-and-forget 调用，避免阻塞 UI
+        client
+          .runStep(currentTaskId, pendingRetryStep, { force: true })
+          .catch((err) => {
+            // 如果请求本身失败，追加一条错误日志并提示
+            const msg = err && err.message ? err.message : String(err);
+            appendRetryModalLog(`[request] 重试请求失败：${msg}`);
+            alert(`重试请求失败，请稍后再试：${msg}`);
+            retryModalConfirm.disabled = false;
+            retrySession = null;
+          });
       });
     }
 

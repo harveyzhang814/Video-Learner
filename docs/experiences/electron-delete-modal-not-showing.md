@@ -48,7 +48,7 @@
 | **问题** | 点击 Delete 后确认弹窗不显示，且没有报错提示。 |
 | **根因** | 弹窗在页面结构里被其它界面层「盖住」了，属于前端层叠与 DOM 结构问题，不是业务逻辑错误。 |
 | **解决** | 弹窗使用独立蒙版样式，并在每次打开时把弹窗节点移到页面最顶层（body 末尾），确保一定显示在最前面。 |
-| **预防** | 以后新增「全局浮层/弹窗」时，优先采用：独立全屏蒙版 + 显示时 `appendChild` 到 `body` 末尾，避免类似问题。 |
+| **预防** | 以后新增「全局浮层/弹窗」时，优先采用：独立全屏蒙版 + 显示时 `appendChild` 到 `body` 末尾，避免类似问题。重试步骤弹窗（retry confirm modal）已按同一方式实现（`.retry-confirm-overlay` + `openRetryModal` 内 `document.body.appendChild(retryConfirmModal)`）。 |
 
 ---
 
