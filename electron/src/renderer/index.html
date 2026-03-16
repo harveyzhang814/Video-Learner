@@ -2410,6 +2410,16 @@
       modalRunBtn.textContent = 'Run';
       modalSaveBtn.classList.add('hidden');
       modalStopBtn.classList.add('hidden');
+      // Reset URL/Focus 输入与只读状态
+      modalUrlInput.readOnly = false;
+      modalFocusInput.readOnly = false;
+      modalUrlInput.value = '';
+      modalFocusInput.value = '';
+      // 新建任务时重置弹窗内的 step 状态 pills，避免继承上一个任务的运行结果
+      STEPS.forEach((step) => {
+        setPillState('#modalStatus', step, 'pending');
+      });
+      // 清空日志面板
       modalLogs.textContent = '';
       newTaskModal.classList.remove('hidden');
       modalUrlInput.focus();
