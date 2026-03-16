@@ -50,7 +50,10 @@ rm -f "$DIR/media/video.temp.mp4" "$DIR/media/v_tempvideo"* "$DIR/media/v_tempau
 
 # Attempt 1: Combined format
 echo "[INFO] Attempting combined format download..."
-yt-dlp $YT_DLP_COOKIE_OPTS -f "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best" \
+yt-dlp $YT_DLP_COOKIE_OPTS \
+    --newline \
+    --progress-template "[progress] downloaded=%(progress.downloaded_bytes)d total=%(progress.total_bytes or progress.total_bytes_estimate or 0)d speed=%(progress.speed or 0.0)f eta=%(progress.eta or 0)d" \
+    -f "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best" \
     -o "$DIR/media/video.temp.mp4" --merge-output-format mp4 "$URL" 2>&1
 
 if [ -f "$DIR/media/video.temp.mp4" ]; then
@@ -65,9 +68,15 @@ fi
 # Attempt 2: DASH fallback
 echo "[INFO] Attempt 1 failed, trying DASH fallback..."
 echo "[INFO] Downloading video stream..."
-yt-dlp $YT_DLP_COOKIE_OPTS -f "bestvideo[height<=1080][ext=mp4]" -o "$DIR/media/v_tempvideo.mp4" "$URL" 2>&1 || true
+yt-dlp $YT_DLP_COOKIE_OPTS \
+    --newline \
+    --progress-template "[progress] downloaded=%(progress.downloaded_bytes)d total=%(progress.total_bytes or progress.total_bytes_estimate or 0)d speed=%(progress.speed or 0.0)f eta=%(progress.eta or 0)d" \
+    -f "bestvideo[height<=1080][ext=mp4]" -o "$DIR/media/v_tempvideo.mp4" "$URL" 2>&1 || true
 echo "[INFO] Downloading audio stream..."
-yt-dlp $YT_DLP_COOKIE_OPTS -f "bestaudio[ext=m4a]" -o "$DIR/media/v_tempaudio.m4a" "$URL" 2>&1 || true
+yt-dlp $YT_DLP_COOKIE_OPTS \
+    --newline \
+    --progress-template "[progress] downloaded=%(progress.downloaded_bytes)d total=%(progress.total_bytes or progress.total_bytes_estimate or 0)d speed=%(progress.speed or 0.0)f eta=%(progress.eta or 0)d" \
+    -f "bestaudio[ext=m4a]" -o "$DIR/media/v_tempaudio.m4a" "$URL" 2>&1 || true
 
 if [ -f "$DIR/media/v_tempvideo.mp4" ] && [ -f "$DIR/media/v_tempaudio.m4a" ]; then
     echo "[INFO] Merging video and audio with ffmpeg..."
