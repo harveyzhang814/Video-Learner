@@ -24,7 +24,7 @@
 | audio | 音频下载 |
 | subs | 字幕下载 |
 | vtt2md | 转换文案 |
-| md2vtt | 转寒字幕 |
+| md2vtt | 字幕生成 |
 | article | 文章生产 |
 | summary | 提炼总结 |
 

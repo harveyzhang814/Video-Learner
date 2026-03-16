@@ -26,7 +26,7 @@ const STEP_LABELS = {
   audio: '音频下载',
   subs: '字幕下载',
   vtt2md: '转换文案',
-  md2vtt: '转寒字幕',
+  md2vtt: '字幕生成',
   article: '文章生产',
   summary: '提炼总结'
 };
@@ -274,7 +274,7 @@ git commit -m "fix(gui): retry modal validation, concurrency and confirm debounc
 ## 执行说明
 
 - 按 Task 1 → 6 顺序执行；每 Task 内按 Step 顺序完成并 commit。
-- 设计细节以 `docs/plans/2026-03-15-gui-retry-step-design.md` 为准；本计划未写的 UI 细节（如「转寒字幕」是否改为「转字幕」）可保持与现有 `#infoStatus` 一致。
+- 设计细节以 `docs/plans/2026-03-15-gui-retry-step-design.md` 为准；本计划未写的 UI 细节（如「字幕生成」是否改为「转字幕」）可保持与现有 `#infoStatus` 一致。
 
 **Plan complete and saved to `docs/plans/2026-03-15-gui-retry-step-impl-plan.md`.**
 
