@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const helpers = require('./main-helpers');
@@ -60,6 +60,48 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   helpers.stopLocalHttpService();
+});
+
+ipcMain.handle('open-task-folder', async (_event, taskId) => {
+  try {
+    const info = helpers.getHttpServiceInfo() || await helpers.startLocalHttpService();
+    if (!info || !info.baseUrl) {
+      return { ok: false, error: 'HTTP service not available' };
+    }
+
+    const url = new URL(`/api/tasks/${encodeURIComponent(taskId)}/paths`, info.baseUrl);
+    const res = await fetch(url.toString(), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      let msg = res.statusText || 'failed to get task paths';
+      try {
+        const data = text ? JSON.parse(text) : null;
+        if (data && data.error) msg = data.error;
+      } catch (_) {
+        // ignore JSON parse error, keep default msg
+      }
+      return { ok: false, error: msg };
+    }
+
+    const body = await res.json();
+    const base = body && typeof body.base === 'string' ? body.base : null;
+    if (!base) {
+      return { ok: false, error: 'No base path returned for task' };
+    }
+
+    const result = await shell.openPath(base);
+    if (result) {
+      return { ok: false, error: result };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    const msg = (err && err.message) ? err.message : 'Failed to open task folder';
+    return { ok: false, error: msg };
+  }
 });
 
 ipcMain.handle('service:getInfo', async () => {

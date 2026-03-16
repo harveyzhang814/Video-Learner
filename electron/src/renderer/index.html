@@ -2842,9 +2842,26 @@
       }
     });
 
-    // 暂时不支持 open（需要 HTTP API 暴露后再启用）
-    openBtn.disabled = true;
-    openBtn.title = '暂不可用：需后续通过 HTTP API 暴露「打开输出文件夹」';
+    // Open current task's work folder via Electron IPC + agent HTTP paths API
+    openBtn.addEventListener('click', async () => {
+      if (!currentTaskId) {
+        alert('请先在左侧列表选中一个任务');
+        return;
+      }
+      openBtn.disabled = true;
+      try {
+        const res = await window.electron.openTaskFolder(currentTaskId);
+        if (!res || res.ok !== true) {
+          const msg = (res && res.error) ? res.error : '无法打开任务目录';
+          alert(msg);
+        }
+      } catch (e) {
+        alert(e && e.message ? e.message : '打开任务目录时出错');
+      } finally {
+        openBtn.disabled = false;
+      }
+    });
+    openBtn.title = '打开当前任务的输出目录（work/<id>/）';
 
     deleteBtn.title = '删除当前任务';
     deleteBtn.addEventListener('click', () => {
