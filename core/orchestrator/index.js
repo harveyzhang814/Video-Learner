@@ -16,6 +16,10 @@ const orchestratorEvents = new EventEmitter();
 orchestratorEvents.setMaxListeners(0);
 let globalEventSeq = 1;
 
+// Per (taskId, stepName) download progress state for yt-dlp video/audio steps.
+// Map key: `${taskId}:${stepName}` -> { lastSentAt: number, lastSentPercent: number|null }
+const downloadProgressState = new Map();
+
 function emitOrchestratorEvent(type, taskId, payload = {}) {
   const ev = {
     eventId: String(globalEventSeq++),
@@ -26,6 +30,77 @@ function emitOrchestratorEvent(type, taskId, payload = {}) {
   };
   orchestratorEvents.emit('event', ev);
   return ev;
+}
+
+function makeDownloadProgressKey(taskId, stepName) {
+  return `${taskId || ''}:${stepName || ''}`;
+}
+
+function resetDownloadProgressState(taskId, stepName) {
+  const key = makeDownloadProgressKey(taskId, stepName);
+  downloadProgressState.set(key, { lastSentAt: 0, lastSentPercent: null });
+}
+
+function getDownloadProgressState(taskId, stepName) {
+  const key = makeDownloadProgressKey(taskId, stepName);
+  if (!downloadProgressState.has(key)) {
+    downloadProgressState.set(key, { lastSentAt: 0, lastSentPercent: null });
+  }
+  return downloadProgressState.get(key);
+}
+
+function parseYtDlpProgressLine(line) {
+  if (!line) return null;
+  const m = line.match(/^\[progress\]\s+downloaded=(\d+)\s+total=(\d+)\s+speed=([\d.]+)\s+eta=(\d+)/);
+  if (!m) return null;
+  const downloaded = Number(m[1]);
+  const total = Number(m[2]);
+  const speed = Number(m[3]);
+  const eta = Number(m[4]);
+  if (!Number.isFinite(downloaded) || downloaded < 0) return null;
+  if (!Number.isFinite(total) || total < 0) return null;
+  return { downloaded, total, speed: Number.isFinite(speed) ? speed : 0, eta: Number.isFinite(eta) ? eta : 0 };
+}
+
+function formatBytesToHuman(bytes) {
+  const b = typeof bytes === 'number' && bytes >= 0 ? bytes : 0;
+  const KB = 1024;
+  const MB = KB * 1024;
+  const GB = MB * 1024;
+  if (b < KB) return `${b} B`;
+  if (b < MB) return `${(b / KB).toFixed(1)} KiB`;
+  if (b < GB) return `${(b / MB).toFixed(1)} MiB`;
+  return `${(b / GB).toFixed(1)} GiB`;
+}
+
+function formatEta(etaSecs) {
+  const s = typeof etaSecs === 'number' && etaSecs > 0 ? Math.floor(etaSecs) : 0;
+  if (s <= 0) return null;
+  const minutes = Math.floor(s / 60);
+  const seconds = s % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatDownloadProgressLog(kind, info) {
+  const { downloaded, total, speed, eta, percent } = info;
+  const humanDownloaded = formatBytesToHuman(downloaded);
+  const humanTotal = total > 0 ? formatBytesToHuman(total) : null;
+  const humanSpeed = speed > 0 ? `${formatBytesToHuman(speed)}/s` : null;
+  const humanEta = formatEta(eta);
+
+  if (total > 0 && typeof percent === 'number') {
+    const parts = [];
+    parts.push(`${humanDownloaded} / ${humanTotal}`);
+    if (humanSpeed) parts.push(humanSpeed);
+    if (humanEta) parts.push(`eta ${humanEta}`);
+    return `[${kind}] progress: ${percent}% (${parts.join(', ')})`;
+  }
+
+  const parts = [];
+  parts.push(humanDownloaded);
+  if (humanSpeed) parts.push(humanSpeed);
+  parts.push('total size unknown');
+  return `[${kind}] progress: downloaded ${parts.join(', ')}`;
 }
 
 function onEvent(handler) {
@@ -371,6 +446,10 @@ async function runStep(taskId, stepName, options = {}) {
   task.steps[stepName] = stepState;
   task.updated_at = new Date().toISOString();
   db.updateStep(id, stepName, 'running');
+  // Reset per-step download progress state for media steps so each run starts fresh.
+  if (stepName === 'video' || stepName === 'audio') {
+    resetDownloadProgressState(taskId, stepName);
+  }
   emitOrchestratorEvent('step.started', taskId, { stepName, attempts: stepState.attempts });
   emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'running' });
 
@@ -496,7 +575,51 @@ async function runStep(taskId, stepName, options = {}) {
   }
 
   if (args.length > 0) {
-    const result = await runStepScript(rootDir, stepName, args, { onOutput: options.onOutput });
+    const baseOnOutput = options.onOutput;
+    let onOutput = baseOnOutput;
+    if (stepName === 'video' || stepName === 'audio') {
+      const kind = stepName === 'video' ? 'video' : 'audio';
+      onOutput = (textChunk) => {
+        if (baseOnOutput) baseOnOutput(textChunk);
+        const str = String(textChunk || '');
+        const lines = str.split(/\r?\n/);
+        for (const line of lines) {
+          const parsed = parseYtDlpProgressLine(line.trim());
+          if (!parsed) continue;
+          const { downloaded, total, speed, eta } = parsed;
+          const state = getDownloadProgressState(taskId, stepName);
+          const now = Date.now();
+          const deltaMs = now - (state.lastSentAt || 0);
+          let percent = null;
+          if (total > 0) {
+            const raw = (downloaded / total) * 100;
+            if (Number.isFinite(raw)) {
+              percent = Math.max(0, Math.min(100, Math.round(raw)));
+            }
+          }
+          let shouldSend = false;
+          if (percent != null) {
+            if (state.lastSentPercent == null) {
+              shouldSend = true;
+            } else if (deltaMs >= 1000 || Math.abs(percent - state.lastSentPercent) >= 1) {
+              shouldSend = true;
+            }
+          } else if (deltaMs >= 1000) {
+            shouldSend = true;
+          }
+          if (!shouldSend) continue;
+          const lineText = formatDownloadProgressLog(kind, { downloaded, total, speed, eta, percent });
+          emitOrchestratorEvent('log.appended', taskId, {
+            line: lineText,
+            level: 'info'
+          });
+          state.lastSentAt = now;
+          state.lastSentPercent = percent;
+        }
+      };
+    }
+
+    const result = await runStepScript(rootDir, stepName, args, { onOutput });
     if (result.code === 0) {
       stepState.status = 'completed';
       stepState.error = null;

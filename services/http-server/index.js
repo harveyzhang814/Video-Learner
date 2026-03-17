@@ -8,6 +8,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const orchestrator = require('../../core/orchestrator');
+const { getTaskDirs } = require('../../core/paths');
 const { EventStream } = require('./event-stream');
 
 function createApp(options = {}) {
@@ -172,6 +173,34 @@ function createApp(options = {}) {
       ctx.status = 500;
     }
     ctx.body = { error: err.message || 'failed to get task' };
+  }
+  });
+
+  router.get('/tasks/:taskId/paths', async (ctx) => {
+  const { taskId } = ctx.params;
+  try {
+    // Ensure task exists and load meta so we can use the canonical id.
+    const task = await orchestrator.getTask(taskId, { rootDir: ROOT_DIR });
+    const metaId = task && task.meta && typeof task.meta.id === 'string' ? task.meta.id : taskId;
+    const dirs = getTaskDirs(ROOT_DIR, metaId);
+
+    ctx.status = 200;
+    ctx.type = 'json';
+    ctx.body = {
+      id: metaId,
+      base: dirs.base,
+      media: dirs.media,
+      transcript: dirs.transcript,
+      writing: dirs.writing
+    };
+  } catch (err) {
+    if (/task not found/.test(err.message || '')) {
+      ctx.status = 404;
+    } else {
+      ctx.status = 500;
+    }
+    ctx.type = 'json';
+    ctx.body = { error: err.message || 'failed to get task paths' };
   }
   });
 

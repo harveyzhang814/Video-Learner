@@ -82,7 +82,7 @@ git checkout -b feature/frontend-status-pills-8steps
   </span>
   <span class="status-pill" data-step="md2vtt">
     <span class="icon">○</span>
-    <span class="label">转寒字幕</span>
+    <span class="label">字幕生成</span>
   </span>
   <span class="status-pill" data-step="article">
     <span class="icon">○</span>
@@ -203,7 +203,7 @@ git commit -m "feat(frontend): update progressSteps to 8 steps"
 </span>
 <span class="status-pill" data-step="md2vtt">
   <span class="icon">○</span>
-  <span class="label">转寒字幕</span>
+  <span class="label">字幕生成</span>
 </span>
 <span class="status-pill" data-step="article">
   <span class="icon">○</span>
@@ -448,7 +448,7 @@ cd electron && npm start
 **Step 2: 输入一个 YouTube URL 测试**
 
 观察 8 个 pills 是否正确显示和更新：
-- 获取信息 → 视频下载 → 音频下载 → 字幕下载 → 转换文案 → 转寒字幕 → 文章生产 → 提炼总结
+- 获取信息 → 视频下载 → 音频下载 → 字幕下载 → 转换文案 → 字幕生成 → 文章生产 → 提炼总结
 
 **Step 3: 验证各状态**
 - ○ 等待状态

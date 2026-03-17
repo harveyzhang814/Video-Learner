@@ -1098,6 +1098,22 @@
     .confirm-delete-overlay.hidden {
       display: none;
     }
+    /* 重试确认：与删除弹窗一致，独立蒙版 + 显示时 appendChild 到 body 末尾 */
+    .retry-confirm-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .retry-confirm-overlay.hidden {
+      display: none;
+    }
     .confirm-delete-modal {
       background: var(--bg);
       width: 420px;
@@ -1317,6 +1333,41 @@
       color: #dc2626;
       border-color: #fca5a5;
     }
+    .status-pill.error.clickable {
+      cursor: pointer;
+    }
+    .status-pill.error.clickable:hover {
+      filter: brightness(0.95);
+      border-color: var(--text-muted);
+    }
+    .status-pill.error .retry-hint {
+      margin-left: 4px;
+      font-size: 11px;
+      opacity: 0.9;
+      display: none;
+    }
+    .status-pill.error.clickable:hover .retry-hint {
+      display: inline;
+    }
+
+    #retryModalPhaseRunning.visible { display: block; }
+    .retry-modal-loading { margin-bottom: 12px; color: var(--text-muted); }
+    .retry-modal-logs { max-height: 240px; overflow-y: auto; }
+    /* 重试弹窗：参数区与功能区分开，避免重叠 */
+    .retry-modal .modal-content { padding: 20px; gap: 0; }
+    #retryModalPhaseConfirm {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    #retryModalPhaseConfirm .input-group { margin: 0; }
+    #retryModalPhaseConfirm .modal-actions {
+      margin-top: 8px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      justify-content: flex-end;
+    }
+    .retry-modal { min-width: 320px; }
 
     /* 重置弹窗 */
     .reset-popup {
@@ -1459,7 +1510,7 @@
           </span>
           <span class="status-pill" data-step="md2vtt">
             <span class="icon">○</span>
-            <span class="label">转寒字幕</span>
+            <span class="label">字幕生成</span>
           </span>
           <span class="status-pill" data-step="article">
             <span class="icon">○</span>
@@ -1618,7 +1669,7 @@
           </span>
           <span class="status-pill" data-step="md2vtt">
             <span class="icon">○</span>
-            <span class="label">转寒字幕</span>
+            <span class="label">字幕生成</span>
           </span>
           <span class="status-pill" data-step="article">
             <span class="icon">○</span>
@@ -1649,6 +1700,35 @@
 </div>
 
         <div class="modal-logs" id="modalLogs"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Retry Step Modal（独立蒙版，显示时移至 body 末尾以保证在最前） -->
+  <div class="retry-confirm-overlay hidden" id="retryConfirmModal">
+    <div class="modal retry-modal">
+      <div class="modal-header">
+        <span class="modal-title" id="retryModalTitle">是否重试？</span>
+        <button class="modal-close" id="retryModalClose" type="button">&times;</button>
+      </div>
+      <div class="modal-content">
+        <div id="retryModalPhaseConfirm">
+          <div class="input-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="retryModalAutoNext" disabled>
+              <span class="checkbox-custom"></span>
+              <span>自动执行后续步骤？</span>
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn" id="retryModalCancel">取消</button>
+            <button type="button" class="btn primary" id="retryModalConfirm">确认</button>
+          </div>
+        </div>
+        <div id="retryModalPhaseRunning" class="hidden">
+          <div class="retry-modal-loading" id="retryModalLoading">重试中…</div>
+          <div class="modal-logs retry-modal-logs" id="retryModalLog"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1728,14 +1808,74 @@
     const confirmDeleteModal = document.getElementById('confirmDeleteModal');
     const confirmDeleteCancel = document.getElementById('confirmDeleteCancel');
     const confirmDeleteOk = document.getElementById('confirmDeleteOk');
+    const retryConfirmModal = document.getElementById('retryConfirmModal');
+    const retryModalTitle = document.getElementById('retryModalTitle');
+    const retryModalClose = document.getElementById('retryModalClose');
+    const retryModalPhaseConfirm = document.getElementById('retryModalPhaseConfirm');
+    const retryModalPhaseRunning = document.getElementById('retryModalPhaseRunning');
+    const retryModalLog = document.getElementById('retryModalLog');
+    const retryModalCancel = document.getElementById('retryModalCancel');
+    const retryModalConfirm = document.getElementById('retryModalConfirm');
     console.log('[delete-modal] DOM refs:', { confirmDeleteModal: !!confirmDeleteModal, confirmDeleteCancel: !!confirmDeleteCancel, confirmDeleteOk: !!confirmDeleteOk });
 
     // 任务状态 pills（主界面 & 弹窗共用同一套 step 名）
     const STEPS = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
+    const STEP_LABELS = {
+      fetch: '获取信息',
+      video: '视频下载',
+      audio: '音频下载',
+      subs: '字幕下载',
+      vtt2md: '转换文案',
+      md2vtt: '字幕生成',
+      article: '文章生产',
+      summary: '提炼总结'
+    };
 
     let client = null;
     let es = null;
     let currentTaskId = null;
+    let retrySession = null;
+    let pendingRetryStep = null;
+
+    function openRetryModal(taskId, stepName) {
+      if (!retryModalTitle || !retryConfirmModal) return;
+      retryModalTitle.textContent = `是否重试${STEP_LABELS[stepName] || stepName}？`;
+      pendingRetryStep = stepName;
+      if (retryModalPhaseConfirm) retryModalPhaseConfirm.classList.remove('hidden');
+      if (retryModalPhaseRunning) {
+        retryModalPhaseRunning.classList.remove('visible');
+        retryModalPhaseRunning.classList.add('hidden');
+      }
+      if (retryModalLog) retryModalLog.innerHTML = '';
+      document.body.appendChild(retryConfirmModal);
+      retryConfirmModal.classList.remove('hidden');
+      if (retryModalConfirm) retryModalConfirm.disabled = false;
+    }
+    function closeRetryModal() {
+      retrySession = null;
+      pendingRetryStep = null;
+      if (retryConfirmModal) retryConfirmModal.classList.add('hidden');
+      if (retryModalPhaseConfirm) retryModalPhaseConfirm.classList.remove('hidden');
+      if (retryModalPhaseRunning) {
+        retryModalPhaseRunning.classList.add('hidden');
+        retryModalPhaseRunning.classList.remove('visible');
+      }
+      if (client && currentTaskId) {
+        client.getTask(currentTaskId).then((task) => {
+          taskCache.set(currentTaskId, task);
+          applyTaskToInfo(task);
+        }).catch((e) => console.error('closeRetryModal getTask failed', e));
+      }
+      if (retryModalConfirm) retryModalConfirm.disabled = false;
+    }
+    function switchRetryModalToRunning() {
+      if (retryModalPhaseConfirm) retryModalPhaseConfirm.classList.add('hidden');
+      if (retryModalPhaseRunning) {
+        retryModalPhaseRunning.classList.remove('hidden');
+        retryModalPhaseRunning.classList.add('visible');
+      }
+      if (retryModalLog) retryModalLog.innerHTML = '';
+    }
 
     function showConfirmDelete() {
       console.log('[delete-modal] showConfirmDelete called', { currentTaskId, hasModal: !!confirmDeleteModal });
@@ -1815,6 +1955,25 @@
         const ui =
           s === 'running' ? 'active' : s === 'completed' || s === 'skipped' ? 'done' : s === 'failed' ? 'error' : 'pending';
         setPillState('#infoStatus', step, ui);
+        const pill = document.querySelector(`#infoStatus .status-pill[data-step="${step}"]`);
+        if (pill) {
+          if (ui === 'error') {
+            pill.classList.add('clickable');
+            pill.setAttribute('title', '重试');
+            let hint = pill.querySelector('.retry-hint');
+            if (!hint) {
+              hint = document.createElement('span');
+              hint.className = 'retry-hint';
+              hint.textContent = '重试';
+              pill.appendChild(hint);
+            }
+          } else {
+            pill.classList.remove('clickable');
+            pill.removeAttribute('title');
+            const hint = pill.querySelector('.retry-hint');
+            if (hint) hint.remove();
+          }
+        }
       }
     }
 
@@ -1850,6 +2009,17 @@
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
+    }
+
+    function appendRetryModalLog(text) {
+      if (!retryModalLog) return;
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      const ts = new Date().toLocaleTimeString();
+      const cls = /error|failed/i.test(text) ? 'log-err' : '';
+      div.innerHTML = `<span class="log-ts">[${ts}]</span><span class="${cls}">${escapeHtml(text)}</span>`;
+      retryModalLog.appendChild(div);
+      retryModalLog.scrollTop = retryModalLog.scrollHeight;
     }
 
     function renderHistory(tasks) {
@@ -2240,6 +2410,16 @@
       modalRunBtn.textContent = 'Run';
       modalSaveBtn.classList.add('hidden');
       modalStopBtn.classList.add('hidden');
+      // Reset URL/Focus 输入与只读状态
+      modalUrlInput.readOnly = false;
+      modalFocusInput.readOnly = false;
+      modalUrlInput.value = '';
+      modalFocusInput.value = '';
+      // 新建任务时重置弹窗内的 step 状态 pills，避免继承上一个任务的运行结果
+      STEPS.forEach((step) => {
+        setPillState('#modalStatus', step, 'pending');
+      });
+      // 清空日志面板
       modalLogs.textContent = '';
       newTaskModal.classList.remove('hidden');
       modalUrlInput.focus();
@@ -2539,7 +2719,9 @@
             refreshHistoryDebounced();
           }
           if (taskId && data.payload && data.payload.stepName) {
-            appendLogLine(taskId, `${type}: ${data.payload.stepName} ${data.payload.status || data.payload.stepStatus || ''}`.trim());
+            const line = `${type}: ${data.payload.stepName} ${data.payload.status || data.payload.stepStatus || ''}`.trim();
+            appendLogLine(taskId, line);
+            if (retrySession && retrySession.taskId === taskId) appendRetryModalLog(line);
           }
           return;
         }
@@ -2548,7 +2730,10 @@
           if (!taskId) return;
           const text = (data.payload && data.payload.text) || (data.payload && data.payload.line) || '';
           const seq = data.payload ? data.payload.seq : undefined;
-          if (text) appendLogLine(taskId, text, { seq });
+          if (text) {
+            appendLogLine(taskId, text, { seq });
+            if (retrySession && retrySession.taskId === taskId) appendRetryModalLog(text);
+          }
           return;
         }
       };
@@ -2573,6 +2758,47 @@
     newTaskModal.addEventListener('click', (e) => {
       if (e.target === newTaskModal) closeModal();
     });
+
+    if (retryModalClose) retryModalClose.addEventListener('click', closeRetryModal);
+    if (retryModalCancel) retryModalCancel.addEventListener('click', closeRetryModal);
+    if (retryConfirmModal) {
+      retryConfirmModal.addEventListener('click', (e) => {
+        if (e.target === retryConfirmModal) closeRetryModal();
+      });
+    }
+
+    const infoStatusEl = document.getElementById('infoStatus');
+    if (infoStatusEl) {
+      infoStatusEl.addEventListener('click', (e) => {
+        if (retrySession) return;
+        const pill = e.target.closest('.status-pill.error.clickable');
+        if (!pill || !currentTaskId) return;
+        const stepName = pill.getAttribute('data-step');
+        if (!stepName) return;
+        openRetryModal(currentTaskId, stepName);
+      });
+    }
+
+    if (retryModalConfirm) {
+      retryModalConfirm.addEventListener('click', () => {
+        if (!client || !currentTaskId || pendingRetryStep == null) return;
+        // 标记本次重试会话并立即切换到进行中，让 SSE 日志可以立刻进入弹窗
+        retrySession = { taskId: currentTaskId, stepName: pendingRetryStep, startTime: Date.now() };
+        switchRetryModalToRunning();
+        retryModalConfirm.disabled = true;
+        // 后台 fire-and-forget 调用，避免阻塞 UI
+        client
+          .runStep(currentTaskId, pendingRetryStep, { force: true })
+          .catch((err) => {
+            // 如果请求本身失败，追加一条错误日志并提示
+            const msg = err && err.message ? err.message : String(err);
+            appendRetryModalLog(`[request] 重试请求失败：${msg}`);
+            alert(`重试请求失败，请稍后再试：${msg}`);
+            retryModalConfirm.disabled = false;
+            retrySession = null;
+          });
+      });
+    }
 
     // Core: create task via HTTP (timeout 60s; defer post-create work so UI stays responsive)
     const CREATE_TASK_TIMEOUT_MS = 60000;
@@ -2626,9 +2852,26 @@
       }
     });
 
-    // 暂时不支持 open（需要 HTTP API 暴露后再启用）
-    openBtn.disabled = true;
-    openBtn.title = '暂不可用：需后续通过 HTTP API 暴露「打开输出文件夹」';
+    // Open current task's work folder via Electron IPC + agent HTTP paths API
+    openBtn.addEventListener('click', async () => {
+      if (!currentTaskId) {
+        alert('请先在左侧列表选中一个任务');
+        return;
+      }
+      openBtn.disabled = true;
+      try {
+        const res = await window.electron.openTaskFolder(currentTaskId);
+        if (!res || res.ok !== true) {
+          const msg = (res && res.error) ? res.error : '无法打开任务目录';
+          alert(msg);
+        }
+      } catch (e) {
+        alert(e && e.message ? e.message : '打开任务目录时出错');
+      } finally {
+        openBtn.disabled = false;
+      }
+    });
+    openBtn.title = '打开当前任务的输出目录（work/<id>/）';
 
     deleteBtn.title = '删除当前任务';
     deleteBtn.addEventListener('click', () => {
