@@ -2,7 +2,19 @@
 
 set -euo pipefail
 
-WRITING_ENGINE="${WRITING_ENGINE:-claude}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Load global defaults from scripts/settings.conf if present.
+if [[ -f "$SCRIPT_DIR/settings.conf" ]]; then
+  # shellcheck disable=SC1090
+  source "$SCRIPT_DIR/settings.conf"
+fi
+
+# Precedence:
+# 1. env WRITING_ENGINE（单次覆盖）
+# 2. settings.conf 中的 WRITING_ENGINE_DEFAULT
+# 3. 内置默认 claude
+WRITING_ENGINE="${WRITING_ENGINE:-${WRITING_ENGINE_DEFAULT:-claude}}"
 INPUT_FILE=""
 OUTPUT_FILE=""
 
@@ -42,9 +54,6 @@ if [[ ! -f "$INPUT_FILE" ]]; then
   exit 1
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-OPENCODE_SERVER_STARTED="0"
-
 run_claude() {
   if ! command -v claude >/dev/null 2>&1; then
     echo "claude not found in PATH. Install Claude Code or make sure the claude CLI is available before using WRITING_ENGINE=claude." >&2
@@ -55,43 +64,68 @@ run_claude() {
     claude -p --dangerously-skip-permissions < "$INPUT_FILE" > "$OUTPUT_FILE"
 }
 
-cleanup_opencode() {
-  if [[ "$OPENCODE_SERVER_STARTED" == "1" ]]; then
-    opencode_server_stop_if_started
-  fi
-}
-
 run_opencode() {
-  source "$SCRIPT_DIR/opencode_server.sh"
-  trap cleanup_opencode EXIT
+  # Use opencode run via a pseudo-TTY to avoid non-interactive hangs in some environments.
+  # We stream JSON events (--format json) and extract all text parts.
+  python3 - "$INPUT_FILE" <<'PY' >"$OUTPUT_FILE"
+import io, json, os, pty, sys
 
-  if ! opencode_server_health; then
-    opencode_server_ensure
-    OPENCODE_SERVER_STARTED="1"
-  fi
+if len(sys.argv) < 2:
+    sys.stderr.write("usage: llm_engine_opencode.py <prompt_file>\n")
+    sys.exit(1)
 
-  local base_url session_json session_id prompt_json message_json response_text
-  base_url="$(opencode_server_base_url)"
-  session_json="$(mktemp)"
-  message_json="$(mktemp)"
-  prompt_json="$(jq -Rs '{parts:[{type:"text",text:.}], model:{providerID:"minimax-cn-coding-plan", modelID:"MiniMax-M2.5"}}' < "$INPUT_FILE")"
+prompt_path = sys.argv[1]
+try:
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        prompt = f.read()
+except Exception as e:
+    sys.stderr.write(f"failed to read prompt file: {e}\n")
+    sys.exit(1)
 
-  curl -fsS --max-time 15 \
-    -H "Content-Type: application/json" \
-    -d '{"title":"video-learner-llm-engine"}' \
-    "${base_url}/session" \
-    -o "$session_json" >/dev/null
+cmd = [
+    "opencode",
+    "run",
+    "-m",
+    "minimax-cn-coding-plan/MiniMax-M2.5",
+    "--format",
+    "json",
+    prompt,
+]
 
-  session_id="$(jq -er '.id' "$session_json")"
+buf = io.StringIO()
 
-  curl -fsS --max-time 120 \
-    -H "Content-Type: application/json" \
-    -d "$prompt_json" \
-    "${base_url}/session/${session_id}/message" \
-    -o "$message_json" >/dev/null
+def _reader(fd):
+    data = os.read(fd, 4096)
+    if not data:
+        return data
+    try:
+        text = data.decode("utf-8", errors="ignore")
+    except Exception:
+        return data
+    buf.write(text)
+    return data
 
-  response_text="$(jq -r '[.parts[]? | select(.type=="text") | .text] | join("")' "$message_json")"
-  printf '%s\n' "$response_text" > "$OUTPUT_FILE"
+code = pty.spawn(cmd, _reader)
+if code != 0:
+    sys.stderr.write(f"opencode run exited with code {code}\n")
+    sys.exit(code)
+
+raw = buf.getvalue()
+texts = []
+for line in raw.splitlines():
+    line = line.strip()
+    if not line or not line.startswith("{"):
+        continue
+    try:
+        obj = json.loads(line)
+    except Exception:
+        continue
+    part = obj.get("part") or obj
+    if part.get("type") == "text" and isinstance(part.get("text"), str):
+        texts.append(part["text"])
+
+sys.stdout.write("".join(texts))
+PY
 }
 
 case "$WRITING_ENGINE" in
