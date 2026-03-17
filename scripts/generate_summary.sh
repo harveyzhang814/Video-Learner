@@ -65,7 +65,9 @@ sed -e "s|{{FOCUS}}|$FOCUS|g" \
 
 # Call Claude CLI to generate summary (unset CLAUDECODE to allow nested sessions)
 unset CLAUDECODE
-claude -p --dangerously-skip-permissions < "$TEMP_PROMPT" > "$OUTPUT_PATH"
+# Some environments (e.g. IDE-launched processes) may set ANTHROPIC_BASE_URL to a proxy
+# that is unreachable for Claude Code CLI, causing "Connection error" retries and apparent hangs.
+env ANTHROPIC_BASE_URL="https://api.anthropic.com" claude -p --dangerously-skip-permissions < "$TEMP_PROMPT" > "$OUTPUT_PATH"
 
 # Clean up temp file
 rm -f "$TEMP_PROMPT"

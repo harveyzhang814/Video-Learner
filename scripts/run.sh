@@ -492,7 +492,8 @@ if mode_has_transcript; then
                 -e "s|{{SOURCE_LANG}}|$article_lang|g" \
                 -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
                 "$ARTICLE_PROMPT_PATH")
-            echo "$article_prompt" | env -u CLAUDECODE claude -p --dangerously-skip-permissions > "$DIR/writing/article.md"
+            # Some environments may set ANTHROPIC_BASE_URL to an unreachable proxy for Claude Code CLI.
+            echo "$article_prompt" | env -u CLAUDECODE ANTHROPIC_BASE_URL="https://api.anthropic.com" claude -p --dangerously-skip-permissions > "$DIR/writing/article.md"
 
             if [ -f "$DIR/writing/article.md" ] && [ -s "$DIR/writing/article.md" ]; then
                 echo "Article generated successfully"
@@ -532,7 +533,8 @@ if mode_has_transcript; then
                 -e "s|{{OUTPUT_PATH}}|$DIR/writing/summary.md|g" \
                 -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
                 "$SCRIPT_DIR/summary_prompt.txt")
-            echo "$summary_prompt" | env -u CLAUDECODE claude -p --dangerously-skip-permissions > "$DIR/writing/summary.md"
+            # Some environments may set ANTHROPIC_BASE_URL to an unreachable proxy for Claude Code CLI.
+            echo "$summary_prompt" | env -u CLAUDECODE ANTHROPIC_BASE_URL="https://api.anthropic.com" claude -p --dangerously-skip-permissions > "$DIR/writing/summary.md"
 
             if [ -f "$DIR/writing/summary.md" ] && [ -s "$DIR/writing/summary.md" ]; then
                 echo "Summary generated successfully"
