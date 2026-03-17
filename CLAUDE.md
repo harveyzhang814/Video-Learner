@@ -157,20 +157,20 @@ bash scripts/run.sh "<YouTube_URL>" FOCUS="<你想了解的内容>"
 ## 多引擎写作
 
 - **全局默认引擎（配置文件）**
-  - 复制 `scripts/settings.example.conf` 为 `scripts/settings.conf`，修改：
+  - 复制 `scripts/settings.example.conf` 为 `scripts/settings.conf`，可选设置：
     ```bash
-    WRITING_ENGINE_DEFAULT=claude    # 或 opencode
+    WRITING_ENGINE_DEFAULT=opencode   # 或 claude；不设或非法时回退为 opencode
     ```
-  - 该默认值会被 `scripts/llm_engine.sh` 读取，进而影响 `run.sh` / `generate_article.sh` / `generate_summary.sh` 的写作引擎。
+  - `scripts/llm_engine.sh` 会读取该默认值，影响 `run.sh` / `generate_article.sh` / `generate_summary.sh` 的写作引擎。
 - **单次覆盖（环境变量）**
-  - 即使配置了全局默认，也可以在单次命令中通过环境变量覆盖：
+  - 单次命令可通过环境变量覆盖全局默认：
     ```bash
     WRITING_ENGINE=opencode bash scripts/run.sh "<URL>" MODE=full_flow_transcript FOCUS="技术细节"
     WRITING_ENGINE=claude   bash scripts/run.sh "<URL>" MODE=full_flow_transcript FOCUS="技术细节"
     ```
 - **当前引擎实现**
   - `claude`：使用 Claude Code CLI。
-  - `opencode`：使用 OpenCode CLI `opencode run -m minimax-cn-coding-plan/MiniMax-M2.5 --format json`，通过 NDJSON 事件流抽取文本。
+  - `opencode`：使用 OpenCode CLI `opencode run -m minimax-cn-coding-plan/MiniMax-M2.5 --format json`（PTY），从 NDJSON 事件流抽取文本。
 
 ## 测试验证
 - 首次运行：下载视频+字幕，生成 original.md
