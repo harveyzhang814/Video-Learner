@@ -154,6 +154,15 @@ bash scripts/run.sh "<URL>" FOCUS="你想了解的内容"
 bash scripts/run.sh "<YouTube_URL>" FOCUS="<你想了解的内容>"
 ```
 
+## 多引擎写作
+
+- 默认写作引擎仍是 `claude`
+- 如需使用 OpenCode 作为写作引擎，可设置：
+  ```bash
+  WRITING_ENGINE=opencode bash scripts/run.sh "<URL>" MODE=full_flow_transcript FOCUS="技术细节"
+  ```
+- OpenCode 写作引擎通过本地 `opencode serve` 的 headless HTTP 接口运行，模型固定为 `minimax-cn-coding-plan/MiniMax-M2.5`
+
 ## 测试验证
 - 首次运行：下载视频+字幕，生成 original.md
 - 如果没有 FOCUS：提示用户输入重点
