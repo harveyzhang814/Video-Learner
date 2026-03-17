@@ -117,6 +117,16 @@ echo "DIR: $DIR"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/yt-dlp-cookies.sh"
 
+ARTICLE_PROMPT_TMP=""
+SUMMARY_PROMPT_TMP=""
+
+cleanup_tmp_files() {
+    [ -n "$ARTICLE_PROMPT_TMP" ] && [ -f "$ARTICLE_PROMPT_TMP" ] && rm -f "$ARTICLE_PROMPT_TMP"
+    [ -n "$SUMMARY_PROMPT_TMP" ] && [ -f "$SUMMARY_PROMPT_TMP" ] && rm -f "$SUMMARY_PROMPT_TMP"
+}
+
+trap cleanup_tmp_files EXIT
+
 # Tool versions
 YT_DLP_VER=$(yt-dlp $YT_DLP_COOKIE_OPTS --version 2>/dev/null || echo "unknown")
 FFMPEG_VER=$(ffmpeg -version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1 || echo "unknown")
@@ -487,13 +497,16 @@ if mode_has_transcript; then
 
             # Generate article using Claude CLI
             ARTICLE_PROMPT_PATH="$SCRIPT_DIR/article_prompt.txt"
+            ARTICLE_PROMPT_TMP="$(mktemp)"
             article_prompt=$(sed -e "s|{{ORIGINAL_PATH}}|$transcript_file|g" \
                 -e "s|{{OUTPUT_PATH}}|$DIR/writing/article.md|g" \
                 -e "s|{{SOURCE_LANG}}|$article_lang|g" \
                 -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
                 "$ARTICLE_PROMPT_PATH")
-            # Some environments may set ANTHROPIC_BASE_URL to an unreachable proxy for Claude Code CLI.
-            echo "$article_prompt" | env -u CLAUDECODE ANTHROPIC_BASE_URL="https://api.anthropic.com" claude -p --dangerously-skip-permissions > "$DIR/writing/article.md"
+            printf '%s\n' "$article_prompt" > "$ARTICLE_PROMPT_TMP"
+            WRITING_ENGINE="${WRITING_ENGINE:-claude}" bash "$SCRIPT_DIR/llm_engine.sh" \
+                --input "$ARTICLE_PROMPT_TMP" \
+                --output "$DIR/writing/article.md"
 
             if [ -f "$DIR/writing/article.md" ] && [ -s "$DIR/writing/article.md" ]; then
                 echo "Article generated successfully"
@@ -528,13 +541,16 @@ if mode_has_transcript; then
 
             # Generate summary using Claude CLI
             SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+            SUMMARY_PROMPT_TMP="$(mktemp)"
             summary_prompt=$(sed -e "s/{{FOCUS}}/$current_focus/g" \
                 -e "s|{{ARTICLE_PATH}}|$DIR/writing/article.md|g" \
                 -e "s|{{OUTPUT_PATH}}|$DIR/writing/summary.md|g" \
                 -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
                 "$SCRIPT_DIR/summary_prompt.txt")
-            # Some environments may set ANTHROPIC_BASE_URL to an unreachable proxy for Claude Code CLI.
-            echo "$summary_prompt" | env -u CLAUDECODE ANTHROPIC_BASE_URL="https://api.anthropic.com" claude -p --dangerously-skip-permissions > "$DIR/writing/summary.md"
+            printf '%s\n' "$summary_prompt" > "$SUMMARY_PROMPT_TMP"
+            WRITING_ENGINE="${WRITING_ENGINE:-claude}" bash "$SCRIPT_DIR/llm_engine.sh" \
+                --input "$SUMMARY_PROMPT_TMP" \
+                --output "$DIR/writing/summary.md"
 
             if [ -f "$DIR/writing/summary.md" ] && [ -s "$DIR/writing/summary.md" ]; then
                 echo "Summary generated successfully"
