@@ -46,6 +46,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OPENCODE_SERVER_STARTED="0"
 
 run_claude() {
+  if ! command -v claude >/dev/null 2>&1; then
+    echo "claude not found in PATH. Install Claude Code or make sure the claude CLI is available before using WRITING_ENGINE=claude." >&2
+    exit 127
+  fi
+
   env -u CLAUDECODE ANTHROPIC_BASE_URL="https://api.anthropic.com" \
     claude -p --dangerously-skip-permissions < "$INPUT_FILE" > "$OUTPUT_FILE"
 }
