@@ -504,7 +504,7 @@ if mode_has_transcript; then
                 -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
                 "$ARTICLE_PROMPT_PATH")
             printf '%s\n' "$article_prompt" > "$ARTICLE_PROMPT_TMP"
-            WRITING_ENGINE="${WRITING_ENGINE:-claude}" bash "$SCRIPT_DIR/llm_engine.sh" \
+            WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
                 --input "$ARTICLE_PROMPT_TMP" \
                 --output "$DIR/writing/article.md"
 
@@ -548,7 +548,7 @@ if mode_has_transcript; then
                 -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
                 "$SCRIPT_DIR/summary_prompt.txt")
             printf '%s\n' "$summary_prompt" > "$SUMMARY_PROMPT_TMP"
-            WRITING_ENGINE="${WRITING_ENGINE:-claude}" bash "$SCRIPT_DIR/llm_engine.sh" \
+            WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
                 --input "$SUMMARY_PROMPT_TMP" \
                 --output "$DIR/writing/summary.md"
 

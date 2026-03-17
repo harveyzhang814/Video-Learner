@@ -77,7 +77,7 @@ sed -e "s|{{ORIGINAL_PATH}}|$ORIGINAL_PATH|g" \
     "$PROMPT_TEMPLATE" > "$TEMP_PROMPT"
 
 # Call the writing engine to generate article output.
-WRITING_ENGINE="${WRITING_ENGINE:-claude}" bash "$SCRIPT_DIR/llm_engine.sh" \
+WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
     --input "$TEMP_PROMPT" \
     --output "$OUTPUT_PATH"
 

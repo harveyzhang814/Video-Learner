@@ -3,18 +3,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SETTINGS_FILE="$SCRIPT_DIR/settings.conf"
 
-# Load global defaults from scripts/settings.conf if present.
-if [[ -f "$SCRIPT_DIR/settings.conf" ]]; then
-  # shellcheck disable=SC1090
-  source "$SCRIPT_DIR/settings.conf"
+if [ -f "$SETTINGS_FILE" ]; then
+  # shellcheck source=/dev/null
+  source "$SETTINGS_FILE"
 fi
 
-# Precedence:
-# 1. env WRITING_ENGINE（单次覆盖）
-# 2. settings.conf 中的 WRITING_ENGINE_DEFAULT
-# 3. 内置默认 claude
-WRITING_ENGINE="${WRITING_ENGINE:-${WRITING_ENGINE_DEFAULT:-claude}}"
 INPUT_FILE=""
 OUTPUT_FILE=""
 
@@ -53,6 +48,20 @@ if [[ ! -f "$INPUT_FILE" ]]; then
   echo "Input file not found: $INPUT_FILE" >&2
   exit 1
 fi
+
+# Resolve final writing engine with precedence:
+# 1) explicit WRITING_ENGINE
+# 2) WRITING_ENGINE_DEFAULT from settings.conf
+# 3) hard fallback: opencode
+raw_engine="${WRITING_ENGINE:-${WRITING_ENGINE_DEFAULT:-opencode}}"
+case "$raw_engine" in
+  claude|opencode)
+    WRITING_ENGINE="$raw_engine"
+    ;;
+  *)
+    WRITING_ENGINE="opencode"
+    ;;
+esac
 
 run_claude() {
   if ! command -v claude >/dev/null 2>&1; then
