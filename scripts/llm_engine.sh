@@ -74,67 +74,67 @@ run_claude() {
 }
 
 run_opencode() {
-  # Use opencode run via a pseudo-TTY to avoid non-interactive hangs in some environments.
-  # We stream JSON events (--format json) and extract all text parts.
-  python3 - "$INPUT_FILE" <<'PY' >"$OUTPUT_FILE"
-import io, json, os, pty, sys
+  # Use opencode serve + HTTP instead of opencode run + PTY.
 
-if len(sys.argv) < 2:
-    sys.stderr.write("usage: llm_engine_opencode.py <prompt_file>\n")
-    sys.exit(1)
+  # Ensure helper script is available
+  local server_script="$SCRIPT_DIR/opencode_server.sh"
+  if [[ ! -f "$server_script" ]]; then
+    echo "opencode_server.sh not found next to llm_engine.sh: $server_script" >&2
+    exit 1
+  fi
 
-prompt_path = sys.argv[1]
-try:
-    with open(prompt_path, "r", encoding="utf-8") as f:
-        prompt = f.read()
-except Exception as e:
-    sys.stderr.write(f"failed to read prompt file: {e}\n")
-    sys.exit(1)
+  # shellcheck source=/dev/null
+  source "$server_script"
 
-cmd = [
-    "opencode",
-    "run",
-    "-m",
-    "minimax-cn-coding-plan/MiniMax-M2.5",
-    "--format",
-    "json",
-    prompt,
-]
+  # Ensure server is up
+  if ! opencode_server_ensure; then
+    echo "Failed to start or reach opencode serve HTTP server." >&2
+    exit 1
+  fi
 
-buf = io.StringIO()
+  local base_url
+  base_url="$(opencode_server_base_url)"
 
-def _reader(fd):
-    data = os.read(fd, 4096)
-    if not data:
-        return data
-    try:
-        text = data.decode("utf-8", errors="ignore")
-    except Exception:
-        return data
-    buf.write(text)
-    return data
+  # Create a session
+  local session_json session_id
+  if ! session_json="$(curl -fsS -H "Content-Type: application/json" \
+    -d "{\"title\":\"video-learner-writing-$(date -u +%Y%m%dT%H%M%SZ)\"}" \
+    "${base_url}/session")"; then
+    echo "Failed to create OpenCode session via HTTP." >&2
+    exit 1
+  fi
 
-code = pty.spawn(cmd, _reader)
-if code != 0:
-    sys.stderr.write(f"opencode run exited with code {code}\n")
-    sys.exit(code)
+  session_id="$(printf '%s\n' "$session_json" | jq -r '.id // empty')" || session_id=""
+  if [[ -z "$session_id" || "$session_id" == "null" ]]; then
+    echo "OpenCode session response missing id: $session_json" >&2
+    exit 1
+  fi
 
-raw = buf.getvalue()
-texts = []
-for line in raw.splitlines():
-    line = line.strip()
-    if not line or not line.startswith("{"):
-        continue
-    try:
-        obj = json.loads(line)
-    except Exception:
-        continue
-    part = obj.get("part") or obj
-    if part.get("type") == "text" and isinstance(part.get("text"), str):
-        texts.append(part["text"])
+  # Read prompt file and JSON-encode as a string
+  local prompt_json
+  if ! prompt_json="$(jq -Rs . < "$INPUT_FILE")"; then
+    echo "Failed to JSON-encode prompt from $INPUT_FILE" >&2
+    exit 1
+  fi
 
-sys.stdout.write("".join(texts))
-PY
+  # Send message and capture response
+  local msg_json
+  if ! msg_json="$(curl -fsS -H "Content-Type: application/json" \
+    -d "{\"parts\":[{\"type\":\"text\",\"text\":${prompt_json}}],\"model\":{\"providerID\":\"minimax-cn-coding-plan\",\"modelID\":\"MiniMax-M2.5\"}}" \
+    "${base_url}/session/${session_id}/message")"; then
+    echo "Failed to send message to OpenCode session ${session_id}." >&2
+    exit 1
+  fi
+
+  # Extract all text parts and write to output
+  if ! printf '%s\n' "$msg_json" | jq -r '
+    .parts
+    | map(select(.type == "text") | .text // "")
+    | join("")
+  ' > "$OUTPUT_FILE"; then
+    echo "Failed to parse OpenCode response JSON." >&2
+    exit 1
+  fi
 }
 
 case "$WRITING_ENGINE" in
