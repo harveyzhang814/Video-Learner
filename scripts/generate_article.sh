@@ -36,6 +36,14 @@ if [ ! -f "$ORIGINAL_PATH" ]; then
     exit 1
 fi
 
+# Prefer English transcript as article input when available.
+# This matters because the article step often benefits from original terminology and code identifiers.
+ORIGINAL_DIR="$(cd "$(dirname "$ORIGINAL_PATH")" && pwd)"
+EN_ORIGINAL_PATH="$ORIGINAL_DIR/original_en.md"
+if [[ "$ORIGINAL_PATH" == *"/original_zh.md" ]] && [ -f "$EN_ORIGINAL_PATH" ] && [ -s "$EN_ORIGINAL_PATH" ]; then
+    ORIGINAL_PATH="$EN_ORIGINAL_PATH"
+fi
+
 # Validate prompt template exists
 if [ ! -f "$PROMPT_TEMPLATE" ]; then
     echo "[STATUS] article_error: Prompt template not found: $PROMPT_TEMPLATE"
