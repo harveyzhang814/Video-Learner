@@ -1,6 +1,11 @@
 #!/bin/bash
 # YouTube Pipeline: Download -> Transcript -> Summary
 # Usage: bash scripts/run.sh "<URL>" [LANG=auto] [OUTPUT_LANG=zh-CN] [MODE=full_flow_video|full_flow_audio|full_flow_transcript|download_video|download_audio|get_transcript|write_article|summarize] [FORCE=0|1] [FOCUS="..."]
+#
+# NOTE:
+# - `scripts/run.sh` 是 CLI 一键脚本入口，当前主要用于人工测试/手工批处理。
+# - 正式的 GUI（Electron）与 Agent Service（HTTP 服务）均通过编排层入口 `core/orchestrator` 调度各步骤脚本。
+# - 新增能力应优先在编排层实现，避免 CLI 与编排层长期分叉。
 
 # Fix locale warning
 export LC_ALL=en_US.UTF-8

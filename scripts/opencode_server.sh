@@ -2,6 +2,19 @@
 
 set -euo pipefail
 
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  bash scripts/opencode_server.sh ensure
+  bash scripts/opencode_server.sh stop-if-started
+  bash scripts/opencode_server.sh health
+
+Env:
+  OPENCODE_HOST (default 127.0.0.1)
+  OPENCODE_PORT (default 4097)
+EOF
+}
+
 opencode_server_base_url() {
   local host="${OPENCODE_HOST:-127.0.0.1}"
   local port="${OPENCODE_PORT:-4097}"
@@ -77,4 +90,32 @@ opencode_server_stop_if_started() {
 
   rm -f "$pid_file"
 }
+
+main() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    ensure)
+      opencode_server_ensure
+      ;;
+    stop-if-started)
+      opencode_server_stop_if_started
+      ;;
+    health)
+      opencode_server_health
+      ;;
+    ""|-h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown command: $cmd" >&2
+      usage
+      exit 2
+      ;;
+  esac
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi
 
