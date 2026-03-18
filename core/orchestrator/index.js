@@ -19,6 +19,7 @@ let globalEventSeq = 1;
 // Per (taskId, stepName) download progress state for yt-dlp video/audio steps.
 // Map key: `${taskId}:${stepName}` -> { lastSentAt: number, lastSentPercent: number|null }
 const downloadProgressState = new Map();
+let activeRunTasks = 0;
 
 function emitOrchestratorEvent(type, taskId, payload = {}) {
   const ev = {
@@ -656,36 +657,109 @@ async function runTask(taskId, options = {}) {
     return; // already running
   }
 
+  activeRunTasks += 1;
   task.status = 'running';
   task.updated_at = new Date().toISOString();
   emitOrchestratorEvent('task.updated', taskId, { status: task.status });
 
   const { mode, focus } = task.params;
 
-  // Step 0: fetch
-  await runStep(taskId, 'fetch');
+  try {
+    // Step 0: fetch
+    await runStep(taskId, 'fetch');
 
-  // Media download based on mode
-  if (mode === 'both' || mode === 'video') {
-    await runStep(taskId, 'video', { force: task.params.force });
-  } else if (mode === 'audio') {
-    await runStep(taskId, 'audio', { force: task.params.force });
+    // Media download based on mode
+    if (mode === 'both' || mode === 'video') {
+      await runStep(taskId, 'video', { force: task.params.force });
+    } else if (mode === 'audio') {
+      await runStep(taskId, 'audio', { force: task.params.force });
+    }
+
+    // Transcript-related steps
+    await runStep(taskId, 'subs');
+    await runStep(taskId, 'vtt2md');
+    await runStep(taskId, 'md2vtt');
+    await runStep(taskId, 'article');
+    await runStep(taskId, 'summary', { focus });
+
+    updateTaskMetaFromFilesystem(task);
+
+    // Mark overall task status based on last step
+    const failedStep = Object.values(task.steps || {}).find((s) => s.status === 'failed');
+    task.status = failedStep ? 'failed' : 'completed';
+    task.updated_at = new Date().toISOString();
+    emitOrchestratorEvent('task.updated', taskId, { status: task.status });
+  } finally {
+    // Decrement active counter exactly once per runTask invocation.
+    activeRunTasks = Math.max(0, activeRunTasks - 1);
+
+    try {
+      // Re-check outputs and reconcile step/meta state one last time.
+      updateTaskMetaFromFilesystem(task);
+
+      const rootDir = task.params && task.params.rootDir;
+      const id = task.meta && task.meta.id;
+      if (rootDir && id) {
+        const db = ensureDb(rootDir);
+        const steps = task.steps || initSteps();
+
+        const baseDir = getWorkDir(rootDir, id);
+        const transcriptDir = path.join(baseDir, 'transcript');
+        const writingDir = path.join(baseDir, 'writing');
+        const hasTranscript = fs.existsSync(path.join(transcriptDir, 'original_en.md')) || fs.existsSync(path.join(transcriptDir, 'original_zh.md'));
+        const hasArticle = fs.existsSync(path.join(writingDir, 'article.md'));
+        const hasSummary = fs.existsSync(path.join(writingDir, 'summary.md'));
+
+        // Only reconcile statuses if they look inconsistent with filesystem outputs.
+        if (hasTranscript && (steps.vtt2md?.status === 'failed' || steps.vtt2md?.status === 'pending')) {
+          steps.vtt2md = { ...(steps.vtt2md || {}), status: 'completed', error: null };
+          db.updateStep(id, 'vtt2md', 'completed');
+        }
+        if (hasArticle && (steps.article?.status === 'failed' || steps.article?.status === 'pending')) {
+          steps.article = { ...(steps.article || {}), status: 'completed', error: null };
+          db.updateStep(id, 'article', 'completed');
+        }
+        if (hasSummary && (steps.summary?.status === 'failed' || steps.summary?.status === 'pending')) {
+          steps.summary = { ...(steps.summary || {}), status: 'completed', error: null };
+          db.updateStep(id, 'summary', 'completed');
+        }
+
+        // If outputs are missing but step says completed, mark failed (keep error light).
+        if (!hasArticle && steps.article?.status === 'completed') {
+          steps.article = { ...(steps.article || {}), status: 'failed', error: 'article.md missing after step completed' };
+          db.updateStep(id, 'article', 'failed', steps.article.error);
+        }
+        if (!hasSummary && steps.summary?.status === 'completed') {
+          steps.summary = { ...(steps.summary || {}), status: 'failed', error: 'summary.md missing after step completed' };
+          db.updateStep(id, 'summary', 'failed', steps.summary.error);
+        }
+
+        task.steps = steps;
+
+        emitOrchestratorEvent('task.finalized', taskId, {
+          outputs: { transcript: hasTranscript, article: hasArticle, summary: hasSummary }
+        });
+
+        // Stop opencode server for this repo when no other runTask is active.
+        // (Future-proof for concurrency: only last task triggers stop.)
+        if (activeRunTasks === 0) {
+          try {
+            const script = path.join(rootDir, 'scripts', 'opencode_server.sh');
+            // Run stop as a standalone bash command (not a step).
+            await new Promise((resolve) => {
+              const proc = spawn('bash', [script, 'stop-if-started'], { cwd: rootDir, env: spawnEnv() });
+              proc.on('close', () => resolve());
+              proc.on('error', () => resolve());
+            });
+          } catch (_) {
+            // ignore
+          }
+        }
+      }
+    } catch (_) {
+      // ignore finalize errors
+    }
   }
-
-  // Transcript-related steps
-  await runStep(taskId, 'subs');
-  await runStep(taskId, 'vtt2md');
-  await runStep(taskId, 'md2vtt');
-  await runStep(taskId, 'article');
-  await runStep(taskId, 'summary', { focus });
-
-  updateTaskMetaFromFilesystem(task);
-
-  // Mark overall task status based on last step
-  const failedStep = Object.values(task.steps || {}).find((s) => s.status === 'failed');
-  task.status = failedStep ? 'failed' : 'completed';
-  task.updated_at = new Date().toISOString();
-  emitOrchestratorEvent('task.updated', taskId, { status: task.status });
 }
 
 async function getTask(taskId, options = {}) {

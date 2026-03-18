@@ -1,6 +1,11 @@
 #!/bin/bash
 # YouTube Pipeline: Download -> Transcript -> Summary
 # Usage: bash scripts/run.sh "<URL>" [LANG=auto] [OUTPUT_LANG=zh-CN] [MODE=full_flow_video|full_flow_audio|full_flow_transcript|download_video|download_audio|get_transcript|write_article|summarize] [FORCE=0|1] [FOCUS="..."]
+#
+# NOTE:
+# - `scripts/run.sh` 是 CLI 一键脚本入口，当前主要用于人工测试/手工批处理。
+# - 正式的 GUI（Electron）与 Agent Service（HTTP 服务）均通过编排层入口 `core/orchestrator` 调度各步骤脚本。
+# - 新增能力应优先在编排层实现，避免 CLI 与编排层长期分叉。
 
 # Fix locale warning
 export LC_ALL=en_US.UTF-8
@@ -116,6 +121,16 @@ echo "DIR: $DIR"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/yt-dlp-cookies.sh"
+
+ARTICLE_PROMPT_TMP=""
+SUMMARY_PROMPT_TMP=""
+
+cleanup_tmp_files() {
+    [ -n "$ARTICLE_PROMPT_TMP" ] && [ -f "$ARTICLE_PROMPT_TMP" ] && rm -f "$ARTICLE_PROMPT_TMP"
+    [ -n "$SUMMARY_PROMPT_TMP" ] && [ -f "$SUMMARY_PROMPT_TMP" ] && rm -f "$SUMMARY_PROMPT_TMP"
+}
+
+trap cleanup_tmp_files EXIT
 
 # Tool versions
 YT_DLP_VER=$(yt-dlp $YT_DLP_COOKIE_OPTS --version 2>/dev/null || echo "unknown")
@@ -487,12 +502,16 @@ if mode_has_transcript; then
 
             # Generate article using Claude CLI
             ARTICLE_PROMPT_PATH="$SCRIPT_DIR/article_prompt.txt"
+            ARTICLE_PROMPT_TMP="$(mktemp)"
             article_prompt=$(sed -e "s|{{ORIGINAL_PATH}}|$transcript_file|g" \
                 -e "s|{{OUTPUT_PATH}}|$DIR/writing/article.md|g" \
                 -e "s|{{SOURCE_LANG}}|$article_lang|g" \
                 -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
                 "$ARTICLE_PROMPT_PATH")
-            echo "$article_prompt" | env -u CLAUDECODE claude -p --dangerously-skip-permissions > "$DIR/writing/article.md"
+            printf '%s\n' "$article_prompt" > "$ARTICLE_PROMPT_TMP"
+            WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
+                --input "$ARTICLE_PROMPT_TMP" \
+                --output "$DIR/writing/article.md"
 
             if [ -f "$DIR/writing/article.md" ] && [ -s "$DIR/writing/article.md" ]; then
                 echo "Article generated successfully"
@@ -527,12 +546,16 @@ if mode_has_transcript; then
 
             # Generate summary using Claude CLI
             SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+            SUMMARY_PROMPT_TMP="$(mktemp)"
             summary_prompt=$(sed -e "s/{{FOCUS}}/$current_focus/g" \
                 -e "s|{{ARTICLE_PATH}}|$DIR/writing/article.md|g" \
                 -e "s|{{OUTPUT_PATH}}|$DIR/writing/summary.md|g" \
                 -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
                 "$SCRIPT_DIR/summary_prompt.txt")
-            echo "$summary_prompt" | env -u CLAUDECODE claude -p --dangerously-skip-permissions > "$DIR/writing/summary.md"
+            printf '%s\n' "$summary_prompt" > "$SUMMARY_PROMPT_TMP"
+            WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
+                --input "$SUMMARY_PROMPT_TMP" \
+                --output "$DIR/writing/summary.md"
 
             if [ -f "$DIR/writing/summary.md" ] && [ -s "$DIR/writing/summary.md" ]; then
                 echo "Summary generated successfully"

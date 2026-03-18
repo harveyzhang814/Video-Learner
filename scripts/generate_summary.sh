@@ -57,20 +57,20 @@ update_step "$TASK_ID" "summary" "running"
 
 # Create temporary prompt file with replaced placeholders
 TEMP_PROMPT=$(mktemp)
+cleanup() {
+    rm -f "$TEMP_PROMPT"
+}
+trap cleanup EXIT
 sed -e "s|{{FOCUS}}|$FOCUS|g" \
     -e "s|{{ARTICLE_PATH}}|$ARTICLE_PATH|g" \
     -e "s|{{OUTPUT_PATH}}|$OUTPUT_PATH|g" \
     -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
     "$PROMPT_TEMPLATE" > "$TEMP_PROMPT"
 
-# Call Claude CLI to generate summary (unset CLAUDECODE to allow nested sessions)
-unset CLAUDECODE
-claude -p --dangerously-skip-permissions < "$TEMP_PROMPT" > "$OUTPUT_PATH"
-
-# Clean up temp file
-rm -f "$TEMP_PROMPT"
-
-if [ $? -eq 0 ]; then
+# Call the writing engine to generate summary output.
+if WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
+    --input "$TEMP_PROMPT" \
+    --output "$OUTPUT_PATH"; then
     # Update database
     update_step "$TASK_ID" "summary" "completed"
     echo "[STATUS] summary_done"
