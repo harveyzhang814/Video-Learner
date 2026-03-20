@@ -6,8 +6,21 @@
 
 set -euo pipefail
 
-URL="$1"
-DIR="$2"
+# SCRIPT_DIR is needed even for offline planning mode.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Offline/unit-test planning mode:
+# When AVAILABLE_SUBS_OVERRIDE is non-empty, we must only emit the planning output
+# (and never call yt-dlp download functions).
+if [ -n "${AVAILABLE_SUBS_OVERRIDE:-}" ]; then
+    # shellcheck source=/dev/null
+    source "$SCRIPT_DIR/subtitle_fallback_plan.sh"
+    plan_subtitle_fallback_attempts "${AVAILABLE_SUBS_OVERRIDE:-}"
+    exit 0
+fi
+
+URL="${1:-}"
+DIR="${2:-}"
 ID="${3:-}"
 
 if [ -z "$URL" ] || [ -z "$DIR" ]; then
@@ -26,19 +39,8 @@ if [ -z "$ID" ]; then
 fi
 
 # Database path
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 DB_PATH="$PROJECT_DIR/work/database.sqlite"
-
-# Offline/unit-test planning mode:
-# When AVAILABLE_SUBS_OVERRIDE is non-empty, we must only emit the planning output
-# (and never call yt-dlp download functions).
-if [ -n "${AVAILABLE_SUBS_OVERRIDE:-}" ]; then
-    # shellcheck source=/dev/null
-    source "$SCRIPT_DIR/subtitle_fallback_plan.sh"
-    plan_subtitle_fallback_attempts "$AVAILABLE_SUBS_OVERRIDE"
-    exit 0
-fi
 
 # Initialize database
 source "$SCRIPT_DIR/db.sh"
@@ -55,7 +57,7 @@ if ! mkdir -p "$SUBS_DIR"; then
 fi
 
 # Trap for cleanup on interrupt (after SUBS_DIR is defined)
-trap 'rm -f "$SUBS_DIR"/${ID}.*.temp.* 2>/dev/null; exit 1' INT TERM
+trap 'rm -f "${SUBS_DIR}/${ID}".*.temp.* 2>/dev/null; exit 1' INT TERM
 
 echo "[STATUS] subs_start"
 
@@ -64,9 +66,9 @@ update_step "$ID" "subs" "running"
 
 # Detect available subtitles
 echo "Detecting available subtitles..."
-available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh|zh-TW|zh-Hans|zh-Hant)[[:space:]]/{print $1}' | head -20)
+available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh|zh-TW|zh-Hans|zh-Hant)[[:space:]]/{print $1}' | head -20 || true)
 if [ -z "$available_subs" ]; then
-    available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20)
+    available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20 || true)
 fi
 echo "Available subtitles: ${available_subs:-none}"
 
@@ -106,7 +108,7 @@ download_subtitle_for_lang() {
 
     # Find and rename the downloaded file
     local downloaded
-    downloaded=$(ls "${outfile_base}".* 2>/dev/null | head -1)
+    downloaded=$(ls "${outfile_base}".* 2>/dev/null | head -1 || true)
     if [ -n "$downloaded" ] && [ -s "$downloaded" ]; then
         # Rename to .vtt if not already
         if [ "$downloaded" != "${outfile_base}.vtt" ]; then
@@ -198,7 +200,7 @@ fi
 
 # List downloaded files
 echo "=== Downloaded subtitles ==="
-ls -la "$SUBS_DIR"/${ID}.*.vtt 2>/dev/null || echo "No subtitles downloaded"
+ls -la "${SUBS_DIR}/${ID}".*.vtt 2>/dev/null || echo "No subtitles downloaded"
 
 # Output status
 if [ "$en_downloaded" = true ] || [ "$zh_downloaded" = true ]; then
