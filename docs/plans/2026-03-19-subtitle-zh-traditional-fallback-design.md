@@ -13,7 +13,7 @@
 
 新增保底规则：
 
-- **仅当英文与简体中文都没有“人工/原始字幕（original）”时**，才启用繁体中文字幕兜底。
+- **仅当英文与简体中文都“没有成功下载到任何字幕（original 或 auto）”时**，才启用繁体中文字幕兜底。
 - 兜底时优先下载 **繁体 original**；若仍不可用，再尝试 **繁体 auto**。
 - 保持对下游处理的兼容：繁体兜底最终仍写入 `zh` 通道（即生成 `<id>.zh.(original|auto).vtt`，并转换为 `original_zh.md`）。
 
@@ -24,21 +24,15 @@
 
 ## 触发条件（精确定义）
 
-### 字幕存在性的口径
+触发判断使用 **“是否已成功下载到至少一份字幕”** 的口径（original + auto 都算“有字幕”）：
 
-本功能的触发判断使用 **original 维度**：
-
-- **英文缺失**：未成功下载英文 original（`en-orig`）。
-- **简体缺失**：未成功下载简体中文 original（`zh-Hans`）。
-
-> 备注：即使存在 auto 字幕，也不影响“original 是否缺失”的判断。兜底触发依然只看 original 缺失与否。
-
-### 繁体兜底触发
+- **英文缺失**：`en-orig`（original）下载失败/缺失，且 `en`（auto）也下载失败/缺失。
+- **简体缺失**：`zh-Hans`（original/auto）下载失败/缺失，且 `zh`（generic auto）也下载失败/缺失。
 
 当且仅当：
 
-- `en_original_downloaded == false` 且
-- `zh_hans_original_downloaded == false`
+- `en_any_downloaded == false` 且
+- `zh_any_downloaded == false`
 
 才进入繁体兜底下载流程。
 
@@ -80,7 +74,8 @@
 ## 测试策略（最小集）
 
 - 单测/脚本级：扩展 `scripts/test_subtitle.sh` 或新增覆盖用例，至少验证：
-  - `en-orig` 不存在、`zh-Hans` 不存在、但 `zh-TW` 存在时，会下载到 `*.zh.original.vtt`
+  - `en` 与 `zh` 都缺失/不可下载时，且 `zh-TW` 存在，会下载到 `*.zh.original.vtt`
   - `zh-TW` original 不存在但 auto 存在时，会下载到 `*.zh.auto.vtt`
-  - 当 `en-orig` 或 `zh-Hans` 任意一个存在时，不会触发繁体兜底（即不会尝试 `zh-TW/zh-Hant`）
+  - 当 `en`（auto）存在并可成功下载时，不会触发繁体兜底（即不会尝试 `zh-TW/zh-Hant`）
+  - 当 `zh`（generic auto）存在并可成功下载时，不会触发繁体兜底（即不会尝试 `zh-TW/zh-Hant`）
 

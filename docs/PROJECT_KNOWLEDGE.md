@@ -349,8 +349,9 @@ work/
 ### 8.3 双语字幕处理与回退
 
 - **语言优先级：**
-  - 英文：`en-orig` > `en`（auto）
-  - 中文：`zh-Hans`/`zh-Hant`（original/auto）> `zh`（auto）
+  - 英文：`en-orig`（original）> `en`（auto）
+  - 中文（简体优先）：`zh-Hans`（original/auto）> `zh`（generic auto）
+  - 中文（繁体兜底）：仅当英文与简体都缺失（original/auto 都没成功下载）时，才尝试 `zh-TW`/`zh-Hant`（original 优先，其次 auto）
 - **来源字段：**
   - `transcript_source`：`youtube_transcript` / `subtitle` / `existing` / `asr_missing` / `none`。
   - 若有音频但无字幕 → 典型为 `asr_missing`，为未来对接 ASR 预留空间。
