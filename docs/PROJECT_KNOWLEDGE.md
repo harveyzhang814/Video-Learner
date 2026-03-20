@@ -102,6 +102,41 @@ Video-Learner/
 
 > 记忆点：**业务逻辑基本一致，差异集中在「状态存储」与「入口形式」上。**
 
+### 3.2 调用链路时序图（GUI vs API vs CLI）
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User
+  participant CLI as CLI: `scripts/run.sh`
+  participant Electron as Electron GUI
+  participant Renderer as Renderer/`ServiceClient`
+  participant HTTP as `services/http-server` (Koa + SSE)
+  participant Orchestrator as `core/orchestrator`
+  participant Step as `scripts/*.sh` (fetch/video/audio/subs/vtt2md/md2vtt/article/summary)
+  participant FS as `work/<id>/` (outputs + `logs/`)
+
+  alt CLI 一键模式
+    User->>CLI: bash `scripts/run.sh` "<URL>" MODE=...
+    CLI->>FS: 创建目录 `work/<id>/...`
+    CLI->>Step: 直接串行/并行调用步骤脚本
+    Note over Step,FS: `*.raw.log` 落到 `work/<id>/logs/`；并汇总到 `task.log.jsonl`
+    Step->>FS: 写入产物（media/transcript/writing）与原始日志
+  else GUI/HTTP 服务化模式（API 同理）
+    User->>Electron: 启动 Electron
+    Electron->>Renderer: 初始化 `ServiceClient(baseUrl, token)`
+    Renderer->>HTTP: `POST /api/tasks` 创建任务
+    HTTP->>Orchestrator: `createTask()` + `runTask()`（fire-and-forget）
+    Renderer->>HTTP: `GET /api/events?token=...` 订阅 SSE
+    Orchestrator->>Step: `runStep(stepName)` -> spawn `bash scripts/<step>.sh`
+    Note over Step,FS: 每个 step 的 stdout/stderr 逐行写入 `work/<id>/logs/<step>.raw.log`，并追加到 `work/<id>/logs/task.log.jsonl`
+    Step->>FS: 写入产物与日志归档
+    HTTP-->>Renderer: SSE：`task.* / step.* / log.appended`
+  end
+
+  Note over Orchestrator,FS: `log.appended`（SSE）主要用于 GUI 实时展示；持久化归档以 `work/<id>/logs/` 为准。
+```
+
 ### 3.1 运行入口约定（重要）
 
 - **正式入口**：
