@@ -156,6 +156,7 @@ function ensureWorkSubdirs(rootDir, id) {
   fs.mkdirSync(path.join(dir, 'media'), { recursive: true });
   fs.mkdirSync(path.join(dir, 'transcript', 'subs'), { recursive: true });
   fs.mkdirSync(path.join(dir, 'writing'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'logs'), { recursive: true });
 }
 
 function initSteps() {
@@ -390,13 +391,20 @@ function runStepScript(rootDir, stepName, args, opts = {}) {
     const proc = spawn('bash', [script, ...args], { cwd: rootDir, env: spawnEnv() });
 
     let output = '';
-    const onChunk = (data) => {
+    const onStdoutChunk = (data) => {
       const text = data.toString();
       output += text;
       if (opts.onOutput) opts.onOutput(text);
+      if (opts.onStdout) opts.onStdout(text);
     };
-    proc.stdout.on('data', onChunk);
-    proc.stderr.on('data', onChunk);
+    const onStderrChunk = (data) => {
+      const text = data.toString();
+      output += text;
+      if (opts.onOutput) opts.onOutput(text);
+      if (opts.onStderr) opts.onStderr(text);
+    };
+    proc.stdout.on('data', onStdoutChunk);
+    proc.stderr.on('data', onStderrChunk);
 
     proc.on('close', (code) => {
       resolve({ code, output });
@@ -458,6 +466,103 @@ async function runStep(taskId, stepName, options = {}) {
   const enMd = path.join(dir, 'transcript', 'original_en.md');
   const zhMd = path.join(dir, 'transcript', 'original_zh.md');
 
+  // Per-step unified logging:
+  // - raw: work/<id>/logs/<step>.raw.log
+  // - jsonl: work/<id>/logs/task.log.jsonl
+  const logsDir = path.join(dir, 'logs');
+  fs.mkdirSync(logsDir, { recursive: true });
+  const rawPath = path.join(logsDir, `${stepName}.raw.log`);
+  const jsonlPath = path.join(logsDir, 'task.log.jsonl');
+
+  const rawStream = fs.createWriteStream(rawPath, { flags: 'a' });
+  const jsonlStream = fs.createWriteStream(jsonlPath, { flags: 'a' });
+
+  let stdoutBuf = '';
+  let stderrBuf = '';
+  let logsFinished = false;
+
+  function getLevel(line) {
+    if (!line) return 'info';
+    if (/exception|traceback|error|failed|Error|Failed/i.test(line)) return 'error';
+    if (/warning|warn|WARN/i.test(line)) return 'warn';
+    return 'info';
+  }
+
+  function getSourceAndProgress(line) {
+    const parsed = parseYtDlpProgressLine(line.trim());
+    if (parsed) {
+      const { downloaded, total, speed, eta } = parsed;
+      const percent = total > 0 ? Math.max(0, Math.min(100, Math.round((downloaded / total) * 100))) : null;
+      return { source: 'yt-dlp', progress: { downloaded, total, speed, eta, percent } };
+    }
+    // Heuristic: ffmpeg progress lines usually contain both frame= and time=
+    if (/\bframe\s*=\s*\d+/.test(line) || /\btime\s*=\s*\d{2}:\d{2}:\d{2}/.test(line)) {
+      return { source: 'ffmpeg' };
+    }
+    return { source: 'script/other' };
+  }
+
+  function emitJsonlRecord({ stream, line }) {
+    const trimmed = String(line || '').trimEnd();
+    if (!trimmed.trim()) return;
+    const ts = new Date().toISOString();
+    const { source, progress } = getSourceAndProgress(trimmed);
+    const level = getLevel(trimmed);
+    const record = {
+      ts,
+      taskId,
+      step: stepName,
+      attempt: stepState.attempts,
+      stream,
+      source,
+      level,
+      line: trimmed
+    };
+    if (progress) record.progress = progress;
+    jsonlStream.write(`${JSON.stringify(record)}\n`);
+  }
+
+  function handleChunkText(text, stream) {
+    const s = String(text || '');
+    rawStream.write(s);
+    if (stream === 'stdout') stdoutBuf += s;
+    else stderrBuf += s;
+
+    const buf = stream === 'stdout' ? stdoutBuf : stderrBuf;
+    const parts = buf.split(/\r?\n/);
+    const tail = parts.pop() || '';
+    if (stream === 'stdout') stdoutBuf = tail;
+    else stderrBuf = tail;
+
+    for (const line of parts) {
+      emitJsonlRecord({ stream, line });
+    }
+  }
+
+  const onStdout = (text) => handleChunkText(text, 'stdout');
+  const onStderr = (text) => handleChunkText(text, 'stderr');
+
+  function finishLogs() {
+    if (logsFinished) return;
+    logsFinished = true;
+    try {
+      if (stdoutBuf && stdoutBuf.trim()) emitJsonlRecord({ stream: 'stdout', line: stdoutBuf });
+      if (stderrBuf && stderrBuf.trim()) emitJsonlRecord({ stream: 'stderr', line: stderrBuf });
+    } catch (_) {
+      // ignore
+    }
+    try {
+      rawStream.end();
+    } catch (_) {
+      // ignore
+    }
+    try {
+      jsonlStream.end();
+    } catch (_) {
+      // ignore
+    }
+  }
+
   let args = [];
 
   switch (stepName) {
@@ -484,7 +589,7 @@ async function runStep(taskId, stepName, options = {}) {
           const match = vtt.match(/\.([^.]+)\./);
           const lang = match && match[1] ? match[1] : 'en';
           const outPath = path.join(dir, 'transcript', `original_${lang}.md`);
-          const result = await runStepScript(rootDir, 'vtt2md', [path.join(subsDir, vtt), outPath], { onOutput: options.onOutput });
+          const result = await runStepScript(rootDir, 'vtt2md', [path.join(subsDir, vtt), outPath], { onOutput: options.onOutput, onStdout, onStderr });
           if (result.code !== 0) {
             errors.push(`${vtt}: ${result.output || 'failed'}`);
           }
@@ -497,19 +602,21 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.error = errors.join('\n');
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'failed', stepState.error);
+        finishLogs();
         return { success: false, error: stepState.error };
       }
       stepState.status = 'completed';
       task.steps[stepName] = stepState;
       db.updateStep(id, stepName, 'completed');
       updateTaskMetaFromFilesystem(task);
+      finishLogs();
       return { success: true };
     }
     case 'md2vtt': {
       const errors = [];
       if (fs.existsSync(enMd)) {
         try {
-          const result = await runStepScript(rootDir, 'md2vtt', [enMd, enMd.replace('.md', '.vtt')], { onOutput: options.onOutput });
+          const result = await runStepScript(rootDir, 'md2vtt', [enMd, enMd.replace('.md', '.vtt')], { onOutput: options.onOutput, onStdout, onStderr });
           if (result.code !== 0) {
             errors.push(`original_en.md: ${result.output || 'failed'}`);
           }
@@ -519,7 +626,7 @@ async function runStep(taskId, stepName, options = {}) {
       }
       if (fs.existsSync(zhMd)) {
         try {
-          const result = await runStepScript(rootDir, 'md2vtt', [zhMd, zhMd.replace('.md', '.vtt')], { onOutput: options.onOutput });
+          const result = await runStepScript(rootDir, 'md2vtt', [zhMd, zhMd.replace('.md', '.vtt')], { onOutput: options.onOutput, onStdout, onStderr });
           if (result.code !== 0) {
             errors.push(`original_zh.md: ${result.output || 'failed'}`);
           }
@@ -532,12 +639,14 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.error = errors.join('\n');
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'failed', stepState.error);
+        finishLogs();
         return { success: false, error: stepState.error };
       }
       stepState.status = 'completed';
       task.steps[stepName] = stepState;
       db.updateStep(id, stepName, 'completed');
       updateTaskMetaFromFilesystem(task);
+      finishLogs();
       return { success: true };
     }
     case 'article': {
@@ -551,6 +660,7 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.error = 'No transcript file found';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'failed', stepState.error);
+        finishLogs();
         return { success: false, error: stepState.error };
       }
       const outPath = path.join(dir, 'writing', 'article.md');
@@ -564,6 +674,7 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.error = 'article.md not found';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'failed', stepState.error);
+        finishLogs();
         return { success: false, error: stepState.error };
       }
       const summaryFocus = focus || task.meta.focus || '视频的主要内容和要点';
@@ -620,7 +731,7 @@ async function runStep(taskId, stepName, options = {}) {
       };
     }
 
-    const result = await runStepScript(rootDir, stepName, args, { onOutput });
+    const result = await runStepScript(rootDir, stepName, args, { onOutput, onStdout, onStderr });
     if (result.code === 0) {
       stepState.status = 'completed';
       stepState.error = null;
@@ -632,6 +743,7 @@ async function runStep(taskId, stepName, options = {}) {
     db.updateStep(id, stepName, stepState.status, stepState.error || null);
   }
 
+  finishLogs();
   updateTaskMetaFromFilesystem(task);
 
   emitOrchestratorEvent('step.finished', taskId, {

@@ -112,7 +112,7 @@ else
 fi
 
 DIR="work/$id"
-mkdir -p "$DIR/media" "$DIR/transcript/subs" "$DIR/writing"
+mkdir -p "$DIR/media" "$DIR/transcript/subs" "$DIR/writing" "$DIR/logs"
 
 echo "=== Pipeline Start ==="
 echo "URL: $URL"
@@ -120,6 +120,15 @@ echo "ID: $id"
 echo "DIR: $DIR"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOG_DIR="$DIR/logs"
+TASK_LOG_JSONL="$LOG_DIR/task.log.jsonl"
+RAW_FETCH="$LOG_DIR/fetch.raw.log"
+RAW_VIDEO="$LOG_DIR/video.raw.log"
+RAW_AUDIO="$LOG_DIR/audio.raw.log"
+RAW_SUBS="$LOG_DIR/subs.raw.log"
+RAW_ARTICLE="$LOG_DIR/article.raw.log"
+RAW_SUMMARY="$LOG_DIR/summary.raw.log"
+INGEST_SCRIPT="$SCRIPT_DIR/ingest_task_logs.js"
 source "$SCRIPT_DIR/yt-dlp-cookies.sh"
 
 ARTICLE_PROMPT_TMP=""
@@ -181,8 +190,9 @@ fi
 
 # === STEP 0: Get Video Info ===
 if [ "$FORCE" = "1" ] || [ "$(echo "$META" | jq -r '.title')" = "" ]; then
-    status "info_start"
-    info_json=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null || echo "{}")
+    : > "$RAW_FETCH"
+    status "info_start" | tee -a "$RAW_FETCH"
+    info_json=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>>"$RAW_FETCH" || echo "{}")
     title=$(echo "$info_json" | jq -r '.title // ""')
     duration=$(echo "$info_json" | jq -r '.duration // ""')
     lang=$(echo "$info_json" | jq -r '.language // "auto"')
@@ -192,8 +202,8 @@ if [ "$FORCE" = "1" ] || [ "$(echo "$META" | jq -r '.title')" = "" ]; then
     if [ "$LANG" = "auto" ]; then
         META=$(echo "$META" | jq --arg lang "$lang" '.lang = $lang')
     fi
-    echo "Title: $title, Duration: $duration"
-    status "info_done"
+    echo "Title: $title, Duration: $duration" | tee -a "$RAW_FETCH"
+    status "info_done" | tee -a "$RAW_FETCH"
 
     # Update index.jsonl immediately after getting title
     index_line=$(echo "$META" | jq -c '{url, id, ts, title, download_status, transcript_done, article_done, summary_done}')
@@ -203,6 +213,8 @@ if [ "$FORCE" = "1" ] || [ "$(echo "$META" | jq -r '.title')" = "" ]; then
     else
         echo "$index_line" >> work/index.jsonl
     fi
+
+    node "$INGEST_SCRIPT" --task-dir "$DIR" --step fetch --raw-path "$RAW_FETCH" --jsonl-path "$TASK_LOG_JSONL" --attempt 1 >/dev/null 2>&1 || true
 fi
 
 # === STEP 1: Video Download (Independent Background Process) ===
@@ -212,9 +224,26 @@ if mode_has_video; then
         status "video_start"
         SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
         # Start video download in background
+        : > "$RAW_VIDEO"
         nohup bash "$SCRIPT_DIR/download_video.sh" "$URL" "$DIR" "$FORCE" > "$DIR/media/video_download.log" 2>&1 &
-        echo "Video download PID: $! (running in background)"
+        VIDEO_PID=$!
+        echo "Video download PID: $VIDEO_PID (running in background)"
         echo "Progress: see $DIR/media/video_download.log"
+
+        # Post-ingest (after background download completes) to unified task.log.jsonl
+        nohup bash -c '
+          pid="$1"
+          taskDir="$2"
+          rawVideo="$3"
+          mediaLog="$4"
+          ingestScript="$5"
+          jsonlPath="$6"
+          wait "$pid" || true
+          if [ -f "$mediaLog" ]; then
+            ln -sf "$mediaLog" "$rawVideo"
+            node "$ingestScript" --task-dir "$taskDir" --step video --raw-path "$rawVideo" --jsonl-path "$jsonlPath" --attempt 1 >/dev/null 2>&1 || true
+          fi
+        ' bash "$VIDEO_PID" "$DIR" "$RAW_VIDEO" "$DIR/media/video_download.log" "$INGEST_SCRIPT" "$TASK_LOG_JSONL" >/dev/null 2>&1 &
     else
         echo "=== Skip: Video download status = $status"
     fi
@@ -224,10 +253,12 @@ fi
 if mode_has_audio; then
     if ! ls "$DIR/media/audio."* 1>/dev/null 2>&1; then
         status "audio_start"
-        yt-dlp $YT_DLP_COOKIE_OPTS -x --audio-format m4a -o "$DIR/media/audio.%(ext)s" "$URL" 2>/dev/null || echo "Audio extraction failed (non-blocking)"
+        : > "$RAW_AUDIO"
+        yt-dlp $YT_DLP_COOKIE_OPTS -x --audio-format m4a -o "$DIR/media/audio.%(ext)s" "$URL" >> "$RAW_AUDIO" 2>&1 || echo "Audio extraction failed (non-blocking)" >> "$RAW_AUDIO"
         if ls "$DIR/media/audio."* 1>/dev/null 2>&1; then
             status "audio_done"
         fi
+        node "$INGEST_SCRIPT" --task-dir "$DIR" --step audio --raw-path "$RAW_AUDIO" --jsonl-path "$TASK_LOG_JSONL" --attempt 1 >/dev/null 2>&1 || true
     else
         status "audio_done"
     fi
@@ -262,9 +293,9 @@ get_transcript() {
         # For unit tests / offline planning: trust override content as-is.
         available_subs="$AVAILABLE_SUBS_OVERRIDE"
     else
-        available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh-Hans|zh-Hant|zh-TW|zh)[[:space:]]/{print $1}' | head -20)
+        available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --list-subs "$URL" | awk '/^[[:space:]]*(en-orig|en|zh-Hans|zh-Hant|zh-TW|zh)[[:space:]]/{print $1}' | head -20)
         if [ -z "$available_subs" ]; then
-            available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20)
+            available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" | jq -r '.requested_subtitles | keys[]' | head -20)
         fi
     fi
     echo "Available subtitles: ${available_subs:-none}"
@@ -291,10 +322,10 @@ get_transcript() {
 
         if [ "$sub_type" = "original" ]; then
             # Use --write-subs for original subtitles
-            yt-dlp $YT_DLP_COOKIE_OPTS --skip-download --write-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null
+            yt-dlp $YT_DLP_COOKIE_OPTS --skip-download --write-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL"
         else
             # Use --write-auto-subs for auto-generated subtitles
-            yt-dlp $YT_DLP_COOKIE_OPTS --skip-download --write-auto-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null
+            yt-dlp $YT_DLP_COOKIE_OPTS --skip-download --write-auto-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL"
         fi
 
         # Find and rename the downloaded file
@@ -434,7 +465,7 @@ get_transcript() {
         echo "Converting English: $en_subfile (type: $en_type)"
         python3 "$SCRIPT_DIR/vtt_converter.py" "$en_subfile" "$DIR/transcript/original_en.md"
         # Generate original_en.vtt for frontend display
-        python3 "$SCRIPT_DIR/md2subtitle.py" "$DIR/transcript/original_en.md" -f vtt -o "$DIR/transcript/original_en.vtt" 2>/dev/null
+        python3 "$SCRIPT_DIR/md2subtitle.py" "$DIR/transcript/original_en.md" -f vtt -o "$DIR/transcript/original_en.vtt"
     fi
 
     # Convert Chinese
@@ -452,7 +483,7 @@ get_transcript() {
         echo "Converting Chinese: $zh_subfile (type: $zh_type)"
         python3 "$SCRIPT_DIR/vtt_converter.py" "$zh_subfile" "$DIR/transcript/original_zh.md"
         # Generate original_zh.vtt for frontend display
-        python3 "$SCRIPT_DIR/md2subtitle.py" "$DIR/transcript/original_zh.md" -f vtt -o "$DIR/transcript/original_zh.vtt" 2>/dev/null
+        python3 "$SCRIPT_DIR/md2subtitle.py" "$DIR/transcript/original_zh.md" -f vtt -o "$DIR/transcript/original_zh.vtt"
     fi
 
     # Determine source language for article.md based on priority:
@@ -527,7 +558,9 @@ get_transcript() {
 if mode_has_transcript; then
     transcript_done=$(echo "$META" | jq -r '.transcript_done')
     if [ "$FORCE" = "1" ] || [ "$transcript_done" != "true" ]; then
-        get_transcript
+        : > "$RAW_SUBS"
+        get_transcript >> "$RAW_SUBS" 2>&1 || true
+        node "$INGEST_SCRIPT" --task-dir "$DIR" --step subs --raw-path "$RAW_SUBS" --jsonl-path "$TASK_LOG_JSONL" --attempt 1 >/dev/null 2>&1 || true
     else
         echo "=== Skip: Transcript already done ==="
     fi
@@ -537,12 +570,13 @@ fi
 if mode_has_transcript; then
     article_done=$(echo "$META" | jq -r '.article_done')
     if [ "$FORCE" = "1" ] || [ "$article_done" != "true" ]; then
+        : > "$RAW_ARTICLE"
         # 读取 article_source_lang
         article_lang=$(echo "$META" | jq -r '.article_source_lang // "en"')
         transcript_file="$DIR/transcript/original_${article_lang}.md"
 
         if [ -f "$transcript_file" ] && [ -s "$transcript_file" ]; then
-            status "article_start"
+            status "article_start" | tee -a "$RAW_ARTICLE"
             SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
             # Generate article using Claude CLI
@@ -556,19 +590,20 @@ if mode_has_transcript; then
             printf '%s\n' "$article_prompt" > "$ARTICLE_PROMPT_TMP"
             WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
                 --input "$ARTICLE_PROMPT_TMP" \
-                --output "$DIR/writing/article.md"
+                --output "$DIR/writing/article.md" >> "$RAW_ARTICLE" 2>&1
 
             if [ -f "$DIR/writing/article.md" ] && [ -s "$DIR/writing/article.md" ]; then
-                echo "Article generated successfully"
+                echo "Article generated successfully" | tee -a "$RAW_ARTICLE"
                 META=$(echo "$META" | jq '.article_done = true')
-                status "article_done"
+                status "article_done" | tee -a "$RAW_ARTICLE"
                 META=$(echo "$META" | jq --arg path "$ARTICLE_PROMPT_PATH" '.article_prompt_path = $path')
             else
-                echo "Failed to generate article"
+                echo "Failed to generate article" | tee -a "$RAW_ARTICLE"
             fi
         else
-            echo "=== Skip: No ${article_lang} transcript for article ==="
+            echo "=== Skip: No ${article_lang} transcript for article ===" | tee -a "$RAW_ARTICLE"
         fi
+        node "$INGEST_SCRIPT" --task-dir "$DIR" --step article --raw-path "$RAW_ARTICLE" --jsonl-path "$TASK_LOG_JSONL" --attempt 1 >/dev/null 2>&1 || true
     else
         echo "=== Skip: Article already done ==="
     fi
@@ -579,6 +614,7 @@ if mode_has_transcript; then
     summary_done=$(echo "$META" | jq -r '.summary_done')
     if [ "$FORCE" = "1" ] || [ "$summary_done" != "true" ]; then
         if [ -f "$DIR/writing/article.md" ] && [ -s "$DIR/writing/article.md" ]; then
+            : > "$RAW_SUMMARY"
 
             # Save FOCUS to meta if provided
             if [ -n "$FOCUS" ]; then
@@ -587,7 +623,7 @@ if mode_has_transcript; then
             fi
 
             current_focus=$(echo "$META" | jq -r '.focus // ""')
-            status "summary_start"
+            status "summary_start" | tee -a "$RAW_SUMMARY"
 
             # Generate summary using Claude CLI
             SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -600,18 +636,19 @@ if mode_has_transcript; then
             printf '%s\n' "$summary_prompt" > "$SUMMARY_PROMPT_TMP"
             WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
                 --input "$SUMMARY_PROMPT_TMP" \
-                --output "$DIR/writing/summary.md"
+                --output "$DIR/writing/summary.md" >> "$RAW_SUMMARY" 2>&1
 
             if [ -f "$DIR/writing/summary.md" ] && [ -s "$DIR/writing/summary.md" ]; then
-                echo "Summary generated successfully"
+                echo "Summary generated successfully" | tee -a "$RAW_SUMMARY"
                 META=$(echo "$META" | jq '.summary_done = true')
-                status "summary_done"
+                status "summary_done" | tee -a "$RAW_SUMMARY"
             else
-                echo "Failed to generate summary"
+                echo "Failed to generate summary" | tee -a "$RAW_SUMMARY"
             fi
         else
-            echo "=== Skip: No article.md for summary ==="
+            echo "=== Skip: No article.md for summary ===" | tee -a "$RAW_SUMMARY"
         fi
+        node "$INGEST_SCRIPT" --task-dir "$DIR" --step summary --raw-path "$RAW_SUMMARY" --jsonl-path "$TASK_LOG_JSONL" --attempt 1 >/dev/null 2>&1 || true
     else
         echo "=== Skip: Summary already done ==="
     fi
