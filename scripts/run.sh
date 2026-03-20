@@ -257,12 +257,12 @@ get_transcript() {
 
     # Detect available subtitles
     echo "Detecting available subtitles..."
-    # Match specific language codes: en, en-orig, zh, zh-Hans, zh-Hant
+    # Match specific language codes: en, en-orig, zh, zh-Hans, zh-Hant, zh-TW
     if [ -n "${AVAILABLE_SUBS_OVERRIDE:-}" ]; then
         # For unit tests / offline planning: trust override content as-is.
         available_subs="$AVAILABLE_SUBS_OVERRIDE"
     else
-        available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh-Hans|zh-Hant|zh)[[:space:]]/{print $1}' | head -20)
+        available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh-Hans|zh-Hant|zh-TW|zh)[[:space:]]/{print $1}' | head -20)
         if [ -z "$available_subs" ]; then
             available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20)
         fi
@@ -340,29 +340,29 @@ get_transcript() {
         fi
     fi
 
-    # Download Chinese subtitles (only ONE: original OR auto)
+    # Download Chinese subtitles (only ONE: original OR auto, simplified first)
     echo "=== Downloading Chinese subtitles ==="
     zh_downloaded=false
     zh_type=""
 
-    # Step 1: Try Chinese original (zh-Hans or zh-Hant)
-    local_zh_orig=$(echo "$available_subs" | grep -E "^zh-Hans$|^zh-Hant$" | head -1)
-    if [ -n "$local_zh_orig" ]; then
-        echo "  Found Chinese original: $local_zh_orig"
-        if download_subtitle_for_lang "zh" "$local_zh_orig" "original"; then
+    # Step 1: Try simplified original (zh-Hans)
+    local_zh_hans_orig=$(echo "$available_subs" | grep -E "^zh-Hans$" | head -1)
+    if [ -n "$local_zh_hans_orig" ]; then
+        echo "  Found Simplified Chinese original: $local_zh_hans_orig"
+        if download_subtitle_for_lang "zh" "$local_zh_hans_orig" "original"; then
             zh_downloaded=true
             zh_type="original"
         else
-            echo "  Warning: $local_zh_orig download failed, trying auto..."
-            # Fallback to auto with the same language code
-            if download_subtitle_for_lang "zh" "$local_zh_orig" "auto"; then
+            echo "  Warning: $local_zh_hans_orig download failed, trying auto..."
+            # Fallback to auto with the same language code (zh-Hans.auto)
+            if download_subtitle_for_lang "zh" "$local_zh_hans_orig" "auto"; then
                 zh_downloaded=true
                 zh_type="auto"
             fi
         fi
     fi
 
-    # Step 2: If no original, try auto (zh only)
+    # Step 2: If no simplified original/auto yet, try generic auto (zh)
     if [ "$zh_downloaded" = false ]; then
         local_zh=$(echo "$available_subs" | grep -E "^zh$" | head -1)
         if [ -n "$local_zh" ]; then
@@ -370,6 +370,46 @@ get_transcript() {
             if download_subtitle_for_lang "zh" "$local_zh" "auto"; then
                 zh_downloaded=true
                 zh_type="auto"
+            fi
+        fi
+    fi
+
+    # Traditional fallback: ONLY when both English and simplified are missing.
+    # This matches `scripts/download_subs.sh`:
+    # - gate: en_downloaded==false AND zh_downloaded==false
+    # - attempt order: zh-TW (original->auto), then zh-Hant (original->auto)
+    if [ "$en_downloaded" = false ] && [ "$zh_downloaded" = false ]; then
+        echo "=== Traditional Chinese fallback (en+zh missing) ==="
+
+        local_zh_tw_orig=$(echo "$available_subs" | grep -E "^zh-TW$" | head -1)
+        if [ -n "$local_zh_tw_orig" ]; then
+            echo "  Traditional: trying zh-TW original"
+            if download_subtitle_for_lang "zh" "$local_zh_tw_orig" "original"; then
+                zh_downloaded=true
+                zh_type="original"
+            else
+                echo "  Traditional: zh-TW original failed, trying zh-TW auto"
+                if download_subtitle_for_lang "zh" "$local_zh_tw_orig" "auto"; then
+                    zh_downloaded=true
+                    zh_type="auto"
+                fi
+            fi
+        fi
+
+        if [ "$zh_downloaded" = false ]; then
+            local_zh_hant_orig=$(echo "$available_subs" | grep -E "^zh-Hant$" | head -1)
+            if [ -n "$local_zh_hant_orig" ]; then
+                echo "  Traditional: trying zh-Hant original"
+                if download_subtitle_for_lang "zh" "$local_zh_hant_orig" "original"; then
+                    zh_downloaded=true
+                    zh_type="original"
+                else
+                    echo "  Traditional: zh-Hant original failed, trying zh-Hant auto"
+                    if download_subtitle_for_lang "zh" "$local_zh_hant_orig" "auto"; then
+                        zh_downloaded=true
+                        zh_type="auto"
+                    fi
+                fi
             fi
         fi
     fi
