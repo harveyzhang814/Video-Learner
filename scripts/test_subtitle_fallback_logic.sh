@@ -60,6 +60,23 @@ run_case() {
     plan_subtitle_fallback_attempts "$available_subs_text"
 }
 
+get_attempt_lines() {
+  local output="$1"
+  echo "$output" | awk '/^ATTEMPT / { print }'
+}
+
+run_download_planning_case() {
+  local available_subs_text="$1"
+  local simulate_failures="$2"
+  local tmp_dir="$3"
+  local dummy_url="dummyURL"
+  local dummy_id="dummyId"
+
+  AVAILABLE_SUBS_OVERRIDE="$available_subs_text" \
+    SIMULATE_DOWNLOAD_FAILURES="$simulate_failures" \
+    bash "$SCRIPT_DIR/download_subs.sh" "$dummy_url" "$tmp_dir" "$dummy_id" 2>&1
+}
+
 echo "Running subtitle fallback planning unit tests..."
 
 # Case A: available_subs="zh-TW" only.
@@ -69,6 +86,12 @@ echo "Running subtitle fallback planning unit tests..."
 # - Attempt order includes: ATTEMPT zh zh-TW original
 {
   out="$(run_case "A" "zh-TW" "")"
+  tmp_dir="$(mktemp -d)"
+  actual_out="$(run_download_planning_case "zh-TW" "" "$tmp_dir")"
+  expected_attempts="$(get_attempt_lines "$out")"
+  actual_attempts="$(get_attempt_lines "$actual_out")"
+  [ "$actual_attempts" = "$expected_attempts" ] || fail "Case A: attempt order mismatch.\nexpected:\n$expected_attempts\nactual:\n$actual_attempts"
+  rm -rf "$tmp_dir"
 
   assert_contains "$out" "GATE en-orig_original_present=no" "Case A: en-orig original should be missing"
   assert_contains "$out" "GATE zh-Hans_original_present=no" "Case A: zh-Hans original should be missing"
@@ -87,7 +110,14 @@ echo "Running subtitle fallback planning unit tests..."
 
 # Case B: "en-orig\nzh-TW" -> no Traditional fallback attempts.
 {
-  out="$(run_case "B" $'en-orig\nzh-TW' "")"
+  b_avail="$(printf 'en-orig\nzh-TW')"
+  out="$(run_case "B" "$b_avail" "")"
+  tmp_dir="$(mktemp -d)"
+  actual_out="$(run_download_planning_case "$b_avail" "" "$tmp_dir")"
+  expected_attempts="$(get_attempt_lines "$out")"
+  actual_attempts="$(get_attempt_lines "$actual_out")"
+  [ "$actual_attempts" = "$expected_attempts" ] || fail "Case B: attempt order mismatch.\nexpected:\n$expected_attempts\nactual:\n$actual_attempts"
+  rm -rf "$tmp_dir"
 
   assert_contains "$out" "GATE traditional_fallback_triggered=no" "Case B: gate should not trigger"
   assert_contains "$out" "ATTEMPT en en-orig original" "Case B: should download English original"
@@ -98,7 +128,14 @@ echo "Running subtitle fallback planning unit tests..."
 
 # Case C: "zh-Hans\nzh-TW" -> no Traditional fallback attempts.
 {
-  out="$(run_case "C" $'zh-Hans\nzh-TW' "")"
+  c_avail="$(printf 'zh-Hans\nzh-TW')"
+  out="$(run_case "C" "$c_avail" "")"
+  tmp_dir="$(mktemp -d)"
+  actual_out="$(run_download_planning_case "$c_avail" "" "$tmp_dir")"
+  expected_attempts="$(get_attempt_lines "$out")"
+  actual_attempts="$(get_attempt_lines "$actual_out")"
+  [ "$actual_attempts" = "$expected_attempts" ] || fail "Case C: attempt order mismatch.\nexpected:\n$expected_attempts\nactual:\n$actual_attempts"
+  rm -rf "$tmp_dir"
 
   assert_contains "$out" "GATE traditional_fallback_triggered=no" "Case C: gate should not trigger"
   assert_contains "$out" "ATTEMPT zh zh-Hans original" "Case C: should download Simplified original"
@@ -111,6 +148,12 @@ echo "Running subtitle fallback planning unit tests..."
 # Expect zh-TW original failure path -> then zh-TW auto attempt.
 {
   out="$(run_case "D" "zh-TW" "zh-TW.original")"
+  tmp_dir="$(mktemp -d)"
+  actual_out="$(run_download_planning_case "zh-TW" "zh-TW.original" "$tmp_dir")"
+  expected_attempts="$(get_attempt_lines "$out")"
+  actual_attempts="$(get_attempt_lines "$actual_out")"
+  [ "$actual_attempts" = "$expected_attempts" ] || fail "Case D: attempt order mismatch.\nexpected:\n$expected_attempts\nactual:\n$actual_attempts"
+  rm -rf "$tmp_dir"
 
   assert_contains "$out" "GATE traditional_fallback_triggered=yes" "Case D: gate should trigger"
 

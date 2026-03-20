@@ -84,9 +84,30 @@ plan_subtitle_fallback_attempts() {
   if _sfp_token_present "$available_subs_text" "en"; then en_present="yes"; fi
   if _sfp_token_present "$available_subs_text" "zh"; then zh_auto_present="yes"; fi
 
-  # Gate: Traditional fallback happens only when both originals are missing.
+  # Gate: Traditional fallback happens only when BOTH:
+  # - en-orig original is missing OR simulated to fail
+  # - zh-Hans original is missing OR simulated to fail
+  local en_orig_failed_or_missing="yes"
+  if [ "$en_orig_present" = "yes" ]; then
+    # Keys use "<subs_lang>.<type>" (e.g. "zh-TW.original")
+    if _sfp_is_failed_key "en-orig.original"; then
+      en_orig_failed_or_missing="yes"
+    else
+      en_orig_failed_or_missing="no"
+    fi
+  fi
+
+  local zh_hans_failed_or_missing="yes"
+  if [ "$zh_hans_present" = "yes" ]; then
+    if _sfp_is_failed_key "zh-Hans.original"; then
+      zh_hans_failed_or_missing="yes"
+    else
+      zh_hans_failed_or_missing="no"
+    fi
+  fi
+
   local traditional_trigger="no"
-  if [ "$en_orig_present" = "no" ] && [ "$zh_hans_present" = "no" ]; then
+  if [ "$en_orig_failed_or_missing" = "yes" ] && [ "$zh_hans_failed_or_missing" = "yes" ]; then
     traditional_trigger="yes"
   fi
 
@@ -112,11 +133,17 @@ plan_subtitle_fallback_attempts() {
   local zh_done="no"
 
   if [ "$zh_hans_present" = "yes" ]; then
-    # Simplified original exists -> no Traditional fallback attempts.
     if _sfp_attempt "zh" "zh-Hans" "original"; then
       zh_done="yes"
+    else
+      # zh-Hans original failed -> try auto before considering Traditional fallback.
+      if _sfp_attempt "zh" "zh-Hans" "auto"; then
+        zh_done="yes"
+      fi
     fi
-  else
+  fi
+
+  if [ "$zh_done" = "no" ]; then
     if [ "$traditional_trigger" = "yes" ]; then
       # Traditional fallback bucket: zh-TW -> zh-Hant, original first, then auto on failure.
       if [ "$zh_tw_present" = "yes" ] && [ "$zh_done" = "no" ]; then
