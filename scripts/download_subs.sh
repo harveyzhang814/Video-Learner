@@ -4,7 +4,7 @@
 # Usage: bash scripts/download_subs.sh "URL" "DIR" [ID]
 #
 
-set -e
+set -euo pipefail
 
 URL="$1"
 DIR="$2"
@@ -43,6 +43,9 @@ fi
 # Initialize database
 source "$SCRIPT_DIR/db.sh"
 source "$SCRIPT_DIR/yt-dlp-cookies.sh"
+
+# With `set -u`, ensure cookie opts are always defined (may be empty).
+YT_DLP_COOKIE_OPTS="${YT_DLP_COOKIE_OPTS:-}"
 
 # Create output directory
 SUBS_DIR="$DIR/transcript/subs"
@@ -119,25 +122,15 @@ download_subtitle_for_lang() {
 en_downloaded=false
 zh_downloaded=false
 
-# Gate condition uses "original download failed/missing", not "channel succeeded".
-# en-orig and zh-Hans are considered failed if:
-# - the original track is missing from `available_subs`, OR
-# - download_subtitle_for_lang() for that original track fails.
-en_orig_failed_or_missing=true
-zh_hans_failed_or_missing=true
-
-# Download English subtitles (original first, then auto)
+# 1) Download English subtitles (en-orig -> en auto)
 echo "=== Downloading English subtitles ==="
 if has_track "en-orig"; then
     echo "  Found English original: en-orig"
     if download_subtitle_for_lang "en" "en-orig" "original"; then
         en_downloaded=true
-        en_orig_failed_or_missing=false
     else
-        echo "  Warning: en-orig download failed"
+        echo "  Warning: en-orig download failed, trying en auto..."
     fi
-else
-    echo "  English original track missing: en-orig"
 fi
 
 if [ "$en_downloaded" = false ] && has_track "en"; then
@@ -147,64 +140,60 @@ if [ "$en_downloaded" = false ] && has_track "en"; then
     fi
 fi
 
-# Download Chinese subtitles with Traditional fallback gate
-echo "=== Downloading Chinese subtitles ==="
+# 2) Download Chinese subtitles (simplified-first):
+#    zh-Hans original -> (fail) zh-Hans auto -> (still fail && available) generic zh auto
+echo "=== Downloading Chinese subtitles (simplified) ==="
 if has_track "zh-Hans"; then
     echo "  Found Chinese original: zh-Hans"
     if download_subtitle_for_lang "zh" "zh-Hans" "original"; then
         zh_downloaded=true
-        zh_hans_failed_or_missing=false
     else
         echo "  Warning: zh-Hans original download failed, trying auto..."
         if download_subtitle_for_lang "zh" "zh-Hans" "auto"; then
             zh_downloaded=true
         fi
     fi
-else
-    echo "  Chinese original track missing: zh-Hans"
 fi
 
-# Only try Traditional fallback when BOTH en-orig and zh-Hans originals failed/missing.
-if [ "$zh_downloaded" = false ]; then
-    if [ "$en_orig_failed_or_missing" = true ] && [ "$zh_hans_failed_or_missing" = true ]; then
-        echo "  Gate satisfied -> Traditional fallback enabled"
-
-        # 1) zh-TW original -> if fails zh-TW auto
-        if has_track "zh-TW"; then
-            echo "  Traditional: trying zh-TW original"
-            if download_subtitle_for_lang "zh" "zh-TW" "original"; then
-                zh_downloaded=true
-            else
-                echo "  Traditional: zh-TW original failed, trying zh-TW auto"
-                if download_subtitle_for_lang "zh" "zh-TW" "auto"; then
-                    zh_downloaded=true
-                fi
-            fi
-        fi
-
-        # 2) zh-Hant original -> if fails zh-Hant auto
-        if [ "$zh_downloaded" = false ] && has_track "zh-Hant"; then
-            echo "  Traditional: trying zh-Hant original"
-            if download_subtitle_for_lang "zh" "zh-Hant" "original"; then
-                zh_downloaded=true
-            else
-                echo "  Traditional: zh-Hant original failed, trying zh-Hant auto"
-                if download_subtitle_for_lang "zh" "zh-Hant" "auto"; then
-                    zh_downloaded=true
-                fi
-            fi
-        fi
-    else
-        echo "  Gate not satisfied -> skipping Traditional fallback"
+if [ "$zh_downloaded" = false ] && has_track "zh"; then
+    echo "  Downloading generic Chinese auto: zh"
+    if download_subtitle_for_lang "zh" "zh" "auto"; then
+        zh_downloaded=true
     fi
+fi
 
-    # Generic zh auto last resort (only if still not downloaded).
-    if [ "$zh_downloaded" = false ] && has_track "zh"; then
-        echo "  Downloading Chinese auto: zh"
-        if download_subtitle_for_lang "zh" "zh" "auto"; then
+# 3) Traditional fallback (zh-TW -> zh-Hant) only when BOTH English and simplified zh are still not downloaded.
+if [ "$en_downloaded" = false ] && [ "$zh_downloaded" = false ]; then
+    echo "=== Downloading Chinese subtitles (traditional fallback) ==="
+    echo "  Gate satisfied -> Traditional fallback enabled"
+
+    # zh-TW original -> if fails zh-TW auto
+    if has_track "zh-TW"; then
+        echo "  Traditional: trying zh-TW original"
+        if download_subtitle_for_lang "zh" "zh-TW" "original"; then
             zh_downloaded=true
+        else
+            echo "  Traditional: zh-TW original failed, trying zh-TW auto"
+            if download_subtitle_for_lang "zh" "zh-TW" "auto"; then
+                zh_downloaded=true
+            fi
         fi
     fi
+
+    # zh-Hant original -> if fails zh-Hant auto
+    if [ "$zh_downloaded" = false ] && has_track "zh-Hant"; then
+        echo "  Traditional: trying zh-Hant original"
+        if download_subtitle_for_lang "zh" "zh-Hant" "original"; then
+            zh_downloaded=true
+        else
+            echo "  Traditional: zh-Hant original failed, trying zh-Hant auto"
+            if download_subtitle_for_lang "zh" "zh-Hant" "auto"; then
+                zh_downloaded=true
+            fi
+        fi
+    fi
+else
+    echo "Skipping Traditional fallback (English or Simplified already downloaded)"
 fi
 
 # List downloaded files

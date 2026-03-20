@@ -81,7 +81,8 @@ echo "Running subtitle fallback planning unit tests..."
 
 # Case A: available_subs="zh-TW" only.
 # Expect:
-# - Gate indicates en-orig & zh-Hans original both missing.
+# - Gate indicates English has no subtitles downloaded at all.
+# - Gate indicates Simplified Chinese has no subtitles downloaded at all.
 # - Traditional fallback gate triggers.
 # - Attempt order includes: ATTEMPT zh zh-TW original
 {
@@ -93,8 +94,8 @@ echo "Running subtitle fallback planning unit tests..."
   [ "$actual_attempts" = "$expected_attempts" ] || fail "Case A: attempt order mismatch.\nexpected:\n$expected_attempts\nactual:\n$actual_attempts"
   rm -rf "$tmp_dir"
 
-  assert_contains "$out" "GATE en-orig_original_present=no" "Case A: en-orig original should be missing"
-  assert_contains "$out" "GATE zh-Hans_original_present=no" "Case A: zh-Hans original should be missing"
+  assert_contains "$out" "GATE en_any_downloaded=no" "Case A: en_any_downloaded should be no"
+  assert_contains "$out" "GATE zh_any_downloaded=no" "Case A: zh_any_downloaded should be no"
   assert_contains "$out" "GATE traditional_fallback_triggered=yes" "Case A: traditional fallback should trigger"
 
   assert_contains "$out" "ATTEMPT zh zh-TW original" "Case A: should attempt zh-TW original"
@@ -102,10 +103,10 @@ echo "Running subtitle fallback planning unit tests..."
 
   assert_line_before "$out" "GATE traditional_fallback_triggered=yes" "ATTEMPT zh zh-TW original" \
     "Case A: zh-TW original should appear after traditional fallback gate"
-  assert_line_before "$out" "GATE en-orig_original_present=no" "ATTEMPT zh zh-TW original" \
-    "Case A: zh-TW original should appear after confirming en-orig original missing"
-  assert_line_before "$out" "GATE zh-Hans_original_present=no" "ATTEMPT zh zh-TW original" \
-    "Case A: zh-TW original should appear after confirming zh-Hans original missing"
+  assert_line_before "$out" "GATE en_any_downloaded=no" "ATTEMPT zh zh-TW original" \
+    "Case A: zh-TW original should appear after confirming en_any_downloaded=no"
+  assert_line_before "$out" "GATE zh_any_downloaded=no" "ATTEMPT zh zh-TW original" \
+    "Case A: zh-TW original should appear after confirming zh_any_downloaded=no"
 }
 
 # Case B: "en-orig\nzh-TW" -> no Traditional fallback attempts.
@@ -119,6 +120,8 @@ echo "Running subtitle fallback planning unit tests..."
   [ "$actual_attempts" = "$expected_attempts" ] || fail "Case B: attempt order mismatch.\nexpected:\n$expected_attempts\nactual:\n$actual_attempts"
   rm -rf "$tmp_dir"
 
+  assert_contains "$out" "GATE en_any_downloaded=yes" "Case B: en_any_downloaded should be yes (en-orig original succeeds)"
+  assert_contains "$out" "GATE zh_any_downloaded=no" "Case B: zh_any_downloaded should be no"
   assert_contains "$out" "GATE traditional_fallback_triggered=no" "Case B: gate should not trigger"
   assert_contains "$out" "ATTEMPT en en-orig original" "Case B: should download English original"
 
@@ -137,6 +140,8 @@ echo "Running subtitle fallback planning unit tests..."
   [ "$actual_attempts" = "$expected_attempts" ] || fail "Case C: attempt order mismatch.\nexpected:\n$expected_attempts\nactual:\n$actual_attempts"
   rm -rf "$tmp_dir"
 
+  assert_contains "$out" "GATE en_any_downloaded=no" "Case C: en_any_downloaded should be no"
+  assert_contains "$out" "GATE zh_any_downloaded=yes" "Case C: zh_any_downloaded should be yes (zh-Hans original succeeds)"
   assert_contains "$out" "GATE traditional_fallback_triggered=no" "Case C: gate should not trigger"
   assert_contains "$out" "ATTEMPT zh zh-Hans original" "Case C: should download Simplified original"
 
@@ -155,6 +160,8 @@ echo "Running subtitle fallback planning unit tests..."
   [ "$actual_attempts" = "$expected_attempts" ] || fail "Case D: attempt order mismatch.\nexpected:\n$expected_attempts\nactual:\n$actual_attempts"
   rm -rf "$tmp_dir"
 
+  assert_contains "$out" "GATE en_any_downloaded=no" "Case D: en_any_downloaded should be no"
+  assert_contains "$out" "GATE zh_any_downloaded=no" "Case D: zh_any_downloaded should be no (zh-Hans/generic zh missing)"
   assert_contains "$out" "GATE traditional_fallback_triggered=yes" "Case D: gate should trigger"
 
   assert_contains "$out" "ATTEMPT zh zh-TW original" "Case D: should attempt zh-TW original"
@@ -164,6 +171,50 @@ echo "Running subtitle fallback planning unit tests..."
     "Case D: zh-TW auto should appear after zh-TW original"
 
   assert_not_contains "$out" "ATTEMPT zh zh-Hant" "Case D: should not attempt zh-Hant when zh-Hant is not available"
+}
+
+# Case E: available_subs="en\nzh-TW" and no simulate failures.
+# Expect:
+# - English auto succeeds -> traditional fallback should NOT trigger.
+{
+  e_avail="$(printf 'en\nzh-TW')"
+  out="$(run_case "E" "$e_avail" "")"
+  tmp_dir="$(mktemp -d)"
+  actual_out="$(run_download_planning_case "$e_avail" "" "$tmp_dir")"
+  expected_attempts="$(get_attempt_lines "$out")"
+  actual_attempts="$(get_attempt_lines "$actual_out")"
+  [ "$actual_attempts" = "$expected_attempts" ] || fail "Case E: attempt order mismatch.\nexpected:\n$expected_attempts\nactual:\n$actual_attempts"
+  rm -rf "$tmp_dir"
+
+  assert_contains "$out" "GATE en_any_downloaded=yes" "Case E: en_any_downloaded should be yes (en auto succeeds)"
+  assert_contains "$out" "GATE zh_any_downloaded=no" "Case E: zh_any_downloaded should be no"
+  assert_contains "$out" "GATE traditional_fallback_triggered=no" "Case E: traditional fallback must not trigger"
+
+  assert_contains "$out" "ATTEMPT en en auto" "Case E: should attempt English auto"
+  assert_not_contains "$out" "ATTEMPT zh zh-TW" "Case E: should not attempt zh-TW"
+  assert_not_contains "$out" "ATTEMPT zh zh-Hant" "Case E: should not attempt zh-Hant"
+}
+
+# Case F: available_subs="zh\nzh-TW" and no simulate failures.
+# Expect:
+# - generic zh auto succeeds -> traditional fallback should NOT trigger.
+{
+  f_avail="$(printf 'zh\nzh-TW')"
+  out="$(run_case "F" "$f_avail" "")"
+  tmp_dir="$(mktemp -d)"
+  actual_out="$(run_download_planning_case "$f_avail" "" "$tmp_dir")"
+  expected_attempts="$(get_attempt_lines "$out")"
+  actual_attempts="$(get_attempt_lines "$actual_out")"
+  [ "$actual_attempts" = "$expected_attempts" ] || fail "Case F: attempt order mismatch.\nexpected:\n$expected_attempts\nactual:\n$actual_attempts"
+  rm -rf "$tmp_dir"
+
+  assert_contains "$out" "GATE en_any_downloaded=no" "Case F: en_any_downloaded should be no"
+  assert_contains "$out" "GATE zh_any_downloaded=yes" "Case F: zh_any_downloaded should be yes (generic zh auto succeeds)"
+  assert_contains "$out" "GATE traditional_fallback_triggered=no" "Case F: traditional fallback must not trigger"
+
+  assert_contains "$out" "ATTEMPT zh zh auto" "Case F: should attempt generic zh auto"
+  assert_not_contains "$out" "ATTEMPT zh zh-TW" "Case F: should not attempt zh-TW"
+  assert_not_contains "$out" "ATTEMPT zh zh-Hant" "Case F: should not attempt zh-Hant"
 }
 
 echo "All subtitle fallback planning tests PASSED."

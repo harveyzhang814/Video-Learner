@@ -4,8 +4,8 @@
 #
 # Key idea:
 # - Traditional fallback (zh-TW -> zh-Hant) is triggered only when:
-#   - en-orig original is missing
-#   - zh-Hans original is missing
+#   - English has no subtitles downloaded at all (neither en-orig original nor en auto succeed)
+#   - Simplified Chinese has no subtitles downloaded at all (neither zh-Hans original/auto nor generic zh auto succeed)
 # - Attempt order must be deterministic for unit tests.
 #
 
@@ -84,35 +84,44 @@ plan_subtitle_fallback_attempts() {
   if _sfp_token_present "$available_subs_text" "en"; then en_present="yes"; fi
   if _sfp_token_present "$available_subs_text" "zh"; then zh_auto_present="yes"; fi
 
-  # Gate: Traditional fallback happens only when BOTH:
-  # - en-orig original is missing OR simulated to fail
-  # - zh-Hans original is missing OR simulated to fail
-  local en_orig_failed_or_missing="yes"
+  # Gate: Traditional fallback happens only when BOTH are false during planning:
+  # - en_any_downloaded: neither en-orig original nor en auto succeed
+  # - zh_any_downloaded: neither zh-Hans original/auto succeed nor generic zh auto succeed
+  local en_any_downloaded="no"
   if [ "$en_orig_present" = "yes" ]; then
-    # Keys use "<subs_lang>.<type>" (e.g. "zh-TW.original")
-    if _sfp_is_failed_key "en-orig.original"; then
-      en_orig_failed_or_missing="yes"
-    else
-      en_orig_failed_or_missing="no"
+    if ! _sfp_is_failed_key "en-orig.original"; then
+      en_any_downloaded="yes"
+    fi
+  fi
+  if [ "$en_any_downloaded" = "no" ] && [ "$en_present" = "yes" ]; then
+    if ! _sfp_is_failed_key "en.auto"; then
+      en_any_downloaded="yes"
     fi
   fi
 
-  local zh_hans_failed_or_missing="yes"
+  local zh_any_downloaded="no"
+  # zh-Hans: original OR auto (both map to zh-Hans.* simulation keys).
   if [ "$zh_hans_present" = "yes" ]; then
-    if _sfp_is_failed_key "zh-Hans.original"; then
-      zh_hans_failed_or_missing="yes"
-    else
-      zh_hans_failed_or_missing="no"
+    if ! _sfp_is_failed_key "zh-Hans.original"; then
+      zh_any_downloaded="yes"
+    elif ! _sfp_is_failed_key "zh-Hans.auto"; then
+      zh_any_downloaded="yes"
+    fi
+  fi
+  # generic zh auto only counts when zh-Hans has no successful download.
+  if [ "$zh_any_downloaded" = "no" ] && [ "$zh_auto_present" = "yes" ]; then
+    if ! _sfp_is_failed_key "zh.auto"; then
+      zh_any_downloaded="yes"
     fi
   fi
 
   local traditional_trigger="no"
-  if [ "$en_orig_failed_or_missing" = "yes" ] && [ "$zh_hans_failed_or_missing" = "yes" ]; then
+  if [ "$en_any_downloaded" = "no" ] && [ "$zh_any_downloaded" = "no" ]; then
     traditional_trigger="yes"
   fi
 
-  echo "GATE en-orig_original_present=${en_orig_present}"
-  echo "GATE zh-Hans_original_present=${zh_hans_present}"
+  echo "GATE en_any_downloaded=${en_any_downloaded}"
+  echo "GATE zh_any_downloaded=${zh_any_downloaded}"
   echo "GATE traditional_fallback_triggered=${traditional_trigger}"
 
   # English channel: original preferred, else auto.
@@ -132,50 +141,42 @@ plan_subtitle_fallback_attempts() {
   # Chinese channel
   local zh_done="no"
 
+  # Simplified attempt order:
+  # zh-Hans original -> (fail) zh-Hans auto -> (still fail && available) generic zh auto
   if [ "$zh_hans_present" = "yes" ]; then
     if _sfp_attempt "zh" "zh-Hans" "original"; then
       zh_done="yes"
     else
-      # zh-Hans original failed -> try auto before considering Traditional fallback.
       if _sfp_attempt "zh" "zh-Hans" "auto"; then
         zh_done="yes"
       fi
     fi
   fi
 
-  if [ "$zh_done" = "no" ]; then
-    if [ "$traditional_trigger" = "yes" ]; then
-      # Traditional fallback bucket: zh-TW -> zh-Hant, original first, then auto on failure.
-      if [ "$zh_tw_present" = "yes" ] && [ "$zh_done" = "no" ]; then
-        if _sfp_attempt "zh" "zh-TW" "original"; then
-          zh_done="yes"
-        else
-          if _sfp_attempt "zh" "zh-TW" "auto"; then
-            zh_done="yes"
-          fi
-        fi
-      fi
+  if [ "$zh_done" = "no" ] && [ "$zh_auto_present" = "yes" ]; then
+    if _sfp_attempt "zh" "zh" "auto"; then
+      zh_done="yes"
+    fi
+  fi
 
-      if [ "$zh_hant_present" = "yes" ] && [ "$zh_done" = "no" ]; then
-        if _sfp_attempt "zh" "zh-Hant" "original"; then
+  # Traditional fallback attempt order (only when both channels have no subtitles):
+  # zh-TW original -> (fail) zh-TW auto -> zh-Hant original -> (fail) zh-Hant auto
+  if [ "$zh_done" = "no" ] && [ "$traditional_trigger" = "yes" ]; then
+    if [ "$zh_tw_present" = "yes" ]; then
+      if _sfp_attempt "zh" "zh-TW" "original"; then
+        zh_done="yes"
+      else
+        if _sfp_attempt "zh" "zh-TW" "auto"; then
           zh_done="yes"
-        else
-          if _sfp_attempt "zh" "zh-Hant" "auto"; then
-            zh_done="yes"
-          fi
         fi
       fi
+    fi
 
-      # If Traditional fallback still doesn't succeed, allow the generic zh auto as last resort.
-      if [ "$zh_done" = "no" ] && [ "$zh_auto_present" = "yes" ]; then
-        if _sfp_attempt "zh" "zh" "auto"; then
-          zh_done="yes"
-        fi
-      fi
-    else
-      # Gate not met -> no Traditional fallback attempts; only generic zh auto can be used.
-      if [ "$zh_auto_present" = "yes" ]; then
-        if _sfp_attempt "zh" "zh" "auto"; then
+    if [ "$zh_done" = "no" ] && [ "$zh_hant_present" = "yes" ]; then
+      if _sfp_attempt "zh" "zh-Hant" "original"; then
+        zh_done="yes"
+      else
+        if _sfp_attempt "zh" "zh-Hant" "auto"; then
           zh_done="yes"
         fi
       fi
