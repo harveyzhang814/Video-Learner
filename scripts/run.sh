@@ -258,9 +258,14 @@ get_transcript() {
     # Detect available subtitles
     echo "Detecting available subtitles..."
     # Match specific language codes: en, en-orig, zh, zh-Hans, zh-Hant
-    available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh-Hans|zh-Hant|zh)[[:space:]]/{print $1}' | head -20)
-    if [ -z "$available_subs" ]; then
-        available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20)
+    if [ -n "${AVAILABLE_SUBS_OVERRIDE:-}" ]; then
+        # For unit tests / offline planning: trust override content as-is.
+        available_subs="$AVAILABLE_SUBS_OVERRIDE"
+    else
+        available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh-Hans|zh-Hant|zh)[[:space:]]/{print $1}' | head -20)
+        if [ -z "$available_subs" ]; then
+            available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20)
+        fi
     fi
     echo "Available subtitles: ${available_subs:-none}"
 
