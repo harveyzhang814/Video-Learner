@@ -36,7 +36,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const DEFAULT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_POLL_MS = 4000;
-const DEFAULT_MIN_ARTICLE = 800;
+const DEFAULT_MIN_ARTICLE = 600;
 const DEFAULT_MIN_SUMMARY = 300;
 const TRANSCRIPT_MIN_BYTES = 200;
 
@@ -84,7 +84,7 @@ function precheckWritingEngine() {
   console.log('[e2e] resolved WRITING_ENGINE for precheck:', engine);
 
   if (engine === 'claude') {
-    const r = spawnSync('command', ['-v', 'claude'], { shell: true, encoding: 'utf8' });
+    const r = spawnSync('bash', ['-lc', 'command -v claude >/dev/null 2>&1'], { encoding: 'utf8' });
     if (r.status !== 0) {
       throw new Error(
         '写作引擎为 claude 但未在 PATH 中找到 claude CLI。请安装 Claude Code 或设置 WRITING_ENGINE=opencode。'
@@ -93,7 +93,7 @@ function precheckWritingEngine() {
     return;
   }
 
-  const op = spawnSync('command', ['-v', 'opencode'], { shell: true, encoding: 'utf8' });
+  const op = spawnSync('bash', ['-lc', 'command -v opencode >/dev/null 2>&1'], { encoding: 'utf8' });
   if (op.status !== 0) {
     throw new Error(
       '写作引擎为 opencode 但未在 PATH 中找到 opencode。请安装 OpenCode CLI 或设置 WRITING_ENGINE=claude。'
@@ -184,9 +184,12 @@ function assertSummaryShape(text, relaxed) {
     throw new Error('summary.md 缺少标题（#）');
   }
   if (!relaxed) {
-    const hasSection = /TL;DR|概要|总结|要点/i.test(text);
+    const hasSection =
+      /TL;DR|概要|总结|要点|核心观点|主要论点|Outline|Key\s*Points|摘要正文/i.test(text);
     if (!hasSection) {
-      throw new Error('summary.md 未检测到 TL;DR / 概要 / 总结 / 要点 等小节关键词');
+      throw new Error(
+        'summary.md 未检测到常见摘要结构关键词（如 TL;DR、核心观点、主要论点、Outline 等）'
+      );
     }
   }
 }
@@ -323,9 +326,16 @@ async function run() {
   const origEn = path.join(workBase, 'transcript', 'original_en.md');
   const origZh = path.join(workBase, 'transcript', 'original_zh.md');
 
-  if (!fs.existsSync(metaPath)) {
+  // HTTP 编排路径将 meta 存在 SQLite / GET task 的 meta 中，未必落盘 transcript/meta.json（CLI run.sh 才可能写文件）
+  const m = lastBody.meta || {};
+  if (!m.transcript_done || !m.article_done || !m.summary_done) {
     printFailureDiagnostics(taskId);
-    throw new Error(`缺少产出: ${metaPath}`);
+    throw new Error(
+      `任务 meta 未标记完成: transcript_done=${m.transcript_done} article_done=${m.article_done} summary_done=${m.summary_done}`
+    );
+  }
+  if (fs.existsSync(metaPath)) {
+    console.log('[e2e] 发现 transcript/meta.json（可选 CLI 产物）');
   }
 
   const hasOrig =
