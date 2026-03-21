@@ -24,9 +24,18 @@ electron/node_modules/
 *.temp
 *.part
 
+# Worktree
+.worktrees/
+
+# Local settings (cookie / API keys 等，勿提交)
+scripts/settings.conf
+
 # Work outputs (application data, completely ignored)
 work/*
 *.log
 
 # Claude
 .claude/*.md
+
+# Cursor（本地技能，不上传）
+.cursor/skills/ui-ux-pro-max/

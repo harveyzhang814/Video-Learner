@@ -5,7 +5,19 @@
   "private": true,
   "scripts": {
     "start": "bash start-electron.sh",
-    "install-deps": "bash scripts/install.sh"
+    "install-deps": "bash scripts/install.sh",
+    "agent:serve": "node services/http-server/index.js",
+    "test:agent": "node tests/agent-http.test.js",
+    "test:agent:e2e": "node tests/agent-service-e2e.test.js",
+    "test:agent:sqlite": "node tests/agent-sqlite-persistence.test.js",
+    "test:fetch": "node tests/fetch-step.test.js",
+    "test:sse": "node tests/sse-e2e.test.js",
+    "test:gui:main": "node tests/main-process.test.js",
+    "test:gui:preload": "node tests/preload.test.js",
+    "test:gui:client:http": "node tests/service-client-http.test.js",
+    "test:gui:client:sse": "node tests/service-client-sse.test.js",
+    "test:gui:state": "node tests/gui-logic-state.test.js",
+    "test:gui": "npm run test:gui:main && npm run test:gui:preload && npm run test:gui:client:http && npm run test:gui:client:sse && npm run test:gui:state"
   },
   "keywords": [
     "youtube",
@@ -13,5 +25,14 @@
     "transcript",
     "summary"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "better-sqlite3": "^12.6.2"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "koa": "^3.1.2",
+    "koa-bodyparser": "^4.4.1",
+    "koa-router": "^14.0.0"
+  }
 }

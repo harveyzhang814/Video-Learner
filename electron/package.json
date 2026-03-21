@@ -5,11 +5,17 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron ."
+    "dev": "electron .",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "electron": "^40.6.1"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "ws": "^8.19.0"
   }
 }
