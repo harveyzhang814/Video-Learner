@@ -24,6 +24,20 @@ bash scripts/install.sh
 bash start-electron.sh
 ```
 
+### 部署到新机器
+
+`scripts/settings.conf` **不会随仓库提交**（见 `.gitignore`），克隆后请复制并编辑：
+
+```bash
+cp scripts/settings.example.conf scripts/settings.conf
+```
+
+至少配置 **`WRITING_ENGINE_DEFAULT`**（`opencode` / `claude`）、**`OUTPUT_LANG`**；若 YouTube 出现人机验证，再配置 **`YT_DLP_COOKIES_BROWSER`** 或 **`YT_DLP_COOKIES_FILE`**。手动跑 Agent Service 时可设置环境变量 **`PORT`**、**`AGENT_EVENTS_TOKEN`**、**`OPENCODE_HOST`** / **`OPENCODE_PORT`** 等。
+
+根目录 **`npm install`** 为跑 Agent Service / 测试所必需；仅 GUI 时仍需 **`cd electron && npm install`**。
+
+**完整清单与步骤**见 **[部署指南：docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**。
+
 ### Agent Service（HTTP 编排）
 
 一键 shell 入口 `scripts/run.sh` **已废弃**（执行将报错并提示替代方式）。请使用本地 HTTP 服务创建任务：
