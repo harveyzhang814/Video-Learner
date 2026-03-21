@@ -80,31 +80,25 @@ work/
 
 ## 执行命令
 
-### 标准执行（自动处理一切）
-```bash
-bash scripts/run.sh "https://www.youtube.com/watch?v=..."
-```
+**`scripts/run.sh` 已废弃**（薄壳：仅打印说明并非零退出）。正式执行仅通过 **GUI（Electron）** 或 **Agent Service（HTTP → `core/orchestrator`）**。
 
-### 指定参数
+### GUI
 ```bash
-bash scripts/run.sh "<URL>" LANG=auto MODE=both FORCE=0 FOCUS="技术细节"
+bash start-electron.sh
 ```
+在界面中创建任务并填写 URL、`focus`、`mode`、是否强制重跑等。
 
-- `LANG`: 语言代码，默认 auto
-- `OUTPUT_LANG`: 输出语言，默认 `zh-CN` (简体中文)，未来可通过 `settings.conf` 配置
-- `MODE`: `both` (下载+转录) | `video` (仅视频) | `audio` (仅音频) | `transcript` (仅转录+总结)
-- `FORCE`: `0` (跳过已完成的) | `1` (强制重新执行)
-- `FOCUS`: 用户想了解的重点（如 "技术细节", "主要论点", "行动项"）
-
-### 强制重新生成
+### Agent Service（HTTP）
 ```bash
-bash scripts/run.sh "<URL>" FORCE=1
+npm run agent:serve
 ```
+使用 `POST /api/tasks` 创建任务（body 含 `url`、`focus`、`mode`、`force`、`output_lang` 等），轮询 `GET /api/tasks/:id` 或订阅 `GET /api/events`。约定见 `docs/PROJECT_KNOWLEDGE.md`（Agent HTTP Service）。
 
-### 提供 FOCUS 继续总结
-```bash
-bash scripts/run.sh "<URL>" FOCUS="你想了解的内容"
-```
+### 字段备忘（与旧 CLI 对应）
+- `output_lang`: 输出语言，默认 `zh-CN`（简体中文），可由 `settings.conf` 等扩展
+- `mode`: `both` | `video` | `audio` | `transcript`
+- `force`: 是否强制重跑
+- `focus`: 用户想了解的重点（如「技术细节」「主要论点」「行动项」）
 
 ## Claude 总结生成流程
 
@@ -149,10 +143,7 @@ bash scripts/run.sh "<URL>" FOCUS="你想了解的内容"
 ```
 请处理这个 YouTube: <URL>
 ```
-或
-```
-bash scripts/run.sh "<YouTube_URL>" FOCUS="<你想了解的内容>"
-```
+在助手侧通过 **GUI** 或 **HTTP 创建任务** 完成处理；勿再使用 `scripts/run.sh`。
 
 ## 多引擎写作
 
@@ -161,13 +152,9 @@ bash scripts/run.sh "<YouTube_URL>" FOCUS="<你想了解的内容>"
     ```bash
     WRITING_ENGINE_DEFAULT=opencode   # 或 claude；不设或非法时回退为 opencode
     ```
-  - `scripts/llm_engine.sh` 会读取该默认值，影响 `run.sh` / `generate_article.sh` / `generate_summary.sh` 的写作引擎。
+  - `scripts/llm_engine.sh` 会读取该默认值，影响 `generate_article.sh` / `generate_summary.sh`（及编排层触发的各 Step）的写作引擎。
 - **单次覆盖（环境变量）**
-  - 单次命令可通过环境变量覆盖全局默认：
-    ```bash
-    WRITING_ENGINE=opencode bash scripts/run.sh "<URL>" MODE=full_flow_transcript FOCUS="技术细节"
-    WRITING_ENGINE=claude   bash scripts/run.sh "<URL>" MODE=full_flow_transcript FOCUS="技术细节"
-    ```
+  - 启动 Agent Service 或 Electron **之前**在环境中设置 `WRITING_ENGINE=claude|opencode`，子进程中的 `llm_engine.sh` 会继承该覆盖。
 - **当前引擎实现**
   - `claude`：使用 Claude Code CLI。
   - `opencode`：使用 OpenCode CLI `opencode run -m minimax-cn-coding-plan/MiniMax-M2.5 --format json`（PTY），从 NDJSON 事件流抽取文本。

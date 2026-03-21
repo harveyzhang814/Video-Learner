@@ -24,20 +24,22 @@ bash scripts/install.sh
 bash start-electron.sh
 ```
 
-### 命令行使用
+### Agent Service（HTTP 编排）
+
+一键 shell 入口 `scripts/run.sh` **已废弃**（执行将报错并提示替代方式）。请使用本地 HTTP 服务创建任务：
 
 ```bash
-# 基本用法
-bash scripts/run.sh "https://www.youtube.com/watch?v=..."
+# 启动 Agent Service（默认端口见终端输出，可用 PORT= 覆盖）
+npm run agent:serve
+```
 
-# 指定关注重点
-bash scripts/run.sh "https://youtube.com/..." FOCUS="技术细节,架构分析"
+在另一终端使用 `POST /api/tasks` 创建任务（`url`、`focus`、`mode`、`force` 等），或配合外部 agent 调用。字段语义与下面「参数说明」对应；完整约定见 [docs/PROJECT_KNOWLEDGE.md](docs/PROJECT_KNOWLEDGE.md) 中「Agent HTTP Service」一节。
 
-# 仅转录（不下载视频，节省空间）
-bash scripts/run.sh "https://youtube.com/..." MODE=transcript
+端到端校验（与上述编排一致、较慢）：
 
-# 强制重新生成
-bash scripts/run.sh "https://youtube.com/..." FORCE=1
+```bash
+npm run test:agent:e2e
+# 或: bash scripts/test_full_e2e.sh
 ```
 
 ### GUI 使用
@@ -49,13 +51,15 @@ bash start-electron.sh
 
 ## 参数说明
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `URL` | YouTube 视频链接 | (必填) |
-| `LANG` | 语言代码 | `auto` |
-| `MODE` | `both` / `video` / `audio` / `transcript` | `both` |
-| `FORCE` | `0` 跳过已完成的 / `1` 强制重新执行 | `0` |
-| `FOCUS` | 你想了解的重点 | (可选) |
+创建任务时（GUI 表单或 `POST /api/tasks`）常用字段如下：
+
+| 字段 / 概念 | 说明 | 典型默认 |
+|-------------|------|----------|
+| `url` | YouTube 视频链接 | 必填 |
+| `mode` | `both` / `video` / `audio` / `transcript` | 视 UI 而定 |
+| `force` | 是否强制重跑对应步骤 | `false` |
+| `focus` | 总结侧重点 | 可选 |
+| `output_lang` | 输出语言（如 `zh-CN`） | `zh-CN` |
 
 ## 输出结构
 
@@ -86,13 +90,8 @@ work/
 
 ## 示例
 
-```bash
-# 处理一个技术视频
-bash scripts/run.sh "https://www.youtube.com/watch?v=C5Cjvpfzc_0" FOCUS="技术细节,架构设计"
-
-# 处理一个教程视频
-bash scripts/run.sh "https://www.youtube.com/watch?v=..." FOCUS="步骤详解,关键技巧"
-```
+- 启动 **GUI**，在界面中粘贴 URL，填写「关注重点」，选择是否下载视频/音频后创建任务。
+- 或使用 **Agent Service**：`npm run agent:serve` 后按 `docs/PROJECT_KNOWLEDGE.md` 中的 HTTP 示例创建任务并轮询状态。
 
 ## 注意事项
 
