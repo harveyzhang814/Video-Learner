@@ -75,7 +75,8 @@ echo "Available subtitles: ${available_subs:-none}"
 has_track() {
     local tok="$1"
     # available_subs is a whitespace-separated token list (often newline-separated).
-    printf "%s\n" "$available_subs" | tr ' ' '\n' | tr '\r' '\n' | grep -Fxq "$tok"
+    # Use regex match (^token$) to handle language codes like zh-CN vs zh
+    printf "%s\n" "$available_subs" | tr ' ' '\n' | tr '\r' '\n' | grep -Eq "^${tok}$"
 }
 
 # Function to download subtitle for a language
@@ -160,6 +161,14 @@ fi
 if [ "$zh_downloaded" = false ] && has_track "zh"; then
     echo "  Downloading generic Chinese auto: zh"
     if download_subtitle_for_lang "zh" "zh" "auto"; then
+        zh_downloaded=true
+    fi
+fi
+
+# zh-CN is YouTube's typical auto-caption language code (not zh-Hans/zh-Hant)
+if [ "$zh_downloaded" = false ] && has_track "zh-CN"; then
+    echo "  Downloading Chinese auto: zh-CN"
+    if download_subtitle_for_lang "zh" "zh-CN" "auto"; then
         zh_downloaded=true
     fi
 fi
