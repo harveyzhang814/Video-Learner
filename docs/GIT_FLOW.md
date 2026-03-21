@@ -4,6 +4,12 @@
 
 本项目采用 GitFlow 工作流管理分支，确保代码质量和发布稳定性。
 
+## 合并策略（强制）
+
+- **禁止 fast-forward 合并**：将 `feature/*`、`hotfix/*` 合并进 `staging` 或 `master` 时，**必须**使用 **`git merge --no-ff`**，以便保留合并提交、明确功能边界，并在历史上可追溯「哪次合并带入了哪条分支」。
+- **禁止依赖**默认的 fast-forward（即不要对这类合并使用无 `--no-ff` 的 `git merge`，以免线性历史吞掉分支信息）。
+- 合并时建议写清合并说明，例如：`git merge --no-ff feature/xxx -m "merge: feature/xxx into staging"`。
+
 ## 分支类型
 
 | 分支 | 用途 | 命名规则 | 生命周期 |
@@ -76,7 +82,7 @@ git checkout -b feature/功能名称
 # 切换到功能分支，开发完成后
 git checkout staging
 git pull origin staging
-git merge feature/功能名称
+git merge --no-ff feature/功能名称 -m "merge: feature/功能名称 into staging"
 git push origin staging
 # 删除功能分支
 git branch -d feature/功能名称
@@ -88,7 +94,7 @@ git branch -d feature/功能名称
 # 从 staging 合并到 master
 git checkout master
 git pull origin master
-git merge staging
+git merge --no-ff staging -m "merge: staging into master for release"
 git push origin master
 ```
 
@@ -101,11 +107,11 @@ git checkout -b hotfix/问题描述
 
 # 修复完成后，同时合并到 master 和 staging
 git checkout master
-git merge hotfix/问题描述
+git merge --no-ff hotfix/问题描述 -m "merge: hotfix into master"
 git push origin master
 
 git checkout staging
-git merge hotfix/问题描述
+git merge --no-ff hotfix/问题描述 -m "merge: hotfix into staging"
 git push origin staging
 
 # 删除 hotfix 分支

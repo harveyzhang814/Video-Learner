@@ -4,6 +4,7 @@
 - **每次开发功能前，必须检查当前所在分支**
 - 开发只能在 `feature/*` 或 `hotfix/*` 分支上进行
 - **禁止在 `master` 和 `staging` 分支上直接开发**
+- **合并到 `staging` / `master` 时禁止使用 fast-forward**：必须使用 `git merge --no-ff`（规范见 `docs/GIT_FLOW.md`）
 
 ## 概述
 本仓库实现 YouTube URL → 下载/转录/总结 的自动化流水线。
