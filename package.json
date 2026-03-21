@@ -8,6 +8,7 @@
     "install-deps": "bash scripts/install.sh",
     "agent:serve": "node services/http-server/index.js",
     "test:agent": "node tests/agent-http.test.js",
+    "test:agent:e2e": "node tests/agent-service-e2e.test.js",
     "test:agent:sqlite": "node tests/agent-sqlite-persistence.test.js",
     "test:fetch": "node tests/fetch-step.test.js",
     "test:sse": "node tests/sse-e2e.test.js",
