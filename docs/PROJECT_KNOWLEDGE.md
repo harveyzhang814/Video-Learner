@@ -137,7 +137,8 @@ sequenceDiagram
 
 - 新功能与修复应落在 **`core/orchestrator`** 或对应 **`scripts/<step>.sh`**，不要恢复与编排层并行的「一体化 shell 流水线」。
 - `work/index.jsonl` 仍可由编排层追加（追溯）；**权威任务状态以 SQLite 为准**。
-- **`runStep` A 层（必需物）**：在 spawn 各 `scripts/*.sh` 之前，校验 URL、任务目录可写或可创建、`transcript/subs` 下是否有 `.vtt`、`original_*.md`、`writing/article.md` 等（见 `docs/plans/2026-03-22-runstep-prerequisites.md`）；**不**根据上游步骤的 SQLite 状态拦截。仅因 A 层失败时**不会**发出 `step.started`。步骤的先后与并行仍由未来 **B 层** DAG/调度设计（`docs/plans/2026-03-22-orchestrator-dag-scheduler.md`）约束。
+- **`runTask`（B 层串行调度）**：`createTask` 之后由 HTTP 或 Electron 触发；内部用 `core/orchestrator/schedule.js` 循环计算就绪集并按 **主链 / 次优先** 出队调用 `runStep`，直至无步可调度（语义见 `docs/plans/2026-03-22-orchestrator-dag-scheduler.md`）。Electron `Orchestrator.run()` 委托 **`core.runTask`**，与 Agent Service 共用同一顺序。
+- **`runStep` A 层（必需物）**：在 spawn 各 `scripts/*.sh` 之前，校验 URL、任务目录可写或可创建、`transcript/subs` 下是否有 `.vtt`、`original_*.md`、`writing/article.md` 等（见 `docs/plans/2026-03-22-runstep-prerequisites.md`）；**不**根据上游步骤的 SQLite 状态拦截。仅因 A 层失败时**不会**发出 `step.started`。步骤的 B 层依赖、就绪判定与 **默认单队列串行** 出队由 **B 层** DAG/调度设计（`docs/plans/2026-03-22-orchestrator-dag-scheduler.md`）约束；真并行 `runStep` 为可选演进。
 
 ---
 

@@ -7,6 +7,7 @@ const { EventEmitter } = require('events');
 const { generateId } = require('../id');
 const { createDb } = require('./db');
 const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts');
+const { computeReadySteps, pickNextStep } = require('./schedule');
 
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
@@ -782,22 +783,27 @@ async function runTask(taskId, options = {}) {
   const { mode, focus } = task.params;
 
   try {
-    // Step 0: fetch
-    await runStep(taskId, 'fetch');
+    // B-layer: DAG readiness + two-tier serial priority (see docs/plans/2026-03-22-orchestrator-dag-scheduler.md).
+    for (let guard = 0; guard < 64; guard++) {
+      const ready = computeReadySteps(task);
+      const next = pickNextStep(ready, mode);
+      if (!next) break;
 
-    // Media download based on mode
-    if (mode === 'both' || mode === 'video') {
-      await runStep(taskId, 'video', { force: task.params.force });
-    } else if (mode === 'audio') {
-      await runStep(taskId, 'audio', { force: task.params.force });
+      const stepOptions = { ...options };
+      if (next === 'video' || next === 'audio') {
+        stepOptions.force = task.params.force;
+      }
+      if (next === 'summary') {
+        let summaryFocus = options.focus;
+        if (summaryFocus === undefined || String(summaryFocus).trim() === '') {
+          const db = ensureDb(task.params.rootDir);
+          const row = db.getTask(task.meta.id);
+          summaryFocus = (row && row.focus) || focus || task.meta.focus || '';
+        }
+        stepOptions.focus = String(summaryFocus || '').trim() || '视频的主要内容和要点';
+      }
+      await runStep(taskId, next, stepOptions);
     }
-
-    // Transcript-related steps
-    await runStep(taskId, 'subs');
-    await runStep(taskId, 'vtt2md');
-    await runStep(taskId, 'md2vtt');
-    await runStep(taskId, 'article');
-    await runStep(taskId, 'summary', { focus });
 
     updateTaskMetaFromFilesystem(task);
 
