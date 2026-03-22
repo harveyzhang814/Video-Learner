@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { computeReadySteps, pickNextStep } = require('../core/orchestrator/schedule');
+const { computeReadySteps, pickNextStep, getDownstreamClosure } = require('../core/orchestrator/schedule');
 
 function pending() {
   return { status: 'pending', attempts: 0, error: null };
@@ -73,6 +73,19 @@ function run() {
       const task = { params: { mode: 'both' }, steps };
       const ready = computeReadySteps(task);
       assert.ok(ready.has('subs'), 'subs should be ready despite video failed');
+    }
+
+    // getDownstreamClosure: vtt2md → vtt2md, md2vtt, article, summary
+    {
+      const c = getDownstreamClosure('vtt2md');
+      assert.ok(c.has('vtt2md') && c.has('md2vtt') && c.has('article') && c.has('summary'));
+      assert.ok(!c.has('fetch'));
+    }
+    // summary → only itself
+    {
+      const c = getDownstreamClosure('summary');
+      assert.strictEqual(c.size, 1);
+      assert.ok(c.has('summary'));
     }
 
     console.log('orchestrator-schedule.test.js: PASS');

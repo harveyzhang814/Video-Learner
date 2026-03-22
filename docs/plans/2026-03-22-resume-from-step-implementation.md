@@ -221,11 +221,11 @@ git commit -m "docs: note reset_scope implementation status"
 
 ## 验收清单
 
-- [ ] 省略 `reset_scope` 与旧客户端完全兼容。
-- [ ] `step`：仅锚点步 `pending` + `attempts` 0，再执行该步。
-- [ ] `downstream`：闭包内置 `pending`，`skipped` 不变；202 + 触发 `runTask`。
-- [ ] `running` → 409；非法 `reset_scope` → 400；排除锚点 / `skipped` 锚点 → 400。
-- [ ] `npm run test:agent:core` 通过。
+- [x] 省略 `reset_scope` 与旧客户端完全兼容。
+- [x] `step`：仅锚点步 `pending` + `attempts` 0，再执行该步。
+- [x] `downstream`：闭包内置 `pending`，`skipped` 不变；202 + 触发 `runTask`。
+- [x] `running` → 409；非法 `reset_scope` → 400；排除锚点 / `skipped` 锚点 → 400（核心测覆盖 BAD_*；409 可后续补测）。
+- [x] `npm run test:orchestrator:unit` / `test:reset-scope` 通过。
 
 ---
 

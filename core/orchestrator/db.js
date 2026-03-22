@@ -182,6 +182,38 @@ function createDbManager(dbPath) {
         .run(taskId, stepName, status, error);
     },
 
+    /**
+     * Set step row exactly (no attempts bump). Used for reset_scope pending resets.
+     */
+    writeStepState(taskId, stepName, { status, attempts = 0, error = null }) {
+      const taskExists = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
+      if (!taskExists) {
+        db.prepare("INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime('now'))").run(taskId, '');
+      }
+
+      const existing = db.prepare('SELECT * FROM steps WHERE task_id = ? AND step_name = ?').get(taskId, stepName);
+      if (existing) {
+        return db
+          .prepare(
+            `
+            UPDATE steps SET status = ?, attempts = ?, error = ?,
+            started_at = NULL, completed_at = NULL
+            WHERE task_id = ? AND step_name = ?
+          `
+          )
+          .run(status, attempts, error, taskId, stepName);
+      }
+
+      return db
+        .prepare(
+          `
+          INSERT INTO steps (task_id, step_name, status, attempts, error, started_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))
+        `
+        )
+        .run(taskId, stepName, status, attempts, error);
+    },
+
     getSteps(taskId) {
       return db.prepare('SELECT * FROM steps WHERE task_id = ?').all(taskId);
     },

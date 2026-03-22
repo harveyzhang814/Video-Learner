@@ -35,6 +35,40 @@ const PREDECESSORS = (() => {
   return m;
 })();
 
+/** stepName -> successor step names (forward DAG for downstream closure). */
+const SUCCESSORS = (() => {
+  const m = {};
+  for (const name of ALL_STEPS) {
+    m[name] = [];
+  }
+  for (const [from, to] of STEP_EDGES) {
+    m[from].push(to);
+  }
+  return m;
+})();
+
+/**
+ * All nodes reachable from `stepName` following edges from → to (includes `stepName`).
+ * @param {string} stepName
+ * @returns {Set<string>}
+ */
+function getDownstreamClosure(stepName) {
+  const out = new Set();
+  if (!ALL_STEPS.includes(stepName)) {
+    return out;
+  }
+  const queue = [stepName];
+  while (queue.length > 0) {
+    const n = queue.shift();
+    if (out.has(n)) continue;
+    out.add(n);
+    for (const s of SUCCESSORS[n] || []) {
+      if (!out.has(s)) queue.push(s);
+    }
+  }
+  return out;
+}
+
 /** Main-chain order for pickNextStep (highest priority). */
 const PRIMARY_CHAIN = ['fetch', 'subs', 'vtt2md', 'article', 'summary'];
 
@@ -129,6 +163,9 @@ module.exports = {
   STEP_EDGES,
   ALL_STEPS,
   PREDECESSORS,
+  SUCCESSORS,
   computeReadySteps,
-  pickNextStep
+  pickNextStep,
+  getDownstreamClosure,
+  excludedByMode
 };

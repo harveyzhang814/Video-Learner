@@ -7,7 +7,7 @@ const { EventEmitter } = require('events');
 const { generateId } = require('../id');
 const { createDb } = require('./db');
 const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts');
-const { computeReadySteps, pickNextStep } = require('./schedule');
+const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode } = require('./schedule');
 
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
@@ -766,6 +766,79 @@ async function runStep(taskId, stepName, options = {}) {
 }
 
 /**
+ * Reset step(s) for reset_scope: 'step' | 'downstream'. Does not run anything.
+ * @returns {{ reset_steps: string[] }}
+ */
+function applyResetScope(taskId, stepName, scope, options = {}) {
+  if (scope !== 'step' && scope !== 'downstream') {
+    const e = new Error(`invalid reset scope: ${scope}`);
+    e.code = 'BAD_SCOPE';
+    throw e;
+  }
+
+  const task = ensureTask(taskId, options);
+  if (!STEPS.includes(stepName)) {
+    const e = new Error(`unknown step: ${stepName}`);
+    e.code = 'BAD_STEP';
+    throw e;
+  }
+
+  const mode = (task.params && task.params.mode) || 'both';
+  if (excludedByMode(mode).has(stepName)) {
+    const e = new Error('invalid resume anchor for mode');
+    e.code = 'BAD_ANCHOR_MODE';
+    throw e;
+  }
+
+  const anchor = task.steps && task.steps[stepName];
+  if (anchor && anchor.status === 'skipped') {
+    const e = new Error('anchor step is skipped');
+    e.code = 'ANCHOR_SKIPPED';
+    throw e;
+  }
+
+  if (task.status === 'running') {
+    const e = new Error('task is running');
+    e.code = 'TASK_OR_STEP_RUNNING';
+    throw e;
+  }
+  for (const name of STEPS) {
+    const s = task.steps && task.steps[name];
+    if (s && s.status === 'running') {
+      const e = new Error('a step is running');
+      e.code = 'TASK_OR_STEP_RUNNING';
+      throw e;
+    }
+  }
+
+  const db = ensureDb(task.params.rootDir);
+  const id = task.meta.id;
+  task.steps = task.steps || initSteps();
+  const resetList = [];
+
+  const markPending = (name) => {
+    if (!STEPS.includes(name)) return;
+    const cur = task.steps[name];
+    if (cur && cur.status === 'skipped') return;
+    task.steps[name] = { status: 'pending', attempts: 0, error: null };
+    db.writeStepState(id, name, { status: 'pending', attempts: 0, error: null });
+    resetList.push(name);
+  };
+
+  if (scope === 'step') {
+    markPending(stepName);
+  } else {
+    const closure = getDownstreamClosure(stepName);
+    for (const name of closure) {
+      markPending(name);
+    }
+  }
+
+  task.updated_at = new Date().toISOString();
+  return { reset_steps: resetList };
+}
+
+/**
  * Run the full pipeline by orchestrating individual steps.
  * This is synchronous from the caller's perspective (returns when finished).
  */
@@ -1001,6 +1074,7 @@ module.exports = {
   listTasks,
   runTask,
   runStep,
+  applyResetScope,
   skipStep,
   deleteTask,
   getTask,
