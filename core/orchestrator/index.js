@@ -6,6 +6,7 @@ const path = require('path');
 const { EventEmitter } = require('events');
 const { generateId } = require('../id');
 const { createDb } = require('./db');
+const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts');
 
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
@@ -449,6 +450,30 @@ async function runStep(taskId, stepName, options = {}) {
     return { success: true, skipped: true };
   }
 
+  // A-layer: required artifacts / writable paths only (no upstream step status).
+  const pre = validateStepArtifacts(task, stepName);
+  if (!pre.ok) {
+    const prevAttempts = stepState.attempts || 0;
+    const nextAttempts = prevAttempts + 1;
+    stepState.status = 'failed';
+    stepState.error = pre.error;
+    stepState.attempts = nextAttempts;
+    task.steps[stepName] = stepState;
+    task.updated_at = new Date().toISOString();
+    db.updateStep(id, stepName, 'failed', pre.error);
+    emitOrchestratorEvent('step.finished', taskId, {
+      stepName,
+      status: 'failed',
+      error: pre.error
+    });
+    emitOrchestratorEvent('task.updated', taskId, {
+      status: task.status,
+      stepName,
+      stepStatus: 'failed'
+    });
+    return { success: false, error: pre.error };
+  }
+
   stepState.status = 'running';
   stepState.attempts += 1;
   stepState.error = null;
@@ -614,24 +639,20 @@ async function runStep(taskId, stepName, options = {}) {
     }
     case 'md2vtt': {
       const errors = [];
-      if (fs.existsSync(enMd)) {
+      const mdNames = listOriginalMdFiles(path.join(dir, 'transcript'));
+      for (const name of mdNames) {
+        const mdPath = path.join(dir, 'transcript', name);
         try {
-          const result = await runStepScript(rootDir, 'md2vtt', [enMd, enMd.replace('.md', '.vtt')], { onOutput: options.onOutput, onStdout, onStderr });
+          const result = await runStepScript(rootDir, 'md2vtt', [mdPath, mdPath.replace('.md', '.vtt')], {
+            onOutput: options.onOutput,
+            onStdout,
+            onStderr
+          });
           if (result.code !== 0) {
-            errors.push(`original_en.md: ${result.output || 'failed'}`);
+            errors.push(`${name}: ${result.output || 'failed'}`);
           }
         } catch (e) {
-          errors.push(`original_en.md: ${e.message}`);
-        }
-      }
-      if (fs.existsSync(zhMd)) {
-        try {
-          const result = await runStepScript(rootDir, 'md2vtt', [zhMd, zhMd.replace('.md', '.vtt')], { onOutput: options.onOutput, onStdout, onStderr });
-          if (result.code !== 0) {
-            errors.push(`original_zh.md: ${result.output || 'failed'}`);
-          }
-        } catch (e) {
-          errors.push(`original_zh.md: ${e.message}`);
+          errors.push(`${name}: ${e.message}`);
         }
       }
       if (errors.length > 0) {
@@ -650,18 +671,10 @@ async function runStep(taskId, stepName, options = {}) {
       return { success: true };
     }
     case 'article': {
-      const transcriptPath = fs.existsSync(enMd)
-        ? enMd
-        : fs.existsSync(zhMd)
-        ? zhMd
-        : null;
+      let transcriptPath = fs.existsSync(enMd) ? enMd : fs.existsSync(zhMd) ? zhMd : null;
       if (!transcriptPath) {
-        stepState.status = 'failed';
-        stepState.error = 'No transcript file found';
-        task.steps[stepName] = stepState;
-        db.updateStep(id, stepName, 'failed', stepState.error);
-        finishLogs();
-        return { success: false, error: stepState.error };
+        const names = listOriginalMdFiles(path.join(dir, 'transcript'));
+        transcriptPath = path.join(dir, 'transcript', names[0]);
       }
       const outPath = path.join(dir, 'writing', 'article.md');
       args = [transcriptPath, outPath, task.meta.output_lang || 'zh-CN'];
@@ -669,14 +682,6 @@ async function runStep(taskId, stepName, options = {}) {
     }
     case 'summary': {
       const articlePath = path.join(dir, 'writing', 'article.md');
-      if (!fs.existsSync(articlePath)) {
-        stepState.status = 'failed';
-        stepState.error = 'article.md not found';
-        task.steps[stepName] = stepState;
-        db.updateStep(id, stepName, 'failed', stepState.error);
-        finishLogs();
-        return { success: false, error: stepState.error };
-      }
       const summaryFocus = focus || task.meta.focus || '视频的主要内容和要点';
       const outPath = path.join(dir, 'writing', 'summary.md');
       args = [articlePath, summaryFocus, outPath, task.meta.output_lang || 'zh-CN'];
@@ -997,7 +1002,8 @@ module.exports = {
   getTaskSteps,
   onEvent,
   STEPS,
-  _dropTaskFromMemory
+  _dropTaskFromMemory,
+  validateStepArtifacts
 };
 
 

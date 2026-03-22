@@ -137,6 +137,7 @@ sequenceDiagram
 
 - 新功能与修复应落在 **`core/orchestrator`** 或对应 **`scripts/<step>.sh`**，不要恢复与编排层并行的「一体化 shell 流水线」。
 - `work/index.jsonl` 仍可由编排层追加（追溯）；**权威任务状态以 SQLite 为准**。
+- **`runStep` A 层（必需物）**：在 spawn 各 `scripts/*.sh` 之前，校验 URL、任务目录可写或可创建、`transcript/subs` 下是否有 `.vtt`、`original_*.md`、`writing/article.md` 等（见 `docs/plans/2026-03-22-runstep-prerequisites.md`）；**不**根据上游步骤的 SQLite 状态拦截。仅因 A 层失败时**不会**发出 `step.started`。步骤的先后与并行仍由未来 **B 层** DAG/调度设计（`docs/plans/2026-03-22-orchestrator-dag-scheduler.md`）约束。
 
 ---
 

@@ -127,5 +127,5 @@
 
 - 修改步骤拆分或目录约定时，同步更新本文件与 `docs/PROJECT_KNOWLEDGE.md` 相关小节。
 - **DAG / 调度（B 层）**：[2026-03-22-orchestrator-dag-scheduler.md](./2026-03-22-orchestrator-dag-scheduler.md)
-- 实现跟踪：在 `core/orchestrator/index.js` 的 `runStep` 开头或独立 `assertStepPrerequisites(taskId, stepName)` 中集中校验 **A 层**。
+- **已实现（A 层代码）**：`core/orchestrator/stepArtifacts.js`（`validateStepArtifacts` 等）+ `runStep` 在 mode 跳过之后、`running` 之前调用；不满足时不发 `step.started`、步骤记 `failed`。落地说明见 [implementation plan](./2026-03-22-runstep-prerequisites-implementation.md)。
 
