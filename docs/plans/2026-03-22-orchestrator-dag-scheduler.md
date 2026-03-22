@@ -139,5 +139,6 @@ flowchart TD
 
 - **A 层（必需物）**：[2026-03-22-runstep-prerequisites.md](./2026-03-22-runstep-prerequisites.md)
 - **实现计划（B 层调度落地）**：[2026-03-22-orchestrator-dag-scheduler-implementation.md](./2026-03-22-orchestrator-dag-scheduler-implementation.md)
+- **第二阶段（从某步重置后继 + HTTP）**：[2026-03-22-resume-from-step-design.md](./2026-03-22-resume-from-step-design.md)
 - **流水线阶段说明**：`docs/PROJECT_KNOWLEDGE.md` 第四节
 - 修改 DAG 或 `mode` 语义时，同步更新本文与 A 层文档中的「两层分工」表。
