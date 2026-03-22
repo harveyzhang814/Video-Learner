@@ -4,8 +4,8 @@
 
 - **本阶段**：**Agent HTTP** 暴露「从某步起重置后继并重新调度」能力；**core** 提供可复用入口。**Electron / GUI 不接**，留待下一阶段。
 - **与现有接口关系**：
-  - `POST /api/tasks/:taskId/steps/:stepName/run`：**只跑单步**，不重置后继状态；行为保持不变。
-  - 新接口：**先按 DAG 重置 `S` 及后继**，再 **`runTask` 等价调度循环**（与 [`2026-03-22-orchestrator-dag-scheduler.md`](./2026-03-22-orchestrator-dag-scheduler.md) 一致）。
+  - `POST /api/tasks/:taskId/steps/:stepName/run`：**只跑单步**，默认**不**先改步骤状态（失败步可直接 `running`→…）；与下面「重置类」操作互补，**保留**。
+  - **新接口（重置类）**：与现有「重置某个步骤」产品能力**统一为同一套 `scope` 语义**（见下文 **「与现有重置/重试的融合」**）；HTTP 上仍推荐 **专用 `resume-from` 路由**表达默认（下游闭包 + 自动调度），避免与 `run` 混用。
 - **依据**：编排设计文档「从指定 step 重试剩余链路」节；DAG 边以 `core/orchestrator/schedule.js` 中 `STEP_EDGES` 为唯一来源，避免双份图。
 
 ---
@@ -36,9 +36,34 @@
 - **`C` 外**的步：**不改**状态。
 - **`S` 的前驱**：**不修改**（除非未来另增 `force` 全量入口，本阶段不做）。
 
-### 3. 可选收窄（YAGNI 默认不做）
+### 3. 两种重置范围（与「重置某步」功能融合）
 
-- 设计文档允许「仅重置 `S`、不动后继」的**高风险**模式；本阶段 **不暴露**，减少与产物不一致的误用。若以后要加，建议 body：`{ scope: 'step_only' }` 并强提示。
+现有产品里已存在或已规划的「重置/重试」相关能力，与本设计**合并为同一概念：按范围（scope）重置状态**，再决定是否自动继续调度。
+
+| 能力（现况） | 行为摘要 | 融合后的 `scope` |
+|--------------|----------|------------------|
+| **失败步骤「重试」**（Electron 重试弹窗、`POST .../steps/:name/run` + `force`） | 直接再跑该步脚本，**不**批量把其它步改 `pending`；若上游产物已变，下游仍可能保持 `completed` | 与 **`run`** 同源：可选在实现上改为「先 `step_only` 重置该步再 `run`」以统一 attempts/error 语义（**非必须**，见下） |
+| **已完成步骤「重置」**（如 GUI「重置步骤」弹窗，将某步标回可再执行） | 产品意图多为：**只动本步** 或 **从该步起整条后续都要重跑** | 分别对应 **`step_only`** / **`downstream`** |
+| **本设计 `resume-from`** | 闭包内置 `pending` + 自动 `runTask` 循环 | 等价 **`downstream` + `auto_run=true`（默认）** |
+
+**`step_only`（仅重置锚点步）**
+
+- **语义**：仅将 **`S`** 置 `pending`，清 `error`，**`attempts` 置 `0`**；**不**改 `S` 的前驱与**任何**后继；**不**自动 spawn 脚本。
+- **典型用途**：用户只想「清状态再点一次运行」、或与 `POST .../steps/:name/run` 组合：先 reset 再 run。
+- **风险**（须在 UI/API 文案中提示）：下游仍 `completed` 时可能与磁盘新产物不一致；**默认不推荐**给不熟悉用户作为主按钮。
+
+**`downstream`（锚点 + DAG 下游闭包）**
+
+- 即上文 **§1–§2**；完成后 **自动** 触发与 `POST /api/tasks` 相同的调度（`runTask` / `runTaskLoop`）。
+
+**实现与路由建议（融合、少端点）**
+
+1. **Core**（推荐一次到位）：  
+   - `resetTaskSteps(taskId, anchorStep, { scope: 'step_only' | 'downstream', ... })` — 只做状态与 DB；**不**内嵌 `runTask`。  
+   - `resumeTaskFromStep(taskId, anchorStep, options)` — 调用 `resetTaskSteps(..., { scope: 'downstream' })` 后 **再** `runTask`（fire-and-forget 由 HTTP 层组装亦可）。
+2. **HTTP**（可分两期）：  
+   - **一期（已定）**：`POST .../resume-from/:stepName` ⇔ **`downstream` + 自动调度**（与现设计一致）。  
+   - **二期（与 GUI「重置某步」对齐）**：`POST .../steps/:stepName/reset`，body：`{ scope: 'step_only' | 'downstream' }`；其中 `scope: 'downstream'` **可与 `resume-from` 共用同一处理函数**（避免重复逻辑）。可选 `auto_run`：`downstream` 时默认 `true`；`step_only` 时仅允许 `false` 或省略。
 
 ### 4. 调度
 
@@ -71,7 +96,8 @@
 
 ## 待下一阶段（GUI）
 
-- Electron：在步骤列表上「从该步重跑后续」调用同一 HTTP 或 `core.resumeTaskFromStep`（与是否本地直连 core 的架构选择有关）；**本设计不绑定实现**。
+- **与「重置步骤」弹窗融合**：同一入口提供两种明确选项（文案示例）：**「仅重置此步骤状态」**（`step_only` + 可选随后手动运行）与 **「从此步起重置后续并继续跑（推荐）」**（`downstream`，对应 HTTP `resume-from` 或 `reset` + `scope=downstream`）。失败态 **「重试」** 可保持现有「直接 `runStep` + force」或升级为「`step_only` reset + run」以统一计数，由实现计划定。
+- 调用链：优先走与桌面端一致的 **HTTP**（`ServiceClient`），或本地 `core.resumeTaskFromStep` / `core.resetTaskSteps`（与架构选择一致）。
 
 ---
 

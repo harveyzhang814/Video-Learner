@@ -28,16 +28,18 @@
 
 ---
 
-### Task 2: `resumeTaskFromStep` in orchestrator
+### Task 2: `resetTaskSteps` + `resumeTaskFromStep` in orchestrator
 
 **Files:**
 - Modify: `core/orchestrator/index.js`
 - Modify: `core/orchestrator/schedule.js`（如需导出 `excludedByMode` 或复用）
 
-**Step 1:** 实现 `resumeTaskFromStep(taskId, stepName, options = {})`：
+**设计对齐**（见设计文档 §3）：先实现 **`resetTaskSteps(taskId, anchorStep, { scope })`**，`scope` 为 `'downstream'`（闭包同现 `resume` 语义）或 `'step_only'`（仅锚点一步）；**再**实现 **`resumeTaskFromStep` = `resetTaskSteps(..., { scope: 'downstream' })` + 由调用方 `runTask`**，避免两套重置逻辑。
+
+**Step 1:** 实现 `resetTaskSteps` / `resumeTaskFromStep`：
 - `ensureTask`；若 `stepName` 不在 `STEPS`，throw。
 - 若 `excludedByMode(task.params.mode).has(stepName)`，throw（由 HTTP 映射为 400）。
-- `closure = getDownstreamClosure(stepName)`。
+- `downstream`：`closure = getDownstreamClosure(stepName)`；`step_only`：`closure = { stepName }`。
 - 对每个 `name ∈ closure`：若 `task.steps[name].status === 'skipped'`，continue；否则 `pending`，`error: null`，`attempts: 0`，`db.updateStep`。
 - 若 `task.status === 'running'`（或与 `runTask` 互斥的同一条件），throw 专用错误（如 `Error` + `code: 'TASK_RUNNING'`）供 HTTP 映射 409。
 - `emitOrchestratorEvent('task.updated', …)`（可选）。
