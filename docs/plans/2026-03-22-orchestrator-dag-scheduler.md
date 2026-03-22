@@ -91,12 +91,12 @@ flowchart TD
 
 ## 从指定 step 重试剩余链路（DAG 铺垫）
 
-以下语义供 API / GUI「从某步继续」使用。**HTTP 与 core 入口的完整设计**见 **[从指定 Step 重置后续（第二阶段）](./2026-03-22-resume-from-step-design.md)**；GUI 为更后阶段。
+以下语义供 API / GUI「从某步继续」使用。**HTTP** 与「重置单步 / 重置下游再跑」统一为 **`POST .../steps/:stepName/run` + body `reset_scope`**，见 **[步骤运行与重置设计](./2026-03-22-resume-from-step-design.md)**；GUI 为更后阶段。
 
 1. **为何需要 DAG**：重试不仅是「再调一次 `runStep`」，还要明确 **哪些后继** 在逻辑上应 **作废旧结果、重新跑**，避免「上游已变、下游仍 completed」不一致。
 2. **建议默认——重置范围**：
    - 将起始步 **`S` 及 DAG 中所有从 `S` 经有向边可达的后继** 标为 `pending`（或允许重试的 `failed` 语义，与 SQLite 一致）；**不**自动重置 **`S` 的前驱**，除非另有 **`force`** 或单独「全量重跑」入口。
-   - **例外（与单步重置融合）**：若仅修复某步且确定下游输入不变，可只重置 `S`（**`step_only`**）；须在文档与 UI 标明风险。与 HTTP `resume-from` / `reset?scope=` 的对应关系见 **[resume-from-step 设计](./2026-03-22-resume-from-step-design.md)** §3。
+   - **例外（产品可收紧）**：若仅修复某步且确定下游输入不变，可只重置 `S`；须在文档与 UI 标明风险。
 3. **与 `skipped` / `mode`**：被 `mode` 跳过的步保持 `skipped`，不参与「后继重置」的可达扩展（或等价于图中不存在该节点）。
 4. **与队列衔接**：重置完成后，调度器用与上文相同的 **就绪集 + 序列优先级** 推进；仍 **每次一步**，直至无就绪且任务到达终态。
 5. **与 A 层**：某步被调度时 **`runStep` 仍做必需物检查**；缺产物则失败，**不** spawn；是否自动阻塞整条队列由产品与实现约定。
@@ -139,6 +139,6 @@ flowchart TD
 
 - **A 层（必需物）**：[2026-03-22-runstep-prerequisites.md](./2026-03-22-runstep-prerequisites.md)
 - **实现计划（B 层调度落地）**：[2026-03-22-orchestrator-dag-scheduler-implementation.md](./2026-03-22-orchestrator-dag-scheduler-implementation.md)
-- **第二阶段（HTTP：`resume-from`）**：[2026-03-22-resume-from-step-design.md](./2026-03-22-resume-from-step-design.md)
+- **第二阶段（HTTP：`reset_scope` 与 `.../steps/:stepName/run`）**：[2026-03-22-resume-from-step-design.md](./2026-03-22-resume-from-step-design.md)
 - **流水线阶段说明**：`docs/PROJECT_KNOWLEDGE.md` 第四节
 - 修改 DAG 或 `mode` 语义时，同步更新本文与 A 层文档中的「两层分工」表。

@@ -1,10 +1,10 @@
-# Resume From Step (HTTP + core) Implementation Plan
+# 步骤 `run` + `reset_scope`（HTTP + core）Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** 实现 `getDownstreamClosure`、`resumeTaskFromStep`，并暴露 `POST /api/tasks/:taskId/resume-from/:stepName`；重置语义与 [`2026-03-22-resume-from-step-design.md`](./2026-03-22-resume-from-step-design.md) 一致。
+**Goal:** 在 **不新增路由** 的前提下，扩展 `POST /api/tasks/:taskId/steps/:stepName/run`：请求体 **`reset_scope`** 取 `off`（默认）| `step` | `downstream`，分别对应「仅 runStep」「先重置本步再 runStep」「先重置下游闭包再 fire-and-forget runTask」。语义见 [`2026-03-22-resume-from-step-design.md`](./2026-03-22-resume-from-step-design.md)。
 
-**Architecture:** 在 `schedule.js` 建正向邻接与 BFS 闭包；`resumeTaskFromStep` 在 `core/orchestrator/index.js` 内更新内存+SQLite，再 `runTask` fire-and-forget（由 HTTP 层触发，与 `POST /tasks` 相同）。
+**Architecture:** `schedule.js` 提供 `getDownstreamClosure`；`core/orchestrator` 提供 `applyResetScope(taskId, stepName, scope, options)`（或等价拆分）；HTTP 在调用 `runStep`/`runTask` 前调用重置；**不**在 `runStep` 内隐式改其它步。
 
 **Tech Stack:** Node.js、Koa、现有 `db.updateStep`。
 
@@ -16,81 +16,76 @@
 
 **Files:**
 - Modify: `core/orchestrator/schedule.js`
-- Create or modify: `tests/orchestrator-schedule.test.js`
+- Modify: `tests/orchestrator-schedule.test.js`
 
-**Step 1:** 导出 `getDownstreamClosure(stepName)`，返回 `Set`（含起点）。边方向与 `STEP_EDGES` 一致（从 `from` 走到 `to`）。
+**Step 1:** 导出 `getDownstreamClosure(stepName)`，返回 `Set`（含起点）；边为 `STEP_EDGES` 正向邻接。
 
-**Step 2:** 断言：`vtt2md` → 含 `vtt2md,md2vtt,article,summary`；`fetch` → 含全部可达；`summary` → 仅 `summary`。
+**Step 2:** 断言：`vtt2md` → 含 `vtt2md,md2vtt,article,summary`；`fetch` → 含全部从 fetch 可达；`summary` → 仅 `summary`。
 
-**Step 3:** `node tests/orchestrator-schedule.test.js` → PASS。
+**Step 3:** `npm run test:schedule` → PASS。
 
-**Step 4:** Commit：`feat(orchestrator): add getDownstreamClosure for resume`
+**Step 4:** Commit：`feat(orchestrator): add getDownstreamClosure for reset_scope`
 
 ---
 
-### Task 2: `resetTaskSteps` + `resumeTaskFromStep` in orchestrator
+### Task 2: `applyResetScope` + 与 `runTask` 衔接
 
 **Files:**
 - Modify: `core/orchestrator/index.js`
-- Modify: `core/orchestrator/schedule.js`（如需导出 `excludedByMode` 或复用）
+- Modify: `core/orchestrator/schedule.js`（若需导出 `excludedByMode`）
 
-**设计对齐**（见设计文档 §3）：先实现 **`resetTaskSteps(taskId, anchorStep, { scope })`**，`scope` 为 `'downstream'`（闭包同现 `resume` 语义）或 `'step_only'`（仅锚点一步）；**再**实现 **`resumeTaskFromStep` = `resetTaskSteps(..., { scope: 'downstream' })` + 由调用方 `runTask`**，避免两套重置逻辑。
+**Step 1:** 实现 `applyResetScope(taskId, stepName, scope, options = {})`：
+- `scope` 仅 `'step' | 'downstream'`；`ensureTask`；非法 `stepName` → throw。
+- `excludedByMode(task.params.mode).has(stepName)` → throw（`code` 供 HTTP 映射 400）。
+- `task.steps[stepName].status === 'skipped'` → throw 400。
+- **409**：`task.status === 'running'` 或 **任一步** `running`（与设计一致）。
+- **`step`**：只更新 `stepName` 为 `pending`，清 `error`/`attempts`，写 DB。
+- **`downstream`**：`closure = getDownstreamClosure(stepName)`；对闭包内非 `skipped` 步同上。
 
-**Step 1:** 实现 `resetTaskSteps` / `resumeTaskFromStep`：
-- `ensureTask`；若 `stepName` 不在 `STEPS`，throw。
-- 若 `excludedByMode(task.params.mode).has(stepName)`，throw（由 HTTP 映射为 400）。
-- `downstream`：`closure = getDownstreamClosure(stepName)`；`step_only`：`closure = { stepName }`。
-- 对每个 `name ∈ closure`：若 `task.steps[name].status === 'skipped'`，continue；否则 `pending`，`error: null`，`attempts: 0`，`db.updateStep`。
-- 若 `task.status === 'running'`（或与 `runTask` 互斥的同一条件），throw 专用错误（如 `Error` + `code: 'TASK_RUNNING'`）供 HTTP 映射 409。
-- `emitOrchestratorEvent('task.updated', …)`（可选）。
+**Step 2:** 导出供 HTTP 使用；**不**在函数内自动 `runTask`（由 HTTP 在 `downstream` 分支调用）。
 
-**Step 2:** 不在此函数内自动 `runTask`（由 HTTP 调用方 fire-and-forget），或文档化二选一：**推荐** HTTP 调用 `resumeTaskFromStep` 后立刻 `runTask`，与 `POST /tasks` 一致。
+**Step 3:** 集成测或小脚本：createTask → 改步骤状态 → `applyResetScope` → `getTaskSteps` 校验。
 
-**Step 3:** 单元测试：内存 task 对象 + mock db 困难时，用临时目录 + `createTask` + 改步骤状态 + `resume` + `getTaskSteps` 校验（参考 `agent-sqlite` 风格）或纯函数测试 closure + 小集成脚本。
-
-**Step 4:** Commit：`feat(orchestrator): add resumeTaskFromStep`
+**Step 4:** Commit：`feat(orchestrator): add applyResetScope for step and downstream`
 
 ---
 
-### Task 3: HTTP 路由
+### Task 3: 扩展 `POST .../steps/:stepName/run`
 
 **Files:**
 - Modify: `services/http-server/index.js`
 
-**Step 1:** `router.post('/tasks/:taskId/resume-from/:stepName', async …)`  
-映射错误：`TASK_RUNNING` → 409；`task not found` → 404；anchor/mode → 400；成功 → **202**，body `{ task_id, from, reset_steps }`。
+**Step 1:** 解析 `body.reset_scope`（默认 `off`）；校验枚举。
 
-**Step 2:** 成功路径：`await orchestrator.resumeTaskFromStep(...)` 后 `orchestrator.runTask(...).catch(...)`。
+**Step 2:**  
+- `off`：现有逻辑，直接 `runStep(...)`。  
+- `step`：`applyResetScope(..., 'step')` → `runStep(...)` → 返回与现 `run` 相同形态。  
+- `downstream`：`applyResetScope(..., 'downstream')` → **202** body 含 `reset_steps` → `runTask(...).catch(...)`。
 
-**Step 3:** 扩展 `tests/agent-http.test.js`（或新文件）：创建任务 → 改某步为 failed → `POST resume-from` → 断言 202 且 steps 重置。
+**Step 3:** 扩展 `tests/agent-http.test.js`：`downstream` 202 + 列表；默认路径回归；409 可选。
 
-**Step 4:** Commit：`feat(http): POST resume-from step for pipeline replay`
+**Step 4:** Commit：`feat(http): reset_scope on step run (step | downstream)`
 
 ---
 
-### Task 4: 文档交叉引用
+### Task 4: 文档
 
 **Files:**
-- Modify: `docs/PROJECT_KNOWLEDGE.md`
-- Modify: `docs/plans/2026-03-22-orchestrator-dag-scheduler.md`（维护节链接 `resume-from-step-design.md`）
+- Modify: `docs/PROJECT_KNOWLEDGE.md`（更新 `POST .../run` 说明，删除或改写「规划中 resume-from 独立路由」段落）
+- 确认 `docs/plans/2026-03-22-orchestrator-dag-scheduler.md` 维护节仍指向 `resume-from-step-design.md`
 
-**Step 1:** Commit：`docs: document resume-from HTTP API`
+**Step 1:** Commit：`docs: document reset_scope on POST .../steps/.../run`
 
 ---
 
 ## 验收清单
 
-- [ ] `getDownstreamClosure` 单测通过。
-- [ ] `resume` 后闭包内非 skipped 步为 `pending`，闭包外不变；skipped 仍为 skipped。
-- [ ] 任务 `running` 时 resume 返回 409。
-- [ ] `npm run test:agent`（或扩展脚本）通过。
+- [ ] 省略 `reset_scope` 时与改动前 `POST .../run` 行为一致。
+- [ ] `step`：仅该步变 `pending` 再执行该步。
+- [ ] `downstream`：闭包内置 `pending`，`skipped` 不变；202 + `runTask` 触发。
+- [ ] 运行中 409。
+- [ ] `npm run test:agent`（及 `test:schedule`）通过。
 
 ---
 
-**Plan complete and saved to `docs/plans/2026-03-22-resume-from-step-implementation.md`. Two execution options:**
-
-**1. Subagent-Driven（本会话）** — 每 Task 派生子代理，任务间 review  
-
-**2. Parallel Session（新会话）** — 新会话 + **executing-plans**  
-
-**Which approach?**
+**Plan complete.** 执行可选：本会话按 Task 顺序实现，或新会话 + **executing-plans**。
