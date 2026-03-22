@@ -91,7 +91,7 @@ flowchart TD
 
 ## 从指定 step 重试剩余链路（DAG 铺垫）
 
-以下语义供 API / GUI「从某步继续」使用；具体参数名与是否暴露为 HTTP 在 **实现计划** 中定。
+以下语义供 API / GUI「从某步继续」使用。**HTTP 与 core 入口的完整设计**见 **[从指定 Step 重置后续（第二阶段）](./2026-03-22-resume-from-step-design.md)**；GUI 为更后阶段。
 
 1. **为何需要 DAG**：重试不仅是「再调一次 `runStep`」，还要明确 **哪些后继** 在逻辑上应 **作废旧结果、重新跑**，避免「上游已变、下游仍 completed」不一致。
 2. **建议默认——重置范围**：
@@ -139,6 +139,6 @@ flowchart TD
 
 - **A 层（必需物）**：[2026-03-22-runstep-prerequisites.md](./2026-03-22-runstep-prerequisites.md)
 - **实现计划（B 层调度落地）**：[2026-03-22-orchestrator-dag-scheduler-implementation.md](./2026-03-22-orchestrator-dag-scheduler-implementation.md)
-- **第二阶段（从某步重置后继 + HTTP）**：[2026-03-22-resume-from-step-design.md](./2026-03-22-resume-from-step-design.md)
+- **第二阶段（HTTP：`resume-from`）**：[2026-03-22-resume-from-step-design.md](./2026-03-22-resume-from-step-design.md)
 - **流水线阶段说明**：`docs/PROJECT_KNOWLEDGE.md` 第四节
 - 修改 DAG 或 `mode` 语义时，同步更新本文与 A 层文档中的「两层分工」表。

@@ -42,17 +42,18 @@
 
 ### 4. 调度
 
-- 重置并持久化 SQLite 与内存 `task.steps` 后，调用与 **`POST /tasks` 相同的 fire-and-forget**：`orchestrator.runTask(taskId, { rootDir })`。
+- 重置并持久化 SQLite 与内存 `task.steps` 后，调用与 **`POST /tasks` 相同的 fire-and-forget**：`orchestrator.runTask(taskId, { rootDir, ... })`。若未来 `runTask` 对已完成任务的入口收紧，实现时应抽取与 `runTask` **共用的调度循环**（`runTaskLoop`），由 `runTask` 与 `resumeTaskFromStep` 共用，避免两套 B 层逻辑。
 - **并发**：若 `task.status === 'running'` 或等价「已有 `runTask` 在执行该任务」，**拒绝新 resume**（建议 **409**，body 含明确 `code`），避免双实例交错写步骤状态。
 - 任务级 `task.status`：重置后、启动 `runTask` 前，将内存中任务标为 **`pending` 或 `running`** 与现 `runTask` 入口一致（由 `runTask` 内自行设为 `running`）；若需在重置瞬间 emit `task.updated`，在实现中补一条。
 
 ### 5. HTTP 约定
 
 - **`POST /api/tasks/:taskId/resume-from/:stepName`**
-  - **201** 或 **202**：接受请求；body 建议 `{ task_id, from, reset_steps: string[] }`（`reset_steps` 为实际被重置的步名列表，便于客户端与日志）。
+  - **202 Accepted**：接受请求；重置在返回前完成，调度与 **`POST /api/tasks` 创建后 `runTask` 一样 fire-and-forget**。body 建议 `{ accepted: true, task_id, from, reset_steps: string[] }`（`reset_steps` 为实际被置 `pending` 的步名列表，便于客户端与日志）。
   - **404**：任务不存在 / step 名非法（不在 `STEPS`）。
-  - **400**：`stepName` 对当前 `mode` 为排除步、或其它参数错误。
-  - **409**：任务正在运行，无法 resume。
+  - **400**：`stepName` 对当前 `mode` 为排除步、`S` 本身为 `skipped`、或其它参数错误。
+  - **409**：`task.status === 'running'` 或任一步 `steps[*].status === 'running'`，无法安全 resume。
+  - **鉴权**：与现有 `POST /api/tasks`、`POST .../steps/:stepName/run` 一致，本阶段 **不** 新增 token 要求。
   - 成功响应后，客户端继续 **轮询 `GET /tasks/:id` + SSE**，与创建任务一致。
 
 ### 6. 错误与测试
