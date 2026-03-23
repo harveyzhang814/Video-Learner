@@ -51,6 +51,15 @@ function initTables(db) {
     // ignore
   }
 
+  try {
+    const cols = db.prepare('PRAGMA table_info(tasks)').all();
+    if (!cols.some((c) => c.name === 'mode')) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN mode TEXT DEFAULT 'both'`);
+    }
+  } catch (_) {
+    // ignore
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS steps (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +86,7 @@ function createDbManager(dbPath) {
       const rows = db
         .prepare(
           `
-          SELECT id, url, ts, title, lang, duration, output_lang, focus, transcripts, created_at, updated_at
+          SELECT id, url, ts, title, lang, duration, output_lang, focus, mode, transcripts, created_at, updated_at
           FROM tasks WHERE deleted_at IS NULL
           ORDER BY datetime(created_at) DESC, datetime(ts) DESC
           LIMIT ?

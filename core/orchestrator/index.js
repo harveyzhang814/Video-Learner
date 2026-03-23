@@ -203,7 +203,7 @@ function loadTaskFromDb(taskId, rootDir) {
     params: {
       url: row.url,
       focus: row.focus || '',
-      mode: 'both',
+      mode: row.mode || 'both',
       force: 0,
       output_lang: row.output_lang || 'zh-CN',
       rootDir
@@ -217,6 +217,7 @@ function loadTaskFromDb(taskId, rootDir) {
       lang: row.lang || '',
       output_lang: row.output_lang || 'zh-CN',
       focus: row.focus || '',
+      mode: row.mode || 'both',
       download_status: 'pending',
       transcript_done: false,
       article_done: false,
@@ -293,7 +294,7 @@ async function createTask(params) {
 
   const db = ensureDb(rootDir);
   db.createTask(id, url);
-  db.updateTask(id, { url, title: '', focus, output_lang });
+  db.updateTask(id, { url, title: '', focus, output_lang, mode });
   for (const step of STEPS) {
     db.updateStep(id, step, 'pending');
   }

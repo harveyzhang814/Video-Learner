@@ -25,6 +25,11 @@ function createApp(options = {}) {
 
   const stream = options.eventStream ?? new EventStream({ maxBufferSize: options.maxEventBufferSize ?? 500 });
   const token = options.token ?? (process.env.AGENT_EVENTS_TOKEN || crypto.randomBytes(24).toString('hex'));
+  /** Optional test hook: replace fire-and-forget runTask after reset_scope downstream (default: real orchestrator.runTask). */
+  const runTaskForDownstream =
+    typeof options.runTaskForDownstream === 'function'
+      ? options.runTaskForDownstream
+      : (tid, o) => orchestrator.runTask(tid, o);
 
   // Bridge orchestrator events into global stream buffer.
   if (!options.disableOrchestratorBridge && typeof orchestrator.onEvent === 'function') {
@@ -461,7 +466,9 @@ function createApp(options = {}) {
       }
 
       if (resetScope === 'downstream') {
-        orchestrator.runTask(taskId, { rootDir: ROOT_DIR }).catch((err) => console.error('runTask error', err));
+        Promise.resolve(runTaskForDownstream(taskId, { rootDir: ROOT_DIR })).catch((err) =>
+          console.error('runTask error', err)
+        );
         ctx.status = 202;
         ctx.body = {
           accepted: true,

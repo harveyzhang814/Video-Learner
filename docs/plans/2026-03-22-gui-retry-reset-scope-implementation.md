@@ -81,7 +81,7 @@ if (reset_scope !== undefined) body.reset_scope = reset_scope;
 
 **Step 2:** 手工：勾选「自动执行后续」→ 确认 → 确认 `reset_scope: downstream` 且任务进入多步执行。
 
-**Step 3:** `npm run test:reset-scope`（回归服务端）；Electron 无自动化则依赖手工。
+**Step 3:** `npm run test:reset-scope`（含 `reset-scope-all-steps-http` + `service-client-reset-scope-all-steps`，覆盖全 Step×mode 与 GUI 客户端）；另可 `npm run test:gui:client:reset-scope`。
 
 ---
 
