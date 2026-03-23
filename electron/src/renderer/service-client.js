@@ -89,10 +89,14 @@ export class ServiceClient {
     return this._fetchJson(`/api/tasks/${encodeURIComponent(taskId)}/steps`);
   }
 
-  runStep(taskId, stepName, { focus, force } = {}) {
+  runStep(taskId, stepName, { focus, force, reset_scope } = {}) {
+    const body = {};
+    if (focus !== undefined) body.focus = focus;
+    if (force !== undefined) body.force = force;
+    if (reset_scope !== undefined) body.reset_scope = reset_scope;
     return this._fetchJson(`/api/tasks/${encodeURIComponent(taskId)}/steps/${encodeURIComponent(stepName)}/run`, {
       method: 'POST',
-      body: JSON.stringify({ focus, force })
+      body: JSON.stringify(body)
     });
   }
 

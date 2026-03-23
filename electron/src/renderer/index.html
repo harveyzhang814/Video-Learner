@@ -1715,7 +1715,7 @@
         <div id="retryModalPhaseConfirm">
           <div class="input-group">
             <label class="checkbox-label">
-              <input type="checkbox" id="retryModalAutoNext" disabled>
+              <input type="checkbox" id="retryModalAutoNext">
               <span class="checkbox-custom"></span>
               <span>自动执行后续步骤？</span>
             </label>
@@ -1814,6 +1814,8 @@
     const retryModalPhaseConfirm = document.getElementById('retryModalPhaseConfirm');
     const retryModalPhaseRunning = document.getElementById('retryModalPhaseRunning');
     const retryModalLog = document.getElementById('retryModalLog');
+    const retryModalLoading = document.getElementById('retryModalLoading');
+    const retryModalAutoNext = document.getElementById('retryModalAutoNext');
     const retryModalCancel = document.getElementById('retryModalCancel');
     const retryModalConfirm = document.getElementById('retryModalConfirm');
     console.log('[delete-modal] DOM refs:', { confirmDeleteModal: !!confirmDeleteModal, confirmDeleteCancel: !!confirmDeleteCancel, confirmDeleteOk: !!confirmDeleteOk });
@@ -1840,6 +1842,7 @@
     function openRetryModal(taskId, stepName) {
       if (!retryModalTitle || !retryConfirmModal) return;
       retryModalTitle.textContent = `是否重试${STEP_LABELS[stepName] || stepName}？`;
+      if (retryModalAutoNext) retryModalAutoNext.checked = false;
       pendingRetryStep = stepName;
       if (retryModalPhaseConfirm) retryModalPhaseConfirm.classList.remove('hidden');
       if (retryModalPhaseRunning) {
@@ -1875,6 +1878,22 @@
         retryModalPhaseRunning.classList.add('visible');
       }
       if (retryModalLog) retryModalLog.innerHTML = '';
+    }
+
+    function switchRetryModalToConfirm() {
+      if (retryModalPhaseRunning) {
+        retryModalPhaseRunning.classList.add('hidden');
+        retryModalPhaseRunning.classList.remove('visible');
+      }
+      if (retryModalPhaseConfirm) retryModalPhaseConfirm.classList.remove('hidden');
+      if (retryModalLoading) retryModalLoading.textContent = '重试中…';
+    }
+
+    function parseRetryRequestError(err) {
+      const raw = err && err.message ? String(err.message) : String(err);
+      const m = /^(\d{3})\s+([\s\S]*)$/.exec(raw.trim());
+      if (m) return { status: Number(m[1]), body: m[2].trim() };
+      return { status: null, body: raw };
     }
 
     function showConfirmDelete() {
@@ -2782,20 +2801,40 @@
     if (retryModalConfirm) {
       retryModalConfirm.addEventListener('click', () => {
         if (!client || !currentTaskId || pendingRetryStep == null) return;
-        // 标记本次重试会话并立即切换到进行中，让 SSE 日志可以立刻进入弹窗
-        retrySession = { taskId: currentTaskId, stepName: pendingRetryStep, startTime: Date.now() };
+        const downstream = !!(retryModalAutoNext && retryModalAutoNext.checked);
+        const reset_scope = downstream ? 'downstream' : 'step';
+        if (retryModalLoading) {
+          retryModalLoading.textContent = downstream ? '已提交，正在执行后续步骤…' : '正在重试该步骤…';
+        }
+        retrySession = {
+          taskId: currentTaskId,
+          stepName: pendingRetryStep,
+          downstream,
+          startTime: Date.now()
+        };
         switchRetryModalToRunning();
         retryModalConfirm.disabled = true;
-        // 后台 fire-and-forget 调用，避免阻塞 UI
         client
-          .runStep(currentTaskId, pendingRetryStep, { force: true })
+          .runStep(currentTaskId, pendingRetryStep, { reset_scope, force: true })
+          .then((res) => {
+            if (res && res.accepted && Array.isArray(res.reset_steps)) {
+              const line = `[accepted] from_step=${res.from_step || ''} reset_steps=${JSON.stringify(res.reset_steps)}`;
+              appendRetryModalLog(line);
+            }
+          })
           .catch((err) => {
-            // 如果请求本身失败，追加一条错误日志并提示
-            const msg = err && err.message ? err.message : String(err);
-            appendRetryModalLog(`[request] 重试请求失败：${msg}`);
-            alert(`重试请求失败，请稍后再试：${msg}`);
+            const { status, body } = parseRetryRequestError(err);
+            appendRetryModalLog(`[request] 重试请求失败：${body || err}`);
+            let userMsg = body || String(err);
+            if (status === 409) {
+              userMsg = '任务或某步骤正在执行，请稍后再试。';
+            } else if (status === 400) {
+              userMsg = body || '当前步骤不可作为锚点，或请求参数无效。';
+            }
+            alert(`重试请求失败：${userMsg}`);
             retryModalConfirm.disabled = false;
             retrySession = null;
+            switchRetryModalToConfirm();
           });
       });
     }
