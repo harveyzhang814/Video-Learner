@@ -7,6 +7,7 @@ const { EventEmitter } = require('events');
 const { generateId } = require('../id');
 const { createDb } = require('./db');
 const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts');
+const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode } = require('./schedule');
 
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
@@ -202,7 +203,7 @@ function loadTaskFromDb(taskId, rootDir) {
     params: {
       url: row.url,
       focus: row.focus || '',
-      mode: 'both',
+      mode: row.mode || 'both',
       force: 0,
       output_lang: row.output_lang || 'zh-CN',
       rootDir
@@ -216,6 +217,7 @@ function loadTaskFromDb(taskId, rootDir) {
       lang: row.lang || '',
       output_lang: row.output_lang || 'zh-CN',
       focus: row.focus || '',
+      mode: row.mode || 'both',
       download_status: 'pending',
       transcript_done: false,
       article_done: false,
@@ -292,7 +294,7 @@ async function createTask(params) {
 
   const db = ensureDb(rootDir);
   db.createTask(id, url);
-  db.updateTask(id, { url, title: '', focus, output_lang });
+  db.updateTask(id, { url, title: '', focus, output_lang, mode });
   for (const step of STEPS) {
     db.updateStep(id, step, 'pending');
   }
@@ -765,6 +767,79 @@ async function runStep(taskId, stepName, options = {}) {
 }
 
 /**
+ * Reset step(s) for reset_scope: 'step' | 'downstream'. Does not run anything.
+ * @returns {{ reset_steps: string[] }}
+ */
+function applyResetScope(taskId, stepName, scope, options = {}) {
+  if (scope !== 'step' && scope !== 'downstream') {
+    const e = new Error(`invalid reset scope: ${scope}`);
+    e.code = 'BAD_SCOPE';
+    throw e;
+  }
+
+  const task = ensureTask(taskId, options);
+  if (!STEPS.includes(stepName)) {
+    const e = new Error(`unknown step: ${stepName}`);
+    e.code = 'BAD_STEP';
+    throw e;
+  }
+
+  const mode = (task.params && task.params.mode) || 'both';
+  if (excludedByMode(mode).has(stepName)) {
+    const e = new Error('invalid resume anchor for mode');
+    e.code = 'BAD_ANCHOR_MODE';
+    throw e;
+  }
+
+  const anchor = task.steps && task.steps[stepName];
+  if (anchor && anchor.status === 'skipped') {
+    const e = new Error('anchor step is skipped');
+    e.code = 'ANCHOR_SKIPPED';
+    throw e;
+  }
+
+  if (task.status === 'running') {
+    const e = new Error('task is running');
+    e.code = 'TASK_OR_STEP_RUNNING';
+    throw e;
+  }
+  for (const name of STEPS) {
+    const s = task.steps && task.steps[name];
+    if (s && s.status === 'running') {
+      const e = new Error('a step is running');
+      e.code = 'TASK_OR_STEP_RUNNING';
+      throw e;
+    }
+  }
+
+  const db = ensureDb(task.params.rootDir);
+  const id = task.meta.id;
+  task.steps = task.steps || initSteps();
+  const resetList = [];
+
+  const markPending = (name) => {
+    if (!STEPS.includes(name)) return;
+    const cur = task.steps[name];
+    if (cur && cur.status === 'skipped') return;
+    task.steps[name] = { status: 'pending', attempts: 0, error: null };
+    db.writeStepState(id, name, { status: 'pending', attempts: 0, error: null });
+    resetList.push(name);
+  };
+
+  if (scope === 'step') {
+    markPending(stepName);
+  } else {
+    const closure = getDownstreamClosure(stepName);
+    for (const name of closure) {
+      markPending(name);
+    }
+  }
+
+  task.updated_at = new Date().toISOString();
+  return { reset_steps: resetList };
+}
+
+/**
  * Run the full pipeline by orchestrating individual steps.
  * This is synchronous from the caller's perspective (returns when finished).
  */
@@ -782,22 +857,27 @@ async function runTask(taskId, options = {}) {
   const { mode, focus } = task.params;
 
   try {
-    // Step 0: fetch
-    await runStep(taskId, 'fetch');
+    // B-layer: DAG readiness + two-tier serial priority (see docs/plans/2026-03-22-orchestrator-dag-scheduler.md).
+    for (let guard = 0; guard < 64; guard++) {
+      const ready = computeReadySteps(task);
+      const next = pickNextStep(ready, mode);
+      if (!next) break;
 
-    // Media download based on mode
-    if (mode === 'both' || mode === 'video') {
-      await runStep(taskId, 'video', { force: task.params.force });
-    } else if (mode === 'audio') {
-      await runStep(taskId, 'audio', { force: task.params.force });
+      const stepOptions = { ...options };
+      if (next === 'video' || next === 'audio') {
+        stepOptions.force = task.params.force;
+      }
+      if (next === 'summary') {
+        let summaryFocus = options.focus;
+        if (summaryFocus === undefined || String(summaryFocus).trim() === '') {
+          const db = ensureDb(task.params.rootDir);
+          const row = db.getTask(task.meta.id);
+          summaryFocus = (row && row.focus) || focus || task.meta.focus || '';
+        }
+        stepOptions.focus = String(summaryFocus || '').trim() || '视频的主要内容和要点';
+      }
+      await runStep(taskId, next, stepOptions);
     }
-
-    // Transcript-related steps
-    await runStep(taskId, 'subs');
-    await runStep(taskId, 'vtt2md');
-    await runStep(taskId, 'md2vtt');
-    await runStep(taskId, 'article');
-    await runStep(taskId, 'summary', { focus });
 
     updateTaskMetaFromFilesystem(task);
 
@@ -995,6 +1075,7 @@ module.exports = {
   listTasks,
   runTask,
   runStep,
+  applyResetScope,
   skipStep,
   deleteTask,
   getTask,

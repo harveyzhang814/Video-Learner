@@ -25,6 +25,11 @@ function createApp(options = {}) {
 
   const stream = options.eventStream ?? new EventStream({ maxBufferSize: options.maxEventBufferSize ?? 500 });
   const token = options.token ?? (process.env.AGENT_EVENTS_TOKEN || crypto.randomBytes(24).toString('hex'));
+  /** Optional test hook: replace fire-and-forget runTask after reset_scope downstream (default: real orchestrator.runTask). */
+  const runTaskForDownstream =
+    typeof options.runTaskForDownstream === 'function'
+      ? options.runTaskForDownstream
+      : (tid, o) => orchestrator.runTask(tid, o);
 
   // Bridge orchestrator events into global stream buffer.
   if (!options.disableOrchestratorBridge && typeof orchestrator.onEvent === 'function') {
@@ -416,20 +421,76 @@ function createApp(options = {}) {
   });
 
   router.post('/tasks/:taskId/steps/:stepName/run', async (ctx) => {
-  const { taskId, stepName } = ctx.params;
-  try {
-    const { focus, force } = ctx.request.body || {};
-    const result = await orchestrator.runStep(taskId, stepName, { focus, force, rootDir: ROOT_DIR });
-    ctx.status = result.success ? 202 : 400;
-    ctx.body = result;
-  } catch (err) {
-    if (/task not found/.test(err.message) || /unknown step/.test(err.message)) {
-      ctx.status = 404;
-    } else {
-      ctx.status = 500;
+    const { taskId, stepName } = ctx.params;
+    try {
+      const body = ctx.request.body || {};
+      const { focus, force, reset_scope: resetScopeRaw } = body;
+      const resetScope =
+        resetScopeRaw == null || resetScopeRaw === '' ? 'off' : String(resetScopeRaw);
+
+      if (!['off', 'step', 'downstream'].includes(resetScope)) {
+        ctx.status = 400;
+        ctx.body = { error: 'reset_scope must be off, step, or downstream' };
+        return;
+      }
+
+      const opts = { focus, force, rootDir: ROOT_DIR };
+
+      if (resetScope === 'off') {
+        const result = await orchestrator.runStep(taskId, stepName, opts);
+        ctx.status = result.success ? 202 : 400;
+        ctx.body = result;
+        return;
+      }
+
+      let applied;
+      try {
+        applied = orchestrator.applyResetScope(taskId, stepName, resetScope, { rootDir: ROOT_DIR });
+      } catch (e) {
+        if (e.code === 'TASK_OR_STEP_RUNNING') {
+          ctx.status = 409;
+          ctx.body = { error: e.message, code: e.code };
+          return;
+        }
+        if (e.code === 'BAD_ANCHOR_MODE' || e.code === 'ANCHOR_SKIPPED') {
+          ctx.status = 400;
+          ctx.body = { error: e.message, code: e.code };
+          return;
+        }
+        if (e.code === 'BAD_STEP' || /unknown step/.test(e.message || '')) {
+          ctx.status = 404;
+          ctx.body = { error: e.message || 'unknown step' };
+          return;
+        }
+        throw e;
+      }
+
+      if (resetScope === 'downstream') {
+        Promise.resolve(runTaskForDownstream(taskId, { rootDir: ROOT_DIR })).catch((err) =>
+          console.error('runTask error', err)
+        );
+        ctx.status = 202;
+        ctx.body = {
+          accepted: true,
+          task_id: taskId,
+          from_step: stepName,
+          reset_scope: 'downstream',
+          reset_steps: applied.reset_steps
+        };
+        return;
+      }
+
+      const result = await orchestrator.runStep(taskId, stepName, opts);
+      ctx.status = result.success ? 202 : 400;
+      ctx.body = { ...result, reset_steps: applied.reset_steps };
+    } catch (err) {
+      if (/task not found/.test(err.message) || /unknown step/.test(err.message)) {
+        ctx.status = 404;
+      } else {
+        ctx.status = 500;
+      }
+      ctx.body = { error: err.message || 'failed to run step' };
     }
-    ctx.body = { error: err.message || 'failed to run step' };
-  }
   });
 
   app.use(bodyParser());

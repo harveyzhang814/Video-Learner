@@ -51,6 +51,15 @@ function initTables(db) {
     // ignore
   }
 
+  try {
+    const cols = db.prepare('PRAGMA table_info(tasks)').all();
+    if (!cols.some((c) => c.name === 'mode')) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN mode TEXT DEFAULT 'both'`);
+    }
+  } catch (_) {
+    // ignore
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS steps (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +86,7 @@ function createDbManager(dbPath) {
       const rows = db
         .prepare(
           `
-          SELECT id, url, ts, title, lang, duration, output_lang, focus, transcripts, created_at, updated_at
+          SELECT id, url, ts, title, lang, duration, output_lang, focus, mode, transcripts, created_at, updated_at
           FROM tasks WHERE deleted_at IS NULL
           ORDER BY datetime(created_at) DESC, datetime(ts) DESC
           LIMIT ?
@@ -180,6 +189,38 @@ function createDbManager(dbPath) {
         `
         )
         .run(taskId, stepName, status, error);
+    },
+
+    /**
+     * Set step row exactly (no attempts bump). Used for reset_scope pending resets.
+     */
+    writeStepState(taskId, stepName, { status, attempts = 0, error = null }) {
+      const taskExists = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
+      if (!taskExists) {
+        db.prepare("INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime('now'))").run(taskId, '');
+      }
+
+      const existing = db.prepare('SELECT * FROM steps WHERE task_id = ? AND step_name = ?').get(taskId, stepName);
+      if (existing) {
+        return db
+          .prepare(
+            `
+            UPDATE steps SET status = ?, attempts = ?, error = ?,
+            started_at = NULL, completed_at = NULL
+            WHERE task_id = ? AND step_name = ?
+          `
+          )
+          .run(status, attempts, error, taskId, stepName);
+      }
+
+      return db
+        .prepare(
+          `
+          INSERT INTO steps (task_id, step_name, status, attempts, error, started_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))
+        `
+        )
+        .run(taskId, stepName, status, attempts, error);
     },
 
     getSteps(taskId) {

@@ -14,7 +14,9 @@
     "test:agent:sqlite": "node tests/agent-sqlite-persistence.test.js",
     "test:fetch": "node tests/fetch-step.test.js",
     "test:step-artifacts": "node tests/step-artifacts.test.js",
-    "test:orchestrator:unit": "node tests/step-artifacts.test.js && node tests/orchestrator-progress-logging.test.js",
+    "test:schedule": "node tests/orchestrator-schedule.test.js",
+    "test:reset-scope": "node tests/apply-reset-scope.test.js && node tests/reset-scope-http.test.js && node tests/reset-scope-all-steps-http.test.js && node tests/service-client-reset-scope-all-steps.test.js",
+    "test:orchestrator:unit": "node tests/step-artifacts.test.js && node tests/orchestrator-progress-logging.test.js && npm run test:schedule && npm run test:reset-scope",
     "test:agent:core": "npm run test:orchestrator:unit && npm run test:runstep-a-layer && npm run test:agent && npm run test:agent:sqlite",
     "test:sse": "node tests/sse-e2e.test.js",
     "test:gui:main": "node tests/main-process.test.js",
@@ -22,7 +24,8 @@
     "test:gui:client:http": "node tests/service-client-http.test.js",
     "test:gui:client:sse": "node tests/service-client-sse.test.js",
     "test:gui:state": "node tests/gui-logic-state.test.js",
-    "test:gui": "npm run test:gui:main && npm run test:gui:preload && npm run test:gui:client:http && npm run test:gui:client:sse && npm run test:gui:state"
+    "test:gui": "npm run test:gui:main && npm run test:gui:preload && npm run test:gui:client:http && npm run test:gui:client:sse && npm run test:gui:client:reset-scope && npm run test:gui:state",
+    "test:gui:client:reset-scope": "node tests/service-client-reset-scope-all-steps.test.js"
   },
   "keywords": [
     "youtube",

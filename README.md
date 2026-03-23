@@ -49,6 +49,10 @@ npm run agent:serve
 
 在另一终端使用 `POST /api/tasks` 创建任务（`url`、`focus`、`mode`、`force` 等），或配合外部 agent 调用。字段语义与下面「参数说明」对应；完整约定见 [docs/PROJECT_KNOWLEDGE.md](docs/PROJECT_KNOWLEDGE.md) 中「Agent HTTP Service」一节。
 
+**单步执行与重置**：`POST /api/tasks/:taskId/steps/:stepName/run` 支持 body 字段 **`reset_scope`**：`off`（默认，仅执行该步）| `step`（先重置该步再执行）| `downstream`（按 DAG 重置锚点及下游后再触发整条 `runTask` 调度）。语义与状态码见 [docs/PROJECT_KNOWLEDGE.md](docs/PROJECT_KNOWLEDGE.md) 与 [docs/plans/2026-03-22-resume-from-step-design.md](docs/plans/2026-03-22-resume-from-step-design.md)。
+
+编排层 **`runTask`** 使用 B 层 DAG + 主链/次优先串行调度（见 [docs/plans/2026-03-22-orchestrator-dag-scheduler.md](docs/plans/2026-03-22-orchestrator-dag-scheduler.md)），与「视频失败不挡字幕链」等产品约束一致。
+
 端到端校验（与上述编排一致、较慢）：
 
 ```bash
@@ -75,22 +79,39 @@ bash start-electron.sh
 | `focus` | 总结侧重点 | 可选 |
 | `output_lang` | 输出语言（如 `zh-CN`） | `zh-CN` |
 
+单步 HTTP 可选字段 **`reset_scope`**（`off` \| `step` \| `downstream`）见上文链接；GUI 后续可接同一接口。
+
 ## 输出结构
+
+（与 [docs/PROJECT_KNOWLEDGE.md](docs/PROJECT_KNOWLEDGE.md) 一致；`id` 为 `sha1(url)` 前 12 位。）
 
 ```
 work/
-├── index.jsonl                    # 运行记录
+├── index.jsonl                    # 运行追溯（可选）
+├── database.sqlite                # 任务与步骤状态（GUI / Agent 共用）
 └── <id>/
-    ├── media/                     # 媒体文件
-    │   ├── video.mp4             # 视频
-    │   └── audio.m4a             # 音频
-    ├── transcript/               # 转录与字幕
-    │   ├── original.md           # 逐字稿
-    │   └── meta.json             # 元数据
-    └── writing/                  # 生成内容
-        ├── article.md             # 结构化文章
-        └── summary.md             # 重点总结
+    ├── media/
+    │   ├── video.mp4
+    │   └── audio.m4a
+    ├── transcript/
+    │   ├── subs/                  # 原始 .vtt
+    │   ├── original_en.md / original_zh.md   # 逐字稿（带时间戳）
+    │   └── meta.json
+    └── writing/
+        ├── article.md
+        └── summary.md
 ```
+
+## 开发与测试（节选）
+
+| 命令 | 作用 |
+|------|------|
+| `npm run test:orchestrator:unit` | 编排层单元测（含 `schedule`、`reset_scope` 相关） |
+| `npm run test:reset-scope` | 仅 `applyResetScope` + HTTP `reset_scope` |
+| `npm run test:agent` | Agent HTTP 集成测 |
+| `npm run test:agent:core` | orchestrator 单元 + runStep A 层 + agent-http + sqlite 持久化 |
+
+完整列表见根目录 **`package.json`** 的 `scripts`。
 
 ## 总结模板
 
@@ -109,10 +130,10 @@ work/
 
 ## 注意事项
 
-- 视频下载失败不会阻断转录和总结流程
-- 相同 URL 第二次运行会跳过已完成步骤
+- 视频下载失败不会阻断转录和总结流程（B 层 DAG 上 `video` 非字幕链前驱）
+- 相同 URL 第二次运行会跳过已完成步骤（除非 `force` / 使用 `reset_scope` 等重置语义）
 - 提供 FOCUS 可以获得更精准的总结
-- 视频下载在后台独立运行，不影响其他步骤
+- 流水线默认 **单队列串行** 执行步骤；主链（fetch→subs→vtt2md→article→summary）优先于媒体与 md2vtt（详见编排设计文档）
 
 ## License
 
