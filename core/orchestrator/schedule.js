@@ -123,9 +123,9 @@ function excludedByMode(mode, steps) {
   return ex;
 }
 
-function secondaryChainForMode(mode) {
+function secondaryChainForMode(mode, steps) {
   const m = normalizeMode(mode);
-  return SECONDARY_CHAIN_BASE.filter((name) => !excludedByMode(m).has(name));
+  return SECONDARY_CHAIN_BASE.filter((name) => !excludedByMode(m, steps).has(name));
 }
 
 /**
@@ -136,8 +136,8 @@ function secondaryChainForMode(mode) {
  * @returns {Set<string>}
  */
 function computeReadySteps(task) {
-  const mode = (task.params && task.params.mode) || 'both';
-  const excluded = excludedByMode(mode);
+  const mode = normalizeMode((task.params && task.params.mode) || 'media');
+  const excluded = excludedByMode(mode, task.steps);
   const ready = new Set();
 
   for (const name of ALL_STEPS) {
@@ -162,9 +162,10 @@ function computeReadySteps(task) {
 /**
  * @param {Set<string>|string[]} readySet
  * @param {string} [mode]
+ * @param {object} [steps] - task.steps, used for dynamic exclusion in media mode
  * @returns {string|null}
  */
-function pickNextStep(readySet, mode) {
+function pickNextStep(readySet, mode, steps) {
   const ready =
     readySet instanceof Set ? readySet : new Set(Array.isArray(readySet) ? readySet : []);
   const m = normalizeMode(mode);
@@ -172,7 +173,7 @@ function pickNextStep(readySet, mode) {
   for (const name of PRIMARY_CHAIN) {
     if (ready.has(name)) return name;
   }
-  const secondary = secondaryChainForMode(m);
+  const secondary = secondaryChainForMode(m, steps);
   for (const name of secondary) {
     if (ready.has(name)) return name;
   }

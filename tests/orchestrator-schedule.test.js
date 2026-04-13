@@ -71,29 +71,73 @@ function run() {
       assert.ok(excludedByMode('transcript').has('audio'), 'transcript: audio excluded');
     }
 
-    // both: fetch completed, subs+video pending → ready subs+video; pick subs
+    // media: fetch completed → subs+video ready, audio excluded; pick subs
     {
       const steps = baseSteps();
       steps.fetch = completed();
-      const task = { params: { mode: 'both' }, steps };
+      const task = { params: { mode: 'media' }, steps };
       const ready = computeReadySteps(task);
       assert.ok(ready.has('subs'), 'ready should contain subs');
       assert.ok(ready.has('video'), 'ready should contain video');
-      assert.strictEqual(pickNextStep(ready, 'both'), 'subs');
+      assert.ok(!ready.has('audio'), 'audio must not be ready before video fails');
+      assert.strictEqual(pickNextStep(ready, 'media', task.steps), 'subs');
+    }
+
+    // media: video failed → audio becomes ready; pick audio
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.vtt2md = completed();
+      steps.md2vtt = completed();
+      steps.article = completed();
+      steps.summary = completed();
+      steps.video = failed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('audio'), 'audio must be ready after video failed');
+      assert.strictEqual(pickNextStep(ready, 'media', task.steps), 'audio');
+    }
+
+    // full: fetch completed → subs + video + audio all ready; pick subs (primary first)
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      const task = { params: { mode: 'full' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('subs'), 'full: subs ready');
+      assert.ok(ready.has('video'), 'full: video ready');
+      assert.ok(ready.has('audio'), 'full: audio ready');
+      assert.strictEqual(pickNextStep(ready, 'full', task.steps), 'subs');
+    }
+
+    // full: all primary done, video+audio pending → pick video before audio
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.vtt2md = completed();
+      steps.md2vtt = completed();
+      steps.article = completed();
+      steps.summary = completed();
+      const task = { params: { mode: 'full' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('video'), 'full: video ready');
+      assert.ok(ready.has('audio'), 'full: audio ready');
+      assert.strictEqual(pickNextStep(ready, 'full', task.steps), 'video');
     }
 
     // vtt2md completed; article+md2vtt pending → pick article (main before secondary)
     {
       const steps = baseSteps();
       steps.fetch = completed();
-      steps.video = completed();
       steps.subs = completed();
       steps.vtt2md = completed();
-      const task = { params: { mode: 'both' }, steps };
+      const task = { params: { mode: 'media' }, steps };
       const ready = computeReadySteps(task);
       assert.ok(ready.has('article'));
       assert.ok(ready.has('md2vtt'));
-      assert.strictEqual(pickNextStep(ready, 'both'), 'article');
+      assert.strictEqual(pickNextStep(ready, 'media', task.steps), 'article');
     }
 
     // subs failed → vtt2md not ready
@@ -101,7 +145,7 @@ function run() {
       const steps = baseSteps();
       steps.fetch = completed();
       steps.subs = failed();
-      const task = { params: { mode: 'both' }, steps };
+      const task = { params: { mode: 'media' }, steps };
       const ready = computeReadySteps(task);
       assert.ok(!ready.has('vtt2md'), 'vtt2md must not be ready when subs failed');
     }
@@ -111,7 +155,7 @@ function run() {
       const steps = baseSteps();
       steps.fetch = completed();
       steps.video = failed();
-      const task = { params: { mode: 'both' }, steps };
+      const task = { params: { mode: 'media' }, steps };
       const ready = computeReadySteps(task);
       assert.ok(ready.has('subs'), 'subs should be ready despite video failed');
     }
