@@ -240,6 +240,8 @@ function createApp(options = {}) {
     } catch (err) {
       if (/task not found/.test(err.message)) {
         ctx.status = 404;
+      } else if (err.code === 'TASK_OR_STEP_RUNNING') {
+        ctx.status = 409;
       } else {
         ctx.status = 500;
       }
