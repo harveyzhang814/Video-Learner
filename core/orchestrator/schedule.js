@@ -85,13 +85,32 @@ function predecessorSatisfied(task, predName) {
 }
 
 /**
- * Steps that must never be scheduled as candidates for this mode (even if pending).
+ * Normalise a raw mode string to a known mode value.
+ * Accepts legacy names ('both', 'video') and maps them to 'media'.
+ * Unknown/empty values default to 'media'.
  */
-function excludedByMode(mode) {
-  const m = mode || 'both';
+function normalizeMode(raw) {
+  const m = String(raw || '').trim();
+  if (m === 'both' || m === 'video' || m === 'media') return 'media';
+  if (m === 'audio') return 'audio';
+  if (m === 'transcript') return 'transcript';
+  if (m === 'full') return 'full';
+  return 'media';
+}
+
+/**
+ * Steps that must never be scheduled for a given mode.
+ * @param {string} mode
+ * @param {object} [steps] - current task.steps (used by 'media' for dynamic audio fallback)
+ * @returns {Set<string>}
+ */
+function excludedByMode(mode, steps) {
+  const m = normalizeMode(mode);
   const ex = new Set();
-  if (m === 'both' || m === 'video') {
-    ex.add('audio');
+  if (m === 'media') {
+    // audio only becomes schedulable after video has definitively failed
+    const videoFailed = steps && steps.video && steps.video.status === 'failed';
+    if (!videoFailed) ex.add('audio');
   }
   if (m === 'audio') {
     ex.add('video');
@@ -100,12 +119,13 @@ function excludedByMode(mode) {
     ex.add('video');
     ex.add('audio');
   }
+  // 'full': nothing excluded — video and audio both run, video has higher secondary-chain priority
   return ex;
 }
 
-function secondaryChainForMode(mode) {
-  const m = mode || 'both';
-  return SECONDARY_CHAIN_BASE.filter((name) => !excludedByMode(m).has(name));
+function secondaryChainForMode(mode, steps) {
+  const m = normalizeMode(mode);
+  return SECONDARY_CHAIN_BASE.filter((name) => !excludedByMode(m, steps).has(name));
 }
 
 /**
@@ -116,8 +136,8 @@ function secondaryChainForMode(mode) {
  * @returns {Set<string>}
  */
 function computeReadySteps(task) {
-  const mode = (task.params && task.params.mode) || 'both';
-  const excluded = excludedByMode(mode);
+  const mode = normalizeMode((task.params && task.params.mode) || 'media');
+  const excluded = excludedByMode(mode, task.steps);
   const ready = new Set();
 
   for (const name of ALL_STEPS) {
@@ -142,17 +162,18 @@ function computeReadySteps(task) {
 /**
  * @param {Set<string>|string[]} readySet
  * @param {string} [mode]
+ * @param {object} [steps] - task.steps, used for dynamic exclusion in media mode
  * @returns {string|null}
  */
-function pickNextStep(readySet, mode) {
+function pickNextStep(readySet, mode, steps) {
   const ready =
     readySet instanceof Set ? readySet : new Set(Array.isArray(readySet) ? readySet : []);
-  const m = mode || 'both';
+  const m = normalizeMode(mode);
 
   for (const name of PRIMARY_CHAIN) {
     if (ready.has(name)) return name;
   }
-  const secondary = secondaryChainForMode(m);
+  const secondary = secondaryChainForMode(m, steps);
   for (const name of secondary) {
     if (ready.has(name)) return name;
   }
@@ -167,5 +188,6 @@ module.exports = {
   computeReadySteps,
   pickNextStep,
   getDownstreamClosure,
-  excludedByMode
+  excludedByMode,
+  normalizeMode
 };

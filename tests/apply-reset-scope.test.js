@@ -13,7 +13,7 @@ async function run() {
     const { task_id: taskId } = await orchestrator.createTask({
       url: 'https://example.com/watch?v=apply-rscope',
       focus: '',
-      mode: 'both',
+      mode: 'media',
       force: 0,
       output_lang: 'zh-CN',
       rootDir: tmp
@@ -25,6 +25,20 @@ async function run() {
       assert.fail('expected BAD_ANCHOR_MODE');
     } catch (e) {
       assert.strictEqual(e.code, 'BAD_ANCHOR_MODE');
+    }
+
+    // media mode: after video fails, audio is a valid reset anchor
+    {
+      const db2 = createDb(tmp);
+      db2.writeStepState(id, 'video', { status: 'failed', attempts: 1, error: 'test-failure' });
+      orchestrator._dropTaskFromMemory(id);
+      await orchestrator.getTask(id, { rootDir: tmp });
+      const r = orchestrator.applyResetScope(id, 'audio', 'step', { rootDir: tmp });
+      assert.ok(r.reset_steps.includes('audio'), 'audio should be resettable after video fails in media mode');
+      // reset video back to pending so subsequent tests are unaffected
+      db2.writeStepState(id, 'video', { status: 'pending', attempts: 0, error: null });
+      orchestrator._dropTaskFromMemory(id);
+      await orchestrator.getTask(id, { rootDir: tmp });
     }
 
     orchestrator.skipStep(id, 'video', { rootDir: tmp });

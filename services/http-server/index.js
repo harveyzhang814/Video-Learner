@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const orchestrator = require('../../core/orchestrator');
 const { getTaskDirs } = require('../../core/paths');
 const { EventStream } = require('./event-stream');
+const { migrateModeName } = require('../../scripts/migrate-mode-names');
 
 function createApp(options = {}) {
   const app = new Koa();
@@ -20,6 +21,8 @@ function createApp(options = {}) {
 
   // Allow tests to inject rootDir (e.g. temp dir); default is worktree root
   const ROOT_DIR = options.rootDir ?? path.resolve(__dirname, '../..');
+  // Run once on startup — idempotent, no-op if DB doesn't exist yet.
+  migrateModeName(path.join(ROOT_DIR, 'work'));
   const PKG_PATH = path.join(ROOT_DIR, 'package.json');
   const pkg = fs.existsSync(PKG_PATH) ? JSON.parse(fs.readFileSync(PKG_PATH, 'utf8')) : { version: 'unknown' };
 

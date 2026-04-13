@@ -57,6 +57,32 @@ async function run() {
   }
   console.log('[test] task created:', taskId);
 
+  // 1b) Old mode names are silently normalised to 'media'
+  {
+    const res = await jsonRequest('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify({
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        mode: 'both'
+      })
+    });
+    if (res.status !== 201) throw new Error(`normalise 'both' failed with status ${res.status}`);
+    if (res.body.meta.mode !== 'media') throw new Error(`expected mode 'media' for 'both', got '${res.body.meta.mode}'`);
+    console.log('[test] both → media normalization: OK');
+  }
+  {
+    const res = await jsonRequest('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify({
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ2',
+        mode: 'video'
+      })
+    });
+    if (res.status !== 201) throw new Error(`normalise 'video' failed with status ${res.status}`);
+    if (res.body.meta.mode !== 'media') throw new Error(`expected mode 'media' for 'video', got '${res.body.meta.mode}'`);
+    console.log('[test] video → media normalization: OK');
+  }
+
   // 2) Poll status a few times to ensure API is responsive
   for (let i = 0; i < 5; i++) {
     await sleep(5000);

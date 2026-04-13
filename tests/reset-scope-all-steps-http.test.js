@@ -16,7 +16,7 @@ const { createDb } = require('../core/orchestrator/db');
 const orchestrator = require('../core/orchestrator');
 const { ALL_STEPS, excludedByMode, getDownstreamClosure } = require('../core/orchestrator/schedule');
 
-const MODES = ['transcript', 'both', 'video', 'audio'];
+const MODES = ['transcript', 'media', 'audio', 'full'];
 
 let runStepSeq = 0;
 

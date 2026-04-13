@@ -7,7 +7,10 @@ const { EventEmitter } = require('events');
 const { generateId } = require('../id');
 const { createDb } = require('./db');
 const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts');
-const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode } = require('./schedule');
+const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode, normalizeMode } = require('./schedule');
+
+// Steps whose failure marks the overall task as failed (media steps are non-blocking).
+const CONTENT_STEPS = new Set(['fetch', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary']);
 
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
@@ -190,10 +193,19 @@ function loadTaskFromDb(taskId, rootDir) {
   }
 
   const statusList = Object.values(steps).map((s) => s.status);
+  const contentFailed = Object.entries(steps).some(
+    ([name, s]) => CONTENT_STEPS.has(name) && s.status === 'failed'
+  );
   let status = 'pending';
   if (statusList.some((s) => s === 'running')) status = 'running';
-  else if (statusList.some((s) => s === 'failed')) status = 'failed';
-  else if (statusList.every((s) => s === 'completed' || s === 'skipped')) status = 'completed';
+  else if (contentFailed) status = 'failed';
+  else if (statusList.every((s) => s === 'completed' || s === 'skipped' || s === 'failed' || s === 'pending')) {
+    // completed if all content steps are done (media steps may still be pending/failed)
+    const contentDone = ['fetch', 'subs', 'vtt2md', 'article', 'summary'].every(
+      (n) => steps[n]?.status === 'completed' || steps[n]?.status === 'skipped'
+    );
+    if (contentDone) status = 'completed';
+  }
 
   const task = {
     task_id: taskId,
@@ -203,7 +215,7 @@ function loadTaskFromDb(taskId, rootDir) {
     params: {
       url: row.url,
       focus: row.focus || '',
-      mode: row.mode || 'both',
+      mode: normalizeMode(row.mode),
       force: 0,
       output_lang: row.output_lang || 'zh-CN',
       rootDir
@@ -217,7 +229,7 @@ function loadTaskFromDb(taskId, rootDir) {
       lang: row.lang || '',
       output_lang: row.output_lang || 'zh-CN',
       focus: row.focus || '',
-      mode: row.mode || 'both',
+      mode: normalizeMode(row.mode),
       download_status: 'pending',
       transcript_done: false,
       article_done: false,
@@ -250,7 +262,8 @@ function ensureTask(taskId, options = {}) {
  * params: { url, focus, mode, force, output_lang, rootDir }
  */
 async function createTask(params) {
-  const { url, focus = '', mode = 'both', force = 0, output_lang = 'zh-CN', rootDir } = params;
+  const { url, focus = '', mode, force = 0, output_lang = 'zh-CN', rootDir } = params;
+  const normalizedMode = normalizeMode(mode);
   if (!url) {
     throw new Error('url is required');
   }
@@ -272,7 +285,7 @@ async function createTask(params) {
     ts: now,
     output_lang,
     focus,
-    mode,
+    mode: normalizedMode,
     download_status: 'pending',
     transcript_done: false,
     article_done: false,
@@ -284,7 +297,7 @@ async function createTask(params) {
     status: 'pending',
     created_at: now,
     updated_at: now,
-    params: { url, focus, mode, force, output_lang, rootDir },
+    params: { url, focus, mode: normalizedMode, force, output_lang, rootDir },
     meta,
     steps: initSteps(),
     processInfo: null
@@ -294,7 +307,7 @@ async function createTask(params) {
 
   const db = ensureDb(rootDir);
   db.createTask(id, url);
-  db.updateTask(id, { url, title: '', focus, output_lang, mode });
+  db.updateTask(id, { url, title: '', focus, output_lang, mode: normalizedMode });
   for (const step of STEPS) {
     db.updateStep(id, step, 'pending');
   }
@@ -438,14 +451,16 @@ async function runStep(taskId, stepName, options = {}) {
 
   const db = ensureDb(rootDir);
 
-  // Simple mode-based skipping for media steps
-  if (stepName === 'video' && mode === 'audio') {
+  // video skipped when only audio or transcript is wanted
+  if (stepName === 'video' && (mode === 'audio' || mode === 'transcript')) {
     stepState.status = 'skipped';
     task.steps[stepName] = stepState;
     db.updateStep(id, stepName, 'skipped');
     return { success: true, skipped: true };
   }
-  if (stepName === 'audio' && mode === 'video') {
+  // audio skipped only for transcript mode;
+  // in media mode the scheduler gates audio until video fails (never reaches here pre-failure)
+  if (stepName === 'audio' && mode === 'transcript') {
     stepState.status = 'skipped';
     task.steps[stepName] = stepState;
     db.updateStep(id, stepName, 'skipped');
@@ -784,8 +799,8 @@ function applyResetScope(taskId, stepName, scope, options = {}) {
     throw e;
   }
 
-  const mode = (task.params && task.params.mode) || 'both';
-  if (excludedByMode(mode).has(stepName)) {
+  const mode = (task.params && task.params.mode) || 'media';
+  if (excludedByMode(mode, task.steps).has(stepName)) {
     const e = new Error('invalid resume anchor for mode');
     e.code = 'BAD_ANCHOR_MODE';
     throw e;
@@ -860,7 +875,7 @@ async function runTask(taskId, options = {}) {
     // B-layer: DAG readiness + two-tier serial priority (see docs/plans/2026-03-22-orchestrator-dag-scheduler.md).
     for (let guard = 0; guard < 64; guard++) {
       const ready = computeReadySteps(task);
-      const next = pickNextStep(ready, mode);
+      const next = pickNextStep(ready, mode, task.steps);
       if (!next) break;
 
       const stepOptions = { ...options };
@@ -881,9 +896,11 @@ async function runTask(taskId, options = {}) {
 
     updateTaskMetaFromFilesystem(task);
 
-    // Mark overall task status based on last step
-    const failedStep = Object.values(task.steps || {}).find((s) => s.status === 'failed');
-    task.status = failedStep ? 'failed' : 'completed';
+    // Mark overall task status: only content step failures count as task failure.
+    const contentStepFailed = Object.entries(task.steps || {}).some(
+      ([name, s]) => CONTENT_STEPS.has(name) && s.status === 'failed'
+    );
+    task.status = contentStepFailed ? 'failed' : 'completed';
     task.updated_at = new Date().toISOString();
     emitOrchestratorEvent('task.updated', taskId, { status: task.status });
   } finally {
@@ -932,6 +949,17 @@ async function runTask(taskId, options = {}) {
         }
 
         task.steps = steps;
+
+        // Re-evaluate overall task status after filesystem reconciliation.
+        const reconContentFailed = Object.entries(steps).some(
+          ([name, s]) => CONTENT_STEPS.has(name) && s.status === 'failed'
+        );
+        const reconStatus = reconContentFailed ? 'failed' : 'completed';
+        if (task.status !== reconStatus) {
+          task.status = reconStatus;
+          task.updated_at = new Date().toISOString();
+          emitOrchestratorEvent('task.updated', taskId, { status: task.status });
+        }
 
         emitOrchestratorEvent('task.finalized', taskId, {
           outputs: { transcript: hasTranscript, article: hasArticle, summary: hasSummary }
