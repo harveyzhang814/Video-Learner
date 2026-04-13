@@ -10,6 +10,7 @@ function getDbPath(rootDir) {
 
 function initTables(db) {
   db.pragma('journal_mode = WAL');
+  db.pragma('busy_timeout = 3000');
   db.pragma('foreign_keys = ON');
 
   db.exec(`

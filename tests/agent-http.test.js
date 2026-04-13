@@ -8,7 +8,8 @@ async function sleep(ms) {
 }
 
 async function run() {
-  const app = createApp();
+  const token = 'test-agent-http-token';
+  const app = createApp({ token });
   const server = http.createServer(app.callback());
 
   await new Promise((resolve) => server.listen(0, resolve));
@@ -20,7 +21,7 @@ async function run() {
   // Helper for JSON requests
   async function jsonRequest(path, options = {}) {
     const res = await fetch(base + path, {
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) },
       ...options
     });
     const text = await res.text();
@@ -121,7 +122,7 @@ async function run() {
   console.log('[test] result outputs:', resultRes.body.outputs);
 
   // 6) Delete task (state mode: only DB, keep files)
-  const deleteRes = await fetch(base + `/api/tasks/${taskId}?mode=state`, { method: 'DELETE' });
+  const deleteRes = await fetch(base + `/api/tasks/${taskId}?mode=state`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
   if (deleteRes.status !== 204 && deleteRes.status !== 200) {
     const t = await deleteRes.text();
     throw new Error('delete task failed: ' + t);

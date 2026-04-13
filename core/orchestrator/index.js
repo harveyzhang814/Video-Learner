@@ -1073,18 +1073,44 @@ function deleteTask(taskId, options = {}) {
   const workDir = rootDir ? getWorkDir(rootDir, taskId) : null;
   const db = rootDir ? ensureDb(rootDir) : null;
 
+  if (!db) throw new Error('rootDir required for delete');
+  const row = db.getTask(taskId);
+  if (!row) throw new Error(`task not found: ${taskId}`);
+
+  // Guard: refuse to hard/soft-delete a running task (state mode is a reset
+  // and is intentionally allowed mid-run so callers can restart cleanly).
+  const inMem = tasks.get(taskId);
+  if (mode !== 'state' && inMem) {
+    if (inMem.status === 'running') {
+      const e = new Error('task is running');
+      e.code = 'TASK_OR_STEP_RUNNING';
+      throw e;
+    }
+    if (inMem.steps) {
+      for (const name of STEPS) {
+        const s = inMem.steps[name];
+        if (s && s.status === 'running') {
+          const e = new Error('a step is running');
+          e.code = 'TASK_OR_STEP_RUNNING';
+          throw e;
+        }
+      }
+    }
+  } else if (mode !== 'state') {
+    // Not in memory — check the steps table persisted to DB
+    const runningStep = db.getSteps(taskId).find((s) => s.status === 'running');
+    if (runningStep) {
+      const e = new Error('a step is running');
+      e.code = 'TASK_OR_STEP_RUNNING';
+      throw e;
+    }
+  }
+
   if (mode === 'soft') {
-    if (!db) throw new Error('rootDir required for delete');
-    const row = db.getTask(taskId);
-    if (!row) throw new Error(`task not found: ${taskId}`);
     db.softDeleteTask(taskId);
     tasks.delete(taskId);
     return;
   }
-
-  if (!db) throw new Error('rootDir required for delete');
-  const row = db.getTask(taskId);
-  if (!row) throw new Error(`task not found: ${taskId}`);
   db.deleteTask(taskId);
   tasks.delete(taskId);
 

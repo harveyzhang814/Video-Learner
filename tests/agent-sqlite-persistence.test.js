@@ -21,36 +21,37 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function jsonRequest(base, pathname, options = {}) {
-  const res = await fetch(base + pathname, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options
-  });
-  const text = await res.text();
-  let body = null;
-  if (text) {
-    try {
-      body = JSON.parse(text);
-    } catch (e) {
-      throw new Error(`Invalid JSON from ${pathname}: ${text.slice(0, 200)}`);
-    }
-  }
-  return { status: res.status, body };
-}
-
 async function run() {
-  const app = createApp(); // default rootDir = repo root
+  const token = 'test-sqlite-persistence-token';
+  const app = createApp({ token }); // default rootDir = repo root
   const server = http.createServer(app.callback());
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
   const base = `http://127.0.0.1:${port}`;
+
+  async function jsonRequest(pathname, options = {}) {
+    const res = await fetch(base + pathname, {
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) },
+      ...options
+    });
+    const text = await res.text();
+    let body = null;
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Invalid JSON from ${pathname}: ${text.slice(0, 200)}`);
+      }
+    }
+    return { status: res.status, body };
+  }
 
   console.log('[persistence-test] server on', base);
   console.log('[persistence-test] DB path:', DB_PATH);
 
   try {
     // 1) Create task (this should create task + 8 steps in SQLite)
-    const createRes = await jsonRequest(base, '/api/tasks', {
+    const createRes = await jsonRequest('/api/tasks', {
       method: 'POST',
       body: JSON.stringify({
         url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -99,7 +100,7 @@ async function run() {
     console.log('[persistence-test] 8 steps present after create');
 
     // 5) Run only the fetch step and wait for it to finish
-    const runFetchRes = await jsonRequest(base, `/api/tasks/${taskId}/steps/fetch/run`, {
+    const runFetchRes = await jsonRequest(`/api/tasks/${taskId}/steps/fetch/run`, {
       method: 'POST',
       body: JSON.stringify({})
     });
@@ -124,7 +125,7 @@ async function run() {
     console.log('[persistence-test] fetch step persisted:', fetchStep.status, 'attempts:', fetchStep.attempts);
 
     // 7) GET /api/tasks/:id and GET /api/tasks/:id/steps and ensure they match DB
-    const getTaskRes = await jsonRequest(base, `/api/tasks/${taskId}`);
+    const getTaskRes = await jsonRequest(`/api/tasks/${taskId}`);
     if (getTaskRes.status !== 200 || !getTaskRes.body.meta) {
       throw new Error('GET /api/tasks/:id failed or missing meta');
     }
@@ -132,7 +133,7 @@ async function run() {
       throw new Error('GET task meta does not match DB task');
     }
 
-    const getStepsRes = await jsonRequest(base, `/api/tasks/${taskId}/steps`);
+    const getStepsRes = await jsonRequest(`/api/tasks/${taskId}/steps`);
     if (getStepsRes.status !== 200 || !Array.isArray(getStepsRes.body) || getStepsRes.body.length !== 8) {
       throw new Error('GET /api/tasks/:id/steps failed or wrong length');
     }
@@ -144,7 +145,7 @@ async function run() {
 
     // 9) Restore from DB: drop from memory then GET again (simulate process restart)
     orchestrator._dropTaskFromMemory(taskId);
-    const afterRestoreRes = await jsonRequest(base, `/api/tasks/${taskId}`);
+    const afterRestoreRes = await jsonRequest(`/api/tasks/${taskId}`);
     if (afterRestoreRes.status !== 200 || afterRestoreRes.body.task_id !== taskId) {
       throw new Error(`after restore: expected 200 and task_id ${taskId}, got ${afterRestoreRes.status} ${JSON.stringify(afterRestoreRes.body?.task_id)}`);
     }
