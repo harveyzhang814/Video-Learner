@@ -872,7 +872,7 @@ async function runTask(taskId, options = {}) {
     // B-layer: DAG readiness + two-tier serial priority (see docs/plans/2026-03-22-orchestrator-dag-scheduler.md).
     for (let guard = 0; guard < 64; guard++) {
       const ready = computeReadySteps(task);
-      const next = pickNextStep(ready, mode);
+      const next = pickNextStep(ready, mode, task.steps);
       if (!next) break;
 
       const stepOptions = { ...options };
