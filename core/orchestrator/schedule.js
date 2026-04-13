@@ -85,13 +85,32 @@ function predecessorSatisfied(task, predName) {
 }
 
 /**
- * Steps that must never be scheduled as candidates for this mode (even if pending).
+ * Normalise a raw mode string to a known mode value.
+ * Accepts legacy names ('both', 'video') and maps them to 'media'.
+ * Unknown/empty values default to 'media'.
  */
-function excludedByMode(mode) {
-  const m = mode || 'both';
+function normalizeMode(raw) {
+  const m = String(raw || '').trim();
+  if (m === 'both' || m === 'video' || m === 'media') return 'media';
+  if (m === 'audio') return 'audio';
+  if (m === 'transcript') return 'transcript';
+  if (m === 'full') return 'full';
+  return 'media';
+}
+
+/**
+ * Steps that must never be scheduled for a given mode.
+ * @param {string} mode
+ * @param {object} [steps] - current task.steps (used by 'media' for dynamic audio fallback)
+ * @returns {Set<string>}
+ */
+function excludedByMode(mode, steps) {
+  const m = normalizeMode(mode);
   const ex = new Set();
-  if (m === 'both' || m === 'video') {
-    ex.add('audio');
+  if (m === 'media') {
+    // audio only becomes schedulable after video has definitively failed
+    const videoFailed = steps && steps.video && steps.video.status === 'failed';
+    if (!videoFailed) ex.add('audio');
   }
   if (m === 'audio') {
     ex.add('video');
@@ -100,6 +119,7 @@ function excludedByMode(mode) {
     ex.add('video');
     ex.add('audio');
   }
+  // 'full': nothing excluded — video and audio both run, video has higher secondary-chain priority
   return ex;
 }
 
@@ -167,5 +187,6 @@ module.exports = {
   computeReadySteps,
   pickNextStep,
   getDownstreamClosure,
-  excludedByMode
+  excludedByMode,
+  normalizeMode
 };
