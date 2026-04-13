@@ -71,7 +71,7 @@ ipcMain.handle('open-task-folder', async (_event, taskId) => {
 
     const url = new URL(`/api/tasks/${encodeURIComponent(taskId)}/paths`, info.baseUrl);
     const res = await fetch(url.toString(), {
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${info.token}` }
     });
 
     if (!res.ok) {
