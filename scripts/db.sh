@@ -86,11 +86,14 @@ init_db() {
     "
 }
 
+# Escape a string for safe SQLite single-quoted interpolation (doubles all ' chars)
+_sq() { printf '%s' "$1" | sed "s/'/''/g"; }
+
 # 创建任务
 create_task() {
     local id="$1"
     local url="$2"
-    sqlite3 "$DB_PATH" "INSERT OR REPLACE INTO tasks (id, url, ts) VALUES ('$id', '$url', datetime('now'));"
+    sqlite3 "$DB_PATH" "INSERT OR REPLACE INTO tasks (id, url, ts) VALUES ('$(_sq "$id")', '$(_sq "$url")', datetime('now'));"
 }
 
 # 更新任务
@@ -102,7 +105,7 @@ update_task() {
         updates="$updates $1"
         shift
     done
-    sqlite3 "$DB_PATH" "UPDATE tasks SET $updates, updated_at = datetime('now') WHERE id = '$id';"
+    sqlite3 "$DB_PATH" "UPDATE tasks SET $updates, updated_at = datetime('now') WHERE id = '$(_sq "$id")';"
 }
 
 # 更新步骤状态
@@ -113,12 +116,12 @@ update_step() {
     local error="${4:-}"
 
     # 检查是否存在
-    local exists=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM steps WHERE task_id='$task_id' AND step_name='$step_name';")
+    local exists=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM steps WHERE task_id='$(_sq "$task_id")' AND step_name='$(_sq "$step_name")';" )
 
     if [ "$exists" -eq "0" ]; then
-        sqlite3 "$DB_PATH" "INSERT INTO steps (task_id, step_name, status, attempts, started_at) VALUES ('$task_id', '$step_name', '$status', 1, datetime('now'));"
+        sqlite3 "$DB_PATH" "INSERT INTO steps (task_id, step_name, status, attempts, error, started_at) VALUES ('$(_sq "$task_id")', '$(_sq "$step_name")', '$(_sq "$status")', 1, '$(_sq "$error")', datetime('now'));"
     else
-        sqlite3 "$DB_PATH" "UPDATE steps SET status = '$status', attempts = attempts + 1, error = '$error', completed_at = CASE WHEN '$status' IN ('completed', 'failed', 'skipped') THEN datetime('now') ELSE completed_at END WHERE task_id = '$task_id' AND step_name = '$step_name';"
+        sqlite3 "$DB_PATH" "UPDATE steps SET status = '$(_sq "$status")', attempts = attempts + 1, error = '$(_sq "$error")', completed_at = CASE WHEN '$(_sq "$status")' IN ('completed', 'failed', 'skipped') THEN datetime('now') ELSE completed_at END WHERE task_id = '$(_sq "$task_id")' AND step_name = '$(_sq "$step_name")';"
     fi
 }
 
@@ -129,25 +132,25 @@ update_download() {
     local error="${3:-}"
     local file_path="${4:-}"
 
-    local exists=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM downloads WHERE task_id='$task_id';")
+    local exists=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM downloads WHERE task_id='$(_sq "$task_id")';" )
 
     if [ "$exists" -eq "0" ]; then
-        sqlite3 "$DB_PATH" "INSERT INTO downloads (task_id, status, attempts, error) VALUES ('$task_id', '$status', 1, '$error');"
+        sqlite3 "$DB_PATH" "INSERT INTO downloads (task_id, status, attempts, error) VALUES ('$(_sq "$task_id")', '$(_sq "$status")', 1, '$(_sq "$error")');"
     else
-        sqlite3 "$DB_PATH" "UPDATE downloads SET status = '$status', attempts = attempts + 1, error = '$error', file_path = '$file_path' WHERE task_id = '$task_id';"
+        sqlite3 "$DB_PATH" "UPDATE downloads SET status = '$(_sq "$status")', attempts = attempts + 1, error = '$(_sq "$error")', file_path = '$(_sq "$file_path")' WHERE task_id = '$(_sq "$task_id")';"
     fi
 }
 
 # 获取任务
 get_task() {
     local id="$1"
-    sqlite3 -json "$DB_PATH" "SELECT * FROM tasks WHERE id = '$id';"
+    sqlite3 -json "$DB_PATH" "SELECT * FROM tasks WHERE id = '$(_sq "$id")';"
 }
 
 # 获取步骤
 get_steps() {
     local task_id="$1"
-    sqlite3 -json "$DB_PATH" "SELECT * FROM steps WHERE task_id = '$task_id';"
+    sqlite3 -json "$DB_PATH" "SELECT * FROM steps WHERE task_id = '$(_sq "$task_id")';"
 }
 
 # 主命令
