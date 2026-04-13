@@ -9,28 +9,29 @@ const { createApp } = require('../services/http-server');
 const { createDb } = require('../core/orchestrator/db');
 const orchestrator = require('../core/orchestrator');
 
-async function jsonRequest(base, reqPath, options = {}) {
-  const res = await fetch(base + reqPath, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options
-  });
-  const text = await res.text();
-  let body;
-  try {
-    body = text ? JSON.parse(text) : null;
-  } catch (e) {
-    throw new Error(`Invalid JSON from ${reqPath}: ${text}`);
-  }
-  return { status: res.status, body };
-}
-
 async function run() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vl-rscope-http-'));
-  const app = createApp({ rootDir: tmp });
+  const token = 'test-rscope-http-token';
+  const app = createApp({ rootDir: tmp, token });
   const server = http.createServer(app.callback());
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
   const base = `http://127.0.0.1:${port}`;
+
+  async function jsonRequest(reqPath, options = {}) {
+    const res = await fetch(base + reqPath, {
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) },
+      ...options
+    });
+    const text = await res.text();
+    let body;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch (e) {
+      throw new Error(`Invalid JSON from ${reqPath}: ${text}`);
+    }
+    return { status: res.status, body };
+  }
 
   try {
     const { task_id: taskId } = await orchestrator.createTask({
@@ -43,7 +44,7 @@ async function run() {
     });
     const id = taskId;
 
-    const bad = await jsonRequest(base, `/api/tasks/${id}/steps/fetch/run`, {
+    const bad = await jsonRequest(`/api/tasks/${id}/steps/fetch/run`, {
       method: 'POST',
       body: JSON.stringify({ reset_scope: 'bogus' })
     });
@@ -56,7 +57,7 @@ async function run() {
     }
     orchestrator._dropTaskFromMemory(id);
 
-    const down = await jsonRequest(base, `/api/tasks/${id}/steps/article/run`, {
+    const down = await jsonRequest(`/api/tasks/${id}/steps/article/run`, {
       method: 'POST',
       body: JSON.stringify({ reset_scope: 'downstream' })
     });

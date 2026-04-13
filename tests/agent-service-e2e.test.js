@@ -243,7 +243,8 @@ async function run() {
   const relaxed = envBool('E2E_RELAX_CONTENT_ASSERT');
   const expectedId = generateId(testUrl);
 
-  const app = createApp({ rootDir: ROOT_DIR });
+  const token = 'test-e2e-token';
+  const app = createApp({ rootDir: ROOT_DIR, token });
   const server = http.createServer(app.callback());
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
@@ -256,7 +257,7 @@ async function run() {
 
   async function jsonRequest(pathname, options = {}) {
     const res = await fetch(base + pathname, {
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) },
       ...options
     });
     const text = await res.text();

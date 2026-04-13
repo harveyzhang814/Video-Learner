@@ -42,7 +42,7 @@ check_deps() {
 check_deps
 
 # Kill existing electron processes
-pkill -f "electron" 2>/dev/null
+pkill -f "${ELECTRON_DIR}/node_modules/.bin/electron" 2>/dev/null
 killall Electron 2>/dev/null
 sleep 0.3
 

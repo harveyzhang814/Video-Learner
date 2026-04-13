@@ -20,21 +20,6 @@ const MODES = ['transcript', 'media', 'audio', 'full'];
 
 let runStepSeq = 0;
 
-async function jsonRequest(base, reqPath, options = {}) {
-  const res = await fetch(base + reqPath, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options
-  });
-  const text = await res.text();
-  let body;
-  try {
-    body = text ? JSON.parse(text) : null;
-  } catch (e) {
-    throw new Error(`Invalid JSON from ${reqPath}: ${text}`);
-  }
-  return { status: res.status, body };
-}
-
 function sortNames(arr) {
   return [...(arr || [])].sort();
 }
@@ -77,14 +62,31 @@ function stubRunStepForMediaSteps() {
 
 async function run() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vl-rscope-all-'));
+  const token = 'test-rscope-all-token';
   const app = createApp({
     rootDir: tmp,
+    token,
     runTaskForDownstream: async () => {}
   });
   const server = http.createServer(app.callback());
   await new Promise((resolve) => server.listen(0, resolve));
   const port = server.address().port;
   const base = `http://127.0.0.1:${port}`;
+
+  async function jsonRequest(reqPath, options = {}) {
+    const res = await fetch(base + reqPath, {
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) },
+      ...options
+    });
+    const text = await res.text();
+    let body;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch (e) {
+      throw new Error(`Invalid JSON from ${reqPath}: ${text}`);
+    }
+    return { status: res.status, body };
+  }
 
   try {
     for (const mode of MODES) {
@@ -93,7 +95,7 @@ async function run() {
         const url = `https://example.com/watch?v=rscope-all-${runStepSeq++}`;
         const taskDown = await createIdleTask(tmp, mode, url);
 
-        const down = await jsonRequest(base, `/api/tasks/${taskDown}/steps/${stepName}/run`, {
+        const down = await jsonRequest(`/api/tasks/${taskDown}/steps/${stepName}/run`, {
           method: 'POST',
           body: JSON.stringify({ reset_scope: 'downstream' })
         });
@@ -116,7 +118,7 @@ async function run() {
 
         let stepRes;
         try {
-          stepRes = await jsonRequest(base, `/api/tasks/${taskStep}/steps/${stepName}/run`, {
+          stepRes = await jsonRequest(`/api/tasks/${taskStep}/steps/${stepName}/run`, {
             method: 'POST',
             body: JSON.stringify({ reset_scope: 'step', force: true })
           });
@@ -141,7 +143,7 @@ async function run() {
       }
     }
 
-    const badStep = await jsonRequest(base, `/api/tasks/${await createIdleTask(tmp, 'transcript', 'https://example.com/watch?v=badstep')}/steps/not-a-step/run`, {
+    const badStep = await jsonRequest(`/api/tasks/${await createIdleTask(tmp, 'transcript', 'https://example.com/watch?v=badstep')}/steps/not-a-step/run`, {
       method: 'POST',
       body: JSON.stringify({ reset_scope: 'step' })
     });
