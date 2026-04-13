@@ -41,9 +41,8 @@ check_deps() {
 # Run dependency check
 check_deps
 
-# Kill existing electron processes
+# Kill existing electron processes (precise match to avoid killing VS Code/Discord/etc.)
 pkill -f "${ELECTRON_DIR}/node_modules/.bin/electron" 2>/dev/null
-killall Electron 2>/dev/null
 sleep 0.3
 
 # Start electron
