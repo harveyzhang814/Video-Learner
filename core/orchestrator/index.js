@@ -7,7 +7,7 @@ const { EventEmitter } = require('events');
 const { generateId } = require('../id');
 const { createDb } = require('./db');
 const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts');
-const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode } = require('./schedule');
+const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode, normalizeMode } = require('./schedule');
 
 // Steps whose failure marks the overall task as failed (media steps are non-blocking).
 const CONTENT_STEPS = new Set(['fetch', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary']);
@@ -215,7 +215,7 @@ function loadTaskFromDb(taskId, rootDir) {
     params: {
       url: row.url,
       focus: row.focus || '',
-      mode: row.mode || 'both',
+      mode: normalizeMode(row.mode),
       force: 0,
       output_lang: row.output_lang || 'zh-CN',
       rootDir
@@ -229,7 +229,7 @@ function loadTaskFromDb(taskId, rootDir) {
       lang: row.lang || '',
       output_lang: row.output_lang || 'zh-CN',
       focus: row.focus || '',
-      mode: row.mode || 'both',
+      mode: normalizeMode(row.mode),
       download_status: 'pending',
       transcript_done: false,
       article_done: false,
@@ -262,7 +262,8 @@ function ensureTask(taskId, options = {}) {
  * params: { url, focus, mode, force, output_lang, rootDir }
  */
 async function createTask(params) {
-  const { url, focus = '', mode = 'both', force = 0, output_lang = 'zh-CN', rootDir } = params;
+  const { url, focus = '', mode, force = 0, output_lang = 'zh-CN', rootDir } = params;
+  const normalizedMode = normalizeMode(mode);
   if (!url) {
     throw new Error('url is required');
   }
@@ -284,7 +285,7 @@ async function createTask(params) {
     ts: now,
     output_lang,
     focus,
-    mode,
+    mode: normalizedMode,
     download_status: 'pending',
     transcript_done: false,
     article_done: false,
@@ -296,7 +297,7 @@ async function createTask(params) {
     status: 'pending',
     created_at: now,
     updated_at: now,
-    params: { url, focus, mode, force, output_lang, rootDir },
+    params: { url, focus, mode: normalizedMode, force, output_lang, rootDir },
     meta,
     steps: initSteps(),
     processInfo: null
@@ -306,7 +307,7 @@ async function createTask(params) {
 
   const db = ensureDb(rootDir);
   db.createTask(id, url);
-  db.updateTask(id, { url, title: '', focus, output_lang, mode });
+  db.updateTask(id, { url, title: '', focus, output_lang, mode: normalizedMode });
   for (const step of STEPS) {
     db.updateStep(id, step, 'pending');
   }
@@ -450,14 +451,16 @@ async function runStep(taskId, stepName, options = {}) {
 
   const db = ensureDb(rootDir);
 
-  // Simple mode-based skipping for media steps
-  if (stepName === 'video' && mode === 'audio') {
+  // video skipped when only audio or transcript is wanted
+  if (stepName === 'video' && (mode === 'audio' || mode === 'transcript')) {
     stepState.status = 'skipped';
     task.steps[stepName] = stepState;
     db.updateStep(id, stepName, 'skipped');
     return { success: true, skipped: true };
   }
-  if (stepName === 'audio' && mode === 'video') {
+  // audio skipped only for transcript mode;
+  // in media mode the scheduler gates audio until video fails (never reaches here pre-failure)
+  if (stepName === 'audio' && mode === 'transcript') {
     stepState.status = 'skipped';
     task.steps[stepName] = stepState;
     db.updateStep(id, stepName, 'skipped');
@@ -796,8 +799,8 @@ function applyResetScope(taskId, stepName, scope, options = {}) {
     throw e;
   }
 
-  const mode = (task.params && task.params.mode) || 'both';
-  if (excludedByMode(mode).has(stepName)) {
+  const mode = (task.params && task.params.mode) || 'media';
+  if (excludedByMode(mode, task.steps).has(stepName)) {
     const e = new Error('invalid resume anchor for mode');
     e.code = 'BAD_ANCHOR_MODE';
     throw e;
