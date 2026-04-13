@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
-    "marked": "^18.0.0",
-    "ws": "^8.19.0"
+    "marked": "^18.0.0"
   }
 }

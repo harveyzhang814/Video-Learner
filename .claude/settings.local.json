@@ -30,7 +30,8 @@
       "Bash(git add:*)",
       "Bash(git:*)",
       "mcp__ide__getDiagnostics",
-      "mcp__MiniMax__web_search"
+      "mcp__MiniMax__web_search",
+      "Bash(~/.claude/skills/gstack/bin/gstack-learnings-log '{\"\"skill\"\":\"\"investigate\"\",\"\"type\"\":\"\"pitfall\"\",\"\"key\"\":\"\"yt-dlp-cookies-tv-client-403\"\",\"\"insight\"\":\"\"yt-dlp with --cookies-from-browser chrome causes YouTube to switch to TV downgraded player API, which serves HLS/m3u8 streams instead of DASH. HLS segment downloads return HTTP 403. Fix: try without cookies first; only retry with cookies when output contains bot-detection keywords \\(sign in, bot, etc.\\).\"\",\"\"confidence\"\":10,\"\"source\"\":\"\"observed\"\",\"\"files\"\":[\"\"scripts/download_video.sh\"\",\"\"scripts/download_audio.sh\"\",\"\"scripts/yt-dlp-cookies.sh\"\"]}')"
     ]
   }
 }
