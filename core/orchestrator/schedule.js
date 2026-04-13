@@ -124,7 +124,7 @@ function excludedByMode(mode, steps) {
 }
 
 function secondaryChainForMode(mode) {
-  const m = mode || 'both';
+  const m = normalizeMode(mode);
   return SECONDARY_CHAIN_BASE.filter((name) => !excludedByMode(m).has(name));
 }
 
@@ -167,7 +167,7 @@ function computeReadySteps(task) {
 function pickNextStep(readySet, mode) {
   const ready =
     readySet instanceof Set ? readySet : new Set(Array.isArray(readySet) ? readySet : []);
-  const m = mode || 'both';
+  const m = normalizeMode(mode);
 
   for (const name of PRIMARY_CHAIN) {
     if (ready.has(name)) return name;
