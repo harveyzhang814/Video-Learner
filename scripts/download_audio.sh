@@ -34,38 +34,54 @@ fi
 # Clean temp files
 rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
 
-# Download audio using yt-dlp
-# Priority: m4a > webm > any audio
-echo "[INFO] Downloading audio..."
-yt-dlp $YT_DLP_COOKIE_OPTS \
-    --newline \
-    --progress-template "[progress] downloaded=%(progress.downloaded_bytes)d total=%(progress.total_bytes or progress.total_bytes_estimate or 0)d speed=%(progress.speed or 0.0)f eta=%(progress.eta or 0)d" \
-    -f "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio" \
-    -o "$DIR/media/audio.temp.m4a" "$URL" 2>&1
-PIPESTATUS_CODE=(${PIPESTATUS[@]})
-YTDLP_EXIT_CODE=${PIPESTATUS_CODE[0]}
+FORMAT="bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio"
+PROGRESS_TMPL="[progress] downloaded=%(progress.downloaded_bytes)d total=%(progress.total_bytes or progress.total_bytes_estimate or 0)d speed=%(progress.speed or 0.0)f eta=%(progress.eta or 0)d"
 
-# Check yt-dlp exit code
-if [ "$YTDLP_EXIT_CODE" -ne 0 ]; then
-    echo "[STATUS] audio_error: yt-dlp failed with exit code $YTDLP_EXIT_CODE"
-    rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
-    exit 1
-fi
+# Helper: attempt audio download with given cookie opts, capture output
+try_audio() {
+    local cookie_opts="$1"
+    local label="$2"
+    echo "[INFO] $label"
+    yt-dlp $cookie_opts \
+        --newline \
+        --progress-template "$PROGRESS_TMPL" \
+        -f "$FORMAT" \
+        -o "$DIR/media/audio.temp.m4a" "$URL" 2>&1
+    return $?
+}
 
-# Verify file size (prevent partial downloads)
-if [ -f "$DIR/media/audio.temp.m4a" ]; then
+# Attempt 1: no cookies (avoids TV-client HLS path that causes 403)
+_TMPOUT=$(mktemp)
+try_audio "" "Downloading audio (no cookies)..." 2>&1 | tee "$_TMPOUT"
+YTDLP_EXIT=${PIPESTATUS[0]}
+OUTPUT=$(cat "$_TMPOUT"); rm -f "$_TMPOUT"
+
+if [ "$YTDLP_EXIT" -eq 0 ] && [ -f "$DIR/media/audio.temp.m4a" ]; then
     temp_size=$(stat -f%z "$DIR/media/audio.temp.m4a" 2>/dev/null || stat -c%s "$DIR/media/audio.temp.m4a" 2>/dev/null || echo "0")
-    if [ "$temp_size" -le 1000 ]; then
-        echo "[STATUS] audio_error: downloaded file too small ($temp_size bytes)"
-        rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
-        exit 1
+    if [ "$temp_size" -gt 1000 ]; then
+        mv "$DIR/media/audio.temp.m4a" "$DIR/media/audio.m4a"
+        echo "[STATUS] audio_done"
+        exit 0
     fi
-    mv "$DIR/media/audio.temp.m4a" "$DIR/media/audio.m4a"
-    echo "[STATUS] audio_done"
-    exit 0
+fi
+rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
+
+# Attempt 2: with cookies only if bot-detection error and cookies are configured
+if [ -n "$YT_DLP_COOKIE_OPTS" ] && echo "$OUTPUT" | grep -qi "sign in\|bot\|confirm your age\|login required"; then
+    echo "[INFO] Bot detection encountered, retrying with cookies..."
+    OUTPUT2=$(try_audio "$YT_DLP_COOKIE_OPTS" "Downloading audio (with cookies)...")
+    YTDLP_EXIT2=$?
+    if [ "$YTDLP_EXIT2" -eq 0 ] && [ -f "$DIR/media/audio.temp.m4a" ]; then
+        temp_size=$(stat -f%z "$DIR/media/audio.temp.m4a" 2>/dev/null || stat -c%s "$DIR/media/audio.temp.m4a" 2>/dev/null || echo "0")
+        if [ "$temp_size" -gt 1000 ]; then
+            mv "$DIR/media/audio.temp.m4a" "$DIR/media/audio.m4a"
+            echo "[STATUS] audio_done"
+            exit 0
+        fi
+    fi
+    rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
 fi
 
 # Failed
 echo "[STATUS] audio_error: download failed"
-rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
 exit 1
