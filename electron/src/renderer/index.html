@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="../../node_modules/marked/lib/marked.umd.js"></script>
   <style>
     :root {
       --grid-unit: 8px;
@@ -2335,25 +2335,32 @@
       try {
         const media = await client.getTaskMedia(selectedTaskId);
         const videoInfo = media && media.video ? media.video : null;
-        if (videoInfo && videoInfo.exists && videoInfo.path) {
-          const fileUrl = pathToFileUrl(videoInfo.path);
+        const audioInfo = media && media.audio ? media.audio : null;
+        const mediaInfo = (videoInfo && videoInfo.exists && videoInfo.path) ? videoInfo
+                        : (audioInfo && audioInfo.exists && audioInfo.path) ? audioInfo
+                        : null;
+        if (mediaInfo) {
+          const fileUrl = pathToFileUrl(mediaInfo.path);
           if (fileUrl) {
             videoPlayer.src = fileUrl;
             videoPlayer.classList.remove('hidden');
             videoEmpty.classList.add('hidden');
           } else {
             videoPlayer.removeAttribute('src');
+            videoPlayer.load();
             videoPlayer.classList.add('hidden');
             videoEmpty.classList.remove('hidden');
           }
         } else {
           videoPlayer.removeAttribute('src');
+          videoPlayer.load();
           videoPlayer.classList.add('hidden');
           videoEmpty.classList.remove('hidden');
         }
       } catch (e) {
         console.error('Failed to load media info for task', selectedTaskId, e);
         videoPlayer.removeAttribute('src');
+        videoPlayer.load();
         videoPlayer.classList.add('hidden');
         videoEmpty.classList.remove('hidden');
       }

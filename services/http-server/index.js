@@ -49,6 +49,19 @@ function createApp(options = {}) {
     ctx.body = { version: pkg.version || 'unknown' };
   });
 
+  // Bearer token auth for all /api/* routes except /api/events (SSE uses ?token= query param).
+  router.use(async (ctx, next) => {
+    if (ctx.path === '/api/events') return next();
+    const authHeader = ctx.get('Authorization') || '';
+    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    if (!bearer || bearer !== token) {
+      ctx.status = 401;
+      ctx.body = { error: { code: 'UNAUTHORIZED', message: 'Missing or invalid token' } };
+      return;
+    }
+    return next();
+  });
+
   router.get('/events', async (ctx) => {
     const qToken = (ctx.query && ctx.query.token) || '';
     if (!qToken || qToken !== token) {
@@ -262,13 +275,14 @@ function createApp(options = {}) {
       return;
     }
 
-    const allowedPath = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'media', 'video.mp4');
+    const videoAllowedPath = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'media', 'video.mp4');
+    const audioAllowedPath = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'media', 'audio.m4a');
 
     const outPath = result && result.outputs ? result.outputs.video_path : undefined;
     if (outPath && typeof outPath === 'string') {
       const resolved = path.resolve(path.isAbsolute(outPath) ? outPath : path.resolve(ROOT_DIR, outPath));
       const normalized = path.normalize(resolved);
-      if (normalized !== allowedPath) {
+      if (normalized !== videoAllowedPath) {
         ctx.status = 404;
         ctx.type = 'json';
         ctx.body = { error: 'file not found', type: 'video' };
@@ -280,8 +294,12 @@ function createApp(options = {}) {
     ctx.type = 'json';
     ctx.body = {
       video: {
-        path: allowedPath,
-        exists: fs.existsSync(allowedPath)
+        path: videoAllowedPath,
+        exists: fs.existsSync(videoAllowedPath)
+      },
+      audio: {
+        path: audioAllowedPath,
+        exists: fs.existsSync(audioAllowedPath)
       }
     };
   } catch (err) {
@@ -514,9 +532,10 @@ module.exports = { createApp };
 // When run directly (npm run agent:serve), start the server.
 if (require.main === module) {
   const port = process.env.PORT || 3000;
+  const host = process.env.HOST || '127.0.0.1';
   const app = createApp();
-  app.listen(port, () => {
-    console.log(`Agent HTTP service listening on http://localhost:${port}`);
+  app.listen(port, host, () => {
+    console.log(`Agent HTTP service listening on http://${host}:${port}`);
     // IMPORTANT: never log the SSE token.
   });
 }
