@@ -52,6 +52,19 @@ def test_segments_to_vtt_multiple():
     assert "00:00:02.000 --> 00:00:04.000" in result
 
 
+def test_extract_audio_missing_input():
+    """Should raise FileNotFoundError when source video does not exist."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        wav = os.path.join(tmp, "out.wav")
+        try:
+            from whisper_asr import extract_audio
+            extract_audio("/nonexistent/video.mp4", wav)
+            assert False, "Expected FileNotFoundError"
+        except FileNotFoundError:
+            pass  # expected
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     passed = failed = 0

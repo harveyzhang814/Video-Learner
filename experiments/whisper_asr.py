@@ -50,3 +50,28 @@ def segments_to_vtt(segments: list) -> str:
         lines.append(f"{start} --> {end}")
         lines.append(text)
     return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Side-effect helpers
+# ---------------------------------------------------------------------------
+
+def extract_audio(video_path: str, wav_path: str) -> None:
+    """Extract mono 16kHz WAV from video using ffmpeg.
+
+    Raises FileNotFoundError if video_path does not exist.
+    Raises RuntimeError if ffmpeg fails.
+    """
+    if not os.path.exists(video_path):
+        raise FileNotFoundError(f"Video not found: {video_path}")
+
+    cmd = [
+        "ffmpeg", "-y", "-i", video_path,
+        "-ac", "1",          # mono
+        "-ar", "16000",      # 16 kHz — Whisper standard
+        "-vn",               # no video
+        wav_path,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg failed:\n{result.stderr}")
