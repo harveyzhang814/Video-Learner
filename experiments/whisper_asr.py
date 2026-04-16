@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import os
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -59,11 +60,17 @@ def segments_to_vtt(segments: list) -> str:
 def extract_audio(video_path: str, wav_path: str) -> None:
     """Extract mono 16kHz WAV from video using ffmpeg.
 
+    Raises RuntimeError if ffmpeg is not found on PATH.
     Raises FileNotFoundError if video_path does not exist.
     Raises RuntimeError if ffmpeg fails.
     """
+    if shutil.which("ffmpeg") is None:
+        raise RuntimeError("ffmpeg not found on PATH")
+
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"Video not found: {video_path}")
+
+    os.makedirs(os.path.dirname(wav_path) or ".", exist_ok=True)
 
     cmd = [
         "ffmpeg", "-y", "-i", video_path,
