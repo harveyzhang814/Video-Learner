@@ -16,6 +16,10 @@ def test_format_timestamp_hours():
     assert format_timestamp(3661.001) == "01:01:01.001"
 
 
+def test_format_timestamp_negative_clamped():
+    assert format_timestamp(-0.1) == "00:00:00.000"
+
+
 def test_segments_to_vtt_header():
     result = segments_to_vtt([])
     assert result.strip() == "WEBVTT"

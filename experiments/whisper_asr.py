@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 
 def format_timestamp(seconds: float) -> str:
     """Convert float seconds to WebVTT timestamp HH:MM:SS.mmm."""
-    ms = round(seconds * 1000)
+    ms = round(max(seconds, 0.0) * 1000)
     h = ms // 3_600_000
     ms %= 3_600_000
     m = ms // 60_000
@@ -49,4 +49,4 @@ def segments_to_vtt(segments: list) -> str:
         lines.append("")
         lines.append(f"{start} --> {end}")
         lines.append(text)
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n"
