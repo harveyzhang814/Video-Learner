@@ -1,4 +1,4 @@
-# Video-Learner 部署指南
+# 部署指南
 
 本文说明将本仓库部署到**新机器**或**新环境**时的依赖、配置文件与环境变量。编排入口为 **GUI（Electron）** 或 **Agent Service（HTTP）**，二者共用 `core/orchestrator` 与 `work/` 数据目录。
 
@@ -55,12 +55,12 @@ cp scripts/settings.example.conf scripts/settings.conf
 
 ## 4. 安装步骤（建议顺序）
 
-1. **克隆仓库**并进入根目录。  
-2. **创建** `scripts/settings.conf`（见上文）。  
-3. **系统依赖**：`bash scripts/install.sh`（按脚本支持平台安装 yt-dlp、ffmpeg、jq 等）。  
-4. **根目录 Node 依赖**：在仓库根目录执行 `npm install`（Agent Service、测试脚本等需要）。  
-5. **Electron 依赖**：`cd electron && npm install`（仅使用 GUI 时需要）。  
-6. **写作引擎**：安装并登录 **OpenCode** 和/或 **Claude CLI**，与 `WRITING_ENGINE_DEFAULT` 一致。  
+1. **克隆仓库**并进入根目录。
+2. **创建** `scripts/settings.conf`（见上文）。
+3. **系统依赖**：`bash scripts/install.sh`（按脚本支持平台安装 yt-dlp、ffmpeg、jq 等）。
+4. **根目录 Node 依赖**：在仓库根目录执行 `npm install`（Agent Service、测试脚本等需要）。
+5. **Electron 依赖**：`cd electron && npm install`（仅使用 GUI 时需要）。
+6. **写作引擎**：安装并登录 **OpenCode** 和/或 **Claude CLI**，与 `WRITING_ENGINE_DEFAULT` 一致。
 7. **验证 OpenCode（可选）**：`bash scripts/test_opencode_smoke.sh`（需已配置为 opencode 路径）。
 
 ---
@@ -74,8 +74,8 @@ cp scripts/settings.example.conf scripts/settings.conf
 
 运行时数据位于 **`work/`**（默认在仓库根下）：
 
-- `work/database.sqlite`：任务与步骤状态（GUI 与 HTTP 共用）。  
-- `work/<id>/`：各 URL 对应的媒体、转录、文章与总结产物。  
+- `work/database.sqlite`：任务与步骤状态（GUI 与 HTTP 共用）。
+- `work/<id>/`：各 URL 对应的媒体、转录、文章与总结产物。
 
 `work/` 通常不纳入版本控制；新部署若无迁移需求可从空目录开始。
 
@@ -89,14 +89,14 @@ cp scripts/settings.example.conf scripts/settings.conf
 
 ## 7. 安全与边界说明
 
-- HTTP 服务默认面向 **本机**；若将 `PORT` 暴露到局域网或公网，需自行评估鉴权与防火墙。  
-- **SSE** 使用 query `token`；生产化部署时应使用强随机 `AGENT_EVENTS_TOKEN` 并避免写入公开文档。  
+- HTTP 服务默认面向 **本机**；若将 `PORT` 暴露到局域网或公网，需自行评估鉴权与防火墙。
+- **SSE** 使用 query `token`；生产化部署时应使用强随机 `AGENT_EVENTS_TOKEN` 并避免写入公开文档。
 - OpenCode `opencode serve` 由项目脚本以 **`OPENCODE_SERVER_PASSWORD=""`** 在本地拉起时常见于开发场景；若调整监听地址，勿在未防护网络下暴露无鉴权服务。
 
 ---
 
-## 8. 相关文档
+## 相关文档
 
-- [README.md](../README.md)：快速开始与功能概览。  
-- [PROJECT_KNOWLEDGE.md](PROJECT_KNOWLEDGE.md)：架构、Agent API、依赖细节。  
-- [settings.example.conf](../scripts/settings.example.conf)：配置项模板与注释。
+- [README.md](../../README.md)：快速开始与功能概览。
+- [reference/architecture.md](../reference/architecture.md)：架构、Agent API、依赖细节。
+- [settings.example.conf](../../scripts/settings.example.conf)：配置项模板与注释。

@@ -79,7 +79,6 @@ git checkout -b feature/功能名称
 ### 2. 开发完成合并到 staging
 
 ```bash
-# 切换到功能分支，开发完成后
 git checkout staging
 git pull origin staging
 git merge --no-ff feature/功能名称 -m "merge: feature/功能名称 into staging"
@@ -91,7 +90,6 @@ git branch -d feature/功能名称
 ### 3. 发布到生产
 
 ```bash
-# 从 staging 合并到 master
 git checkout master
 git pull origin master
 git merge --no-ff staging -m "merge: staging into master for release"
