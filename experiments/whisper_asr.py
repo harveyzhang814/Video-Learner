@@ -102,3 +102,26 @@ def mark_subs_completed(db_path: str, task_id: str) -> None:
         con.commit()
     finally:
         con.close()
+
+
+def trigger_vtt2md(api_base: str, task_id: str, token: str) -> None:
+    """POST to /api/tasks/<id>/steps/vtt2md/run to trigger downstream pipeline.
+
+    Raises urllib.error.URLError on network error.
+    Raises RuntimeError if API returns non-2xx.
+    """
+    url = f"{api_base}/api/tasks/{task_id}/steps/vtt2md/run"
+    payload = json.dumps({}).encode()
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        if resp.status >= 300:
+            body = resp.read().decode()
+            raise RuntimeError(f"API returned {resp.status}: {body}")

@@ -109,6 +109,21 @@ def test_mark_subs_completed():
         os.unlink(db_path)
 
 
+def test_trigger_vtt2md_bad_url():
+    """Should raise urllib.error.URLError on unreachable host."""
+    import urllib.error
+    from whisper_asr import trigger_vtt2md
+    try:
+        trigger_vtt2md(
+            api_base="http://127.0.0.1:19999",  # nothing listening
+            task_id="abc123",
+            token="test-token",
+        )
+        assert False, "Expected URLError"
+    except (urllib.error.URLError, OSError):
+        pass  # expected
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     passed = failed = 0
