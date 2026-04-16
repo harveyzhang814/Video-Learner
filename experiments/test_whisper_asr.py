@@ -124,6 +124,46 @@ def test_trigger_vtt2md_bad_url():
         pass  # expected
 
 
+def test_trigger_vtt2md_http_error_raises_runtime_error():
+    """HTTPError from urlopen should be re-raised as RuntimeError."""
+    import urllib.error, urllib.request
+    from unittest.mock import patch
+    from whisper_asr import trigger_vtt2md
+
+    http_err = urllib.error.HTTPError(
+        url="http://x/api/tasks/abc/steps/vtt2md/run",
+        code=500,
+        msg="Internal Server Error",
+        hdrs=None,
+        fp=None,
+    )
+    # fp=None means .read() will fail; patch it to return bytes
+    http_err.read = lambda: b"server error body"
+
+    with patch("urllib.request.urlopen", side_effect=http_err):
+        try:
+            trigger_vtt2md("http://x", "abc", "tok")
+            assert False, "Expected RuntimeError"
+        except RuntimeError as e:
+            assert "500" in str(e)
+        except Exception as e:
+            assert False, f"Expected RuntimeError, got {type(e).__name__}: {e}"
+
+
+def test_trigger_vtt2md_success_no_raise():
+    """Successful 2xx response should return without raising."""
+    from unittest.mock import patch, MagicMock
+    from whisper_asr import trigger_vtt2md
+
+    mock_resp = MagicMock()
+    mock_resp.__enter__ = lambda s: s
+    mock_resp.__exit__ = MagicMock(return_value=False)
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        trigger_vtt2md("http://127.0.0.1:3000", "abc123", "dev-token-local")
+        # No exception = success
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     passed = failed = 0

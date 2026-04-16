@@ -111,7 +111,7 @@ def trigger_vtt2md(api_base: str, task_id: str, token: str) -> None:
     Raises RuntimeError if API returns non-2xx.
     """
     url = f"{api_base}/api/tasks/{task_id}/steps/vtt2md/run"
-    payload = json.dumps({}).encode()
+    payload = b"{}"
     req = urllib.request.Request(
         url,
         data=payload,
@@ -121,7 +121,9 @@ def trigger_vtt2md(api_base: str, task_id: str, token: str) -> None:
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        if resp.status >= 300:
-            body = resp.read().decode()
-            raise RuntimeError(f"API returned {resp.status}: {body}")
+    try:
+        with urllib.request.urlopen(req, timeout=10):
+            pass  # 2xx — success
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode(errors="replace")
+        raise RuntimeError(f"API returned {exc.code}: {body}") from exc
