@@ -1,10 +1,14 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # YouTube Pipeline - Claude Code 执行标准
 
 ## 重要提醒
 - **每次开发功能前，必须检查当前所在分支**
 - 开发只能在 `feature/*` 或 `hotfix/*` 分支上进行
 - **禁止在 `master` 和 `staging` 分支上直接开发**
-- **合并到 `staging` / `master` 时禁止使用 fast-forward**：必须使用 `git merge --no-ff`（规范见 `docs/GIT_FLOW.md`）
+- **合并到 `staging` / `master` 时禁止使用 fast-forward**：必须使用 `git merge --no-ff`（规范见 `docs/explanation/git-workflow.md`）
 
 ## 概述
 本仓库实现 YouTube URL → 下载/转录/总结 的自动化流水线。
@@ -93,11 +97,11 @@ bash start-electron.sh
 ```bash
 npm run agent:serve
 ```
-使用 `POST /api/tasks` 创建任务（body 含 `url`、`focus`、`mode`、`force`、`output_lang` 等），轮询 `GET /api/tasks/:id` 或订阅 `GET /api/events`。约定见 `docs/PROJECT_KNOWLEDGE.md`（Agent HTTP Service）。
+使用 `POST /api/tasks` 创建任务（body 含 `url`、`focus`、`mode`、`force`、`output_lang` 等），轮询 `GET /api/tasks/:id` 或订阅 `GET /api/events`。约定见 `docs/reference/api.md`（Agent HTTP Service）。
 
 ### 字段备忘（与旧 CLI 对应）
 - `output_lang`: 输出语言，默认 `zh-CN`（简体中文），可由 `settings.conf` 等扩展
-- `mode`: `both` | `video` | `audio` | `transcript`
+- `mode`: `media`（默认）| `audio` | `transcript` | `full`（`both`/`video` 为旧别名，等同于 `media`）
 - `force`: 是否强制重跑
 - `focus`: 用户想了解的重点（如「技术细节」「主要论点」「行动项」）
 
@@ -160,8 +164,158 @@ npm run agent:serve
   - `claude`：使用 Claude Code CLI。
   - `opencode`：使用 OpenCode CLI `opencode run -m minimax-cn-coding-plan/MiniMax-M2.5 --format json`（PTY），从 NDJSON 事件流抽取文本。
 
-## 测试验证
+## 开发命令
+
+### 安装依赖
+```bash
+npm run install-deps      # 安装系统依赖（yt-dlp, ffmpeg, jq）
+npm install               # 安装 Node 依赖
+cd electron && npm install  # 安装 Electron 依赖
+```
+
+### 运行测试
+```bash
+# 核心（Orchestrator + HTTP + SQLite）
+npm run test:agent:core
+
+# DAG 调度 + reset_scope 语义
+npm run test:orchestrator:unit
+
+# 全量 HTTP 集成（含 reset_scope × 各步骤）
+npm run test:reset-scope
+
+# Electron 主进程 + preload + 客户端状态
+npm run test:gui
+
+# 单个测试文件
+node tests/orchestrator-schedule.test.js
+node tests/agent-http.test.js
+```
+
+### 测试验证
 - 首次运行：下载视频+字幕，生成 original.md
 - 如果没有 FOCUS：提示用户输入重点
 - 提供 FOCUS 后：Claude 生成 summary.md
 - 第二次运行：全部跳过
+
+## Dev Harness（开发调试工具）
+
+`harness/` 目录下存放**仅供开发调试使用**的启动脚本，与 `scripts/`（生产脚本）完全分离。
+
+### 启动命令
+
+```bash
+# 仅启动后端（Agent HTTP Service + monitor + debug-env）
+bash harness/start-dev.sh
+
+# 启动后端 + Electron GUI
+bash harness/start-dev.sh --electron
+```
+
+Ctrl-C 退出时，所有子进程（后端、monitor、debug-env、Electron）同步关闭。
+
+### 脚本说明
+
+| 脚本 | 用途 |
+|------|------|
+| `harness/start-dev.sh` | **统一开发启动入口**（后端 + monitor + debug-env，可选 Electron） |
+| `harness/monitor.sh` | 后台 watcher，实时检测日志错误，写入 `/tmp/vl-error-summary.txt` |
+| `harness/check-errors.sh` | 读取错误摘要，供 Agent 按需调用 |
+| `harness/debug/setup.sh` | 日志聚合守护进程（由 start-dev.sh 自动启动） |
+| `harness/debug/discover.sh` | 扫描所有日志来源，输出 JSON manifest |
+| `harness/debug/read-logs.sh` | 过滤读取聚合日志 |
+| `harness/debug/stop.sh` | 停止日志聚合守护进程 |
+
+### Agent 操作规范
+
+**检查当前错误状态**：
+```bash
+bash harness/check-errors.sh
+```
+读取 `/tmp/vl-error-summary.txt`，字段 `status=ok|error|exited`。
+
+**后端健康检查**：
+```bash
+curl -s http://127.0.0.1:3000/healthz
+```
+
+**后端重启**（不重启整个 harness 时）：
+```bash
+kill $(cat /tmp/vl-backend.pid 2>/dev/null) 2>/dev/null
+node services/http-server/index.js >> /tmp/vl-backend.log 2>&1 &
+echo $! > /tmp/vl-backend.pid
+```
+
+详细设计见 `harness/README.md`。
+
+### 调试日志环境（Debug Log Env）
+
+`harness/debug/` 提供统一日志聚合方案，把所有日志来源合并到一个文件，支持按来源/错误级别过滤。
+
+**快速启动**（应用已在运行时）：
+```bash
+bash harness/debug/setup.sh &          # 启动聚合守护进程（后台）
+bash harness/debug/read-logs.sh --errors --last 30   # 查看近期错误
+bash harness/debug/stop.sh             # 停止
+```
+
+**常用过滤命令**：
+```bash
+# 只看后端日志
+bash harness/debug/read-logs.sh --source backend --last 50
+
+# 只看 Electron 主进程
+bash harness/debug/read-logs.sh --source electron-main --last 30
+
+# 只看渲染器（前端 console）
+bash harness/debug/read-logs.sh --source electron-renderer --last 30
+
+# 只看某个任务的日志
+bash harness/debug/read-logs.sh --task <taskId前缀> --last 50
+
+# 读全部（一次性分析）
+bash harness/debug/read-logs.sh --all
+```
+
+**聚合日志路径**：`/tmp/video-learner-debug.log`
+
+**日志来源标签**：`[backend]`、`[electron-main]`、`[electron-renderer]`、`[monitor]`、`[<taskId>/<step>.raw]`、`[<taskId>/task.log.jsonl]`
+
+**发现日志来源**：
+```bash
+bash harness/debug/discover.sh   # 输出 JSON，显示所有日志来源和 exists 状态
+```
+
+## 架构概览
+
+### 组件层次
+
+```
+Electron GUI ──┐
+               ├──► core/orchestrator  ──► scripts/*.sh  ──► yt-dlp/ffmpeg/llm
+HTTP Service ──┘        │
+                        └──► work/database.sqlite  (状态权威)
+```
+
+两条执行路径（GUI 和 HTTP Service）都通过同一个 `core/orchestrator` 运行，互相等价。
+
+### 关键目录
+
+| 目录 | 职责 |
+|------|------|
+| `core/orchestrator/` | 任务创建/状态机/DAG 调度；`schedule.js` 定义步骤依赖图，`db.js` 管理 SQLite |
+| `services/http-server/` | Koa HTTP API + SSE 事件流；`index.js` 含全部路由 |
+| `scripts/` | 每个步骤对应一个 shell 脚本（fetch_info、download_video、download_subs、convert_vtt_md、generate_article、generate_summary 等） |
+| `electron/src/` | 主进程（`main.js`）+ preload IPC + 单页渲染器（`renderer/index.html`） |
+| `harness/` | 仅开发用；绝不在生产代码中引用 |
+| `tests/` | 无框架，直接 `node tests/*.test.js` 运行 |
+
+### 核心设计要点
+
+- **SQLite 是状态权威**：`work/database.sqlite`（tasks/steps 表）优先于 `meta.json`；index.jsonl 仅作审计追踪。
+- **DAG 调度**：步骤依赖在 `core/orchestrator/schedule.js` 中声明；main chain（transcript 流水线）优先于媒体下载，视频下载失败不阻塞后续步骤。
+- **任务 ID**：`sha1(url + '\n').slice(0, 12)`，见 `core/id.js`。
+- **LLM 引擎路由**：`scripts/llm_engine.sh` 读取 `WRITING_ENGINE` 环境变量或 `settings.conf` 中的 `WRITING_ENGINE_DEFAULT`，分发到 `claude`（Claude Code CLI）或 `opencode`（PTY，NDJSON 流）。
+- **Reset scope**：`off`（单步重置）、`step`（重置后运行）、`downstream`（级联重置全流水线），在 HTTP `POST /api/tasks/:id/steps/:step/run` 中通过 `reset_scope` 字段控制。
+- **Electron IPC**：renderer 只能调用 preload 暴露的安全 API，不直接访问 Node.js；HTTP Bearer token 由主进程生成并注入 renderer。
+- **文档组织**：遵循 Diátaxis 方法论（`docs/reference/`、`docs/how-to/`、`docs/explanation/`、`docs/adr/`）；ADR 一旦写入不可修改。
