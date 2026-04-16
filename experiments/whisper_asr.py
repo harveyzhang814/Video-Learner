@@ -86,15 +86,19 @@ def extract_audio(video_path: str, wav_path: str) -> None:
 
 def mark_subs_completed(db_path: str, task_id: str) -> None:
     """Update the subs step to completed in SQLite."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     con = sqlite3.connect(db_path)
     try:
-        con.execute(
+        cur = con.execute(
             """UPDATE steps
                SET status = 'completed', error = NULL, completed_at = ?
                WHERE task_id = ? AND step_name = 'subs'""",
             (now, task_id),
         )
+        if cur.rowcount == 0:
+            raise RuntimeError(
+                f"mark_subs_completed: no subs row found for task_id={task_id!r}"
+            )
         con.commit()
     finally:
         con.close()

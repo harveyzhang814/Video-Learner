@@ -66,7 +66,7 @@ def test_extract_audio_missing_input():
 
 
 def test_mark_subs_completed():
-    import sqlite3, tempfile
+    import sqlite3, tempfile, re
     from whisper_asr import mark_subs_completed
 
     with tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False) as f:
@@ -104,6 +104,7 @@ def test_mark_subs_completed():
         assert row[0] == "completed", f"expected completed, got {row[0]}"
         assert row[1] is None, f"expected error=None, got {row[1]}"
         assert row[2] is not None, "expected completed_at to be set"
+        assert re.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', row[2]), f"unexpected completed_at format: {row[2]}"
     finally:
         os.unlink(db_path)
 
