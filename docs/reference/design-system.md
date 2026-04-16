@@ -1,4 +1,4 @@
-# Video-Learner 前端设计风格总结
+# 前端设计系统
 
 基于当前 Electron 主界面实现与 ui-ux-pro-max 设计系统检索结果整理，供产品与开发统一语言。
 
@@ -50,18 +50,15 @@
 
 - **字体**：推荐 Inter，与当前一致；适合 dashboard / 生产力工具。
 - **交互**：微动效、hover 反馈、150–300ms 过渡；与现有 `--transition: 0.15s ease` 一致。
-- **可访问性**：可点击元素 `cursor: pointer`、键盘焦点可见、对比度 ≥4.5:1；当前主文字 #111  on #FFF 已达标。
+- **可访问性**：可点击元素 `cursor: pointer`、键盘焦点可见、对比度 ≥4.5:1；当前主文字 #111 on #FFF 已达标。
 - **确认弹窗**：破坏性操作前必须确认（与现有删除确认弹窗一致）。
 
 ---
 
-## 三、删除确认弹窗的样式原则（基于上述风格）
+## 三、全局浮层/弹窗的实现原则
 
 1. **沿用设计令牌**：背景、文字、边框、间距均使用 `--bg` / `--text` / `--text-muted` / `--border` / `--grid-unit`，不写死色值（危险按钮除外）。
 2. **8px 栅格**：弹窗内 padding、选项间距、按钮区留白为 grid-unit 的整数倍。
 3. **与主界面一致**：标题、说明、单选样式与 New Task 等弹窗统一（如使用 `.modal-title`、`.radio-label` + `.radio-custom`）。
 4. **交互反馈**：按钮保持 `cursor: pointer` 与 `transition`，危险按钮保持高对比度红色。
-
----
-
-*文档日期：2026-03*
+5. **层叠稳定性**：新增全局浮层时，显示时执行 `document.body.appendChild(modal)` 确保节点在 body 末尾，配合独立全屏蒙版与高 `z-index`（见 [adr/2026-03-15-electron-modal-stacking.md](../adr/2026-03-15-electron-modal-stacking.md)）。
