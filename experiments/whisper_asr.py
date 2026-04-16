@@ -82,3 +82,19 @@ def extract_audio(video_path: str, wav_path: str) -> None:
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"ffmpeg failed:\n{result.stderr}")
+
+
+def mark_subs_completed(db_path: str, task_id: str) -> None:
+    """Update the subs step to completed in SQLite."""
+    now = datetime.now(timezone.utc).isoformat()
+    con = sqlite3.connect(db_path)
+    try:
+        con.execute(
+            """UPDATE steps
+               SET status = 'completed', error = NULL, completed_at = ?
+               WHERE task_id = ? AND step_name = 'subs'""",
+            (now, task_id),
+        )
+        con.commit()
+    finally:
+        con.close()

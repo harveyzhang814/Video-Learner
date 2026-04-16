@@ -65,6 +65,49 @@ def test_extract_audio_missing_input():
             pass  # expected
 
 
+def test_mark_subs_completed():
+    import sqlite3, tempfile
+    from whisper_asr import mark_subs_completed
+
+    with tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False) as f:
+        db_path = f.name
+
+    try:
+        con = sqlite3.connect(db_path)
+        con.execute("""
+            CREATE TABLE steps (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id TEXT NOT NULL,
+                step_name TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                attempts INTEGER DEFAULT 0,
+                error TEXT,
+                started_at TEXT,
+                completed_at TEXT
+            )
+        """)
+        con.execute(
+            "INSERT INTO steps (task_id, step_name, status, error) VALUES (?,?,?,?)",
+            ("abc123", "subs", "failed", "No subtitles downloaded"),
+        )
+        con.commit()
+        con.close()
+
+        mark_subs_completed(db_path, "abc123")
+
+        con = sqlite3.connect(db_path)
+        row = con.execute(
+            "SELECT status, error, completed_at FROM steps WHERE task_id=? AND step_name=?",
+            ("abc123", "subs"),
+        ).fetchone()
+        con.close()
+        assert row[0] == "completed", f"expected completed, got {row[0]}"
+        assert row[1] is None, f"expected error=None, got {row[1]}"
+        assert row[2] is not None, "expected completed_at to be set"
+    finally:
+        os.unlink(db_path)
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     passed = failed = 0
