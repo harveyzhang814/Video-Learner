@@ -8,9 +8,29 @@ let mainWindow;
 // 将 renderer console 写入项目内文件，便于排查（agent 可直接 read_file）
 const RENDERER_LOG_PATH = path.join(__dirname, '..', 'renderer-console.log');
 
+// 将主进程 console 写入文件，便于 agent 检测崩溃/错误
+const MAIN_LOG_PATH = path.join(__dirname, '..', 'main-process.log');
+(function patchConsole() {
+  const _write = (level, args) => {
+    const line = `[${new Date().toISOString()}] [${level}] ${args.map(String).join(' ')}\n`;
+    try { fs.appendFileSync(MAIN_LOG_PATH, line, 'utf8'); } catch (_) {}
+  };
+  const orig = { log: console.log, warn: console.warn, error: console.error };
+  console.log   = (...a) => { orig.log(...a);   _write('info',  a); };
+  console.warn  = (...a) => { orig.warn(...a);  _write('warn',  a); };
+  console.error = (...a) => { orig.error(...a); _write('error', a); };
+  process.on('uncaughtException', (err) => {
+    _write('fatal', [`UncaughtException: ${err && err.stack ? err.stack : err}`]);
+  });
+  process.on('unhandledRejection', (reason) => {
+    _write('fatal', [`UnhandledRejection: ${reason && reason.stack ? reason.stack : reason}`]);
+  });
+})();
+
 function createWindow() {
   try {
     fs.writeFileSync(RENDERER_LOG_PATH, `[${new Date().toISOString()}] Electron launch, log started\n`, 'utf8');
+    fs.appendFileSync(MAIN_LOG_PATH, `[${new Date().toISOString()}] [info] Electron window creating\n`, 'utf8');
   } catch (_) {}
 
   mainWindow = new BrowserWindow({
