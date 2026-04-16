@@ -171,6 +171,7 @@ def main() -> None:
     os.makedirs(subs_dir, exist_ok=True)
 
     # Step 1: extract audio to temp file
+    wav_path = None
     with tempfile.NamedTemporaryFile(suffix=".wav", prefix=f"{task_id}_asr_", delete=False) as f:
         wav_path = f.name
 
@@ -213,7 +214,7 @@ def main() -> None:
         print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)
     finally:
-        if os.path.exists(wav_path):
+        if wav_path and os.path.exists(wav_path):
             os.unlink(wav_path)
 
 
