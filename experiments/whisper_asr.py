@@ -127,3 +127,95 @@ def trigger_vtt2md(api_base: str, task_id: str, token: str) -> None:
     except urllib.error.HTTPError as exc:
         body = exc.read().decode(errors="replace")
         raise RuntimeError(f"API returned {exc.code}: {body}") from exc
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Transcribe a video with mlx_whisper and inject VTT into pipeline."
+    )
+    parser.add_argument("task_id", help="12-character task ID (e.g. f2e496a3de1b)")
+    parser.add_argument("--token", default="dev-token-local", help="HTTP Bearer token")
+    parser.add_argument(
+        "--model",
+        default="mlx-community/whisper-large-v3",
+        help="mlx_whisper HF repo or local path",
+    )
+    parser.add_argument("--base-dir", default="./work", help="Work directory root")
+    parser.add_argument("--api", default="http://127.0.0.1:3000", help="HTTP API base URL")
+    args = parser.parse_args()
+
+    task_id = args.task_id
+    work_dir = os.path.join(args.base_dir, task_id)
+    video_path = os.path.join(work_dir, "media", "video.mp4")
+    subs_dir = os.path.join(work_dir, "transcript", "subs")
+    vtt_path = os.path.join(subs_dir, f"{task_id}.zh.asr.vtt")
+
+    # Resolve DB path relative to this script's project root
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    db_path = os.path.join(project_root, "work", "database.sqlite")
+
+    # Validate preconditions
+    if not os.path.exists(video_path):
+        print(f"ERROR: video not found at {video_path}", file=sys.stderr)
+        sys.exit(1)
+
+    if not os.path.exists(db_path):
+        print(f"ERROR: database not found at {db_path}", file=sys.stderr)
+        sys.exit(1)
+
+    os.makedirs(subs_dir, exist_ok=True)
+
+    # Step 1: extract audio to temp file
+    with tempfile.NamedTemporaryFile(suffix=".wav", prefix=f"{task_id}_asr_", delete=False) as f:
+        wav_path = f.name
+
+    try:
+        print(f"[1/5] Extracting audio from {video_path} …")
+        extract_audio(video_path, wav_path)
+
+        # Step 2: transcribe
+        print(f"[2/5] Transcribing with {args.model} …")
+        import mlx_whisper
+        result = mlx_whisper.transcribe(
+            wav_path,
+            path_or_hf_repo=args.model,
+            verbose=False,
+        )
+
+        segments = result.get("segments", [])
+        if not segments:
+            print("ERROR: Whisper returned zero segments — nothing to write.", file=sys.stderr)
+            sys.exit(1)
+
+        print(f"      {len(segments)} segments transcribed.")
+
+        # Step 3: write VTT
+        print(f"[3/5] Writing VTT to {vtt_path} …")
+        vtt_content = segments_to_vtt(segments)
+        with open(vtt_path, "w", encoding="utf-8") as f:
+            f.write(vtt_content)
+
+        # Step 4: update SQLite
+        print(f"[4/5] Marking subs step as completed in SQLite …")
+        mark_subs_completed(db_path, task_id)
+
+        # Step 5: trigger vtt2md
+        print(f"[5/5] Triggering vtt2md via API …")
+        trigger_vtt2md(args.api, task_id, args.token)
+        print("Done. vtt2md and downstream steps are now running.")
+
+    except Exception as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        if os.path.exists(wav_path):
+            os.unlink(wav_path)
+
+
+if __name__ == "__main__":
+    main()
