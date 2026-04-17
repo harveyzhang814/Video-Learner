@@ -265,23 +265,13 @@ function computeReadySteps(task) {
     const step = task.steps && task.steps[name];
     if (!step || step.status !== 'pending') continue;
 
+    const gate  = GATE_TYPE[name] || 'AND';
+    const preds = PREDECESSORS[name] || [];
     let ok;
-    if (name === 'vtt2md') {
-      // OR predecessor: subs completed OR asr completed.
-      // Hardcoded intentionally — vtt2md has special OR semantics not expressible
-      // by the generic AND loop; update both STEP_EDGES and this block if predecessors change.
-      const subsOk = predecessorSatisfied(task, 'subs');
-      const asrOk = predecessorSatisfied(task, 'asr');
-      ok = subsOk || asrOk;
+    if (gate === 'OR') {
+      ok = preds.some(function(p) { return predecessorSatisfied(task, p); });
     } else {
-      ok = true;
-      const preds = PREDECESSORS[name] || [];
-      for (const p of preds) {
-        if (!predecessorSatisfied(task, p)) {
-          ok = false;
-          break;
-        }
-      }
+      ok = preds.every(function(p) { return predecessorSatisfied(task, p); });
     }
     if (ok) ready.add(name);
   }
