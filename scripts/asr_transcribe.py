@@ -80,13 +80,12 @@ def main() -> None:
     subs_dir = os.path.join(work_dir, "transcript", "subs")
     vtt_path = os.path.join(subs_dir, f"{task_id}.zh.asr.vtt")
 
-    # Validate preconditions
-    media_path = find_media_file(work_dir)  # raises FileNotFoundError if missing
-    os.makedirs(subs_dir, exist_ok=True)
-
     # Extract audio to temp WAV
     wav_path = None
     try:
+        media_path = find_media_file(work_dir)  # moved inside try
+        os.makedirs(subs_dir, exist_ok=True)
+
         with tempfile.NamedTemporaryFile(suffix=".wav", prefix=f"{task_id}_asr_", delete=False) as f:
             wav_path = f.name
 
