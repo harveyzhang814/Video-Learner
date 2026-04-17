@@ -238,6 +238,16 @@ function run() {
       assert.ok(!ready.has('vtt2md'), 'vtt2md not ready until asr completes');
     }
 
+    // vtt2md OR: subs=skipped + asr=pending (excluded) → vtt2md ready
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = { status: 'skipped', attempts: 0, error: null };
+      const task = { params: { mode: 'transcript' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('vtt2md'), 'vtt2md ready when subs=skipped');
+    }
+
     // video failed, fetch completed, subs pending → subs still ready
     {
       const steps = baseSteps();

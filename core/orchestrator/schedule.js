@@ -166,7 +166,9 @@ function computeReadySteps(task) {
 
     let ok;
     if (name === 'vtt2md') {
-      // OR predecessor: subs completed OR asr completed
+      // OR predecessor: subs completed OR asr completed.
+      // Hardcoded intentionally — vtt2md has special OR semantics not expressible
+      // by the generic AND loop; update both STEP_EDGES and this block if predecessors change.
       const subsOk = predecessorSatisfied(task, 'subs');
       const asrOk = predecessorSatisfied(task, 'asr');
       ok = subsOk || asrOk;
