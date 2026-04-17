@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { computeReadySteps, pickNextStep, getDownstreamClosure, normalizeMode, excludedByMode } = require('../core/orchestrator/schedule');
+const { computeReadySteps, pickNextStep, getDownstreamClosure, normalizeMode, excludedByMode, isNodeReachable, isTaskFailed, isTaskCompleted } = require('../core/orchestrator/schedule');
 
 function pending() {
   return { status: 'pending', attempts: 0, error: null };
@@ -269,6 +269,189 @@ function run() {
       const c = getDownstreamClosure('summary');
       assert.strictEqual(c.size, 1);
       assert.ok(c.has('summary'));
+    }
+
+    // isNodeReachable tests
+    {
+      function skipped() { return { status: 'skipped', attempts: 0, error: null }; }
+      function running() { return { status: 'running',  attempts: 1, error: null }; }
+
+      // Root node: fetch=pending, no predecessors → reachable
+      {
+        const steps = baseSteps();
+        assert.strictEqual(isNodeReachable('fetch', steps, 'media', new Set()), true,
+          'fetch pending: reachable (root node)');
+      }
+
+      // fetch=failed → not reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = failed();
+        assert.strictEqual(isNodeReachable('fetch', steps, 'media', new Set()), false,
+          'fetch failed: not reachable');
+      }
+
+      // fetch=completed → reachable immediately
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        assert.strictEqual(isNodeReachable('fetch', steps, 'media', new Set()), true,
+          'fetch completed: reachable');
+      }
+
+      // subs: fetch=completed, subs=pending → reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        assert.strictEqual(isNodeReachable('subs', steps, 'media', new Set()), true,
+          'subs pending + fetch completed: reachable');
+      }
+
+      // subs: fetch=failed, subs=pending → not reachable (predecessor failed)
+      {
+        const steps = baseSteps();
+        steps.fetch = failed();
+        assert.strictEqual(isNodeReachable('subs', steps, 'media', new Set()), false,
+          'subs pending + fetch failed: not reachable');
+      }
+
+      // vtt2md OR gate: subs=completed, asr=pending → reachable (subs satisfies OR)
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = completed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), true,
+          'vtt2md: subs=completed satisfies OR gate');
+      }
+
+      // vtt2md OR gate: subs=failed, asr=completed → reachable (asr satisfies OR)
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.asr = completed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), true,
+          'vtt2md: asr=completed satisfies OR gate');
+      }
+
+      // vtt2md OR gate: subs=failed, asr=failed → not reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.asr = failed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), false,
+          'vtt2md: both subs and asr failed → not reachable');
+      }
+
+      // KEY: transcript mode, subs=failed, asr=pending+excluded → NOT reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'transcript', new Set()), false,
+          'vtt2md: transcript mode, subs=failed, asr=excluded+pending → not reachable');
+      }
+
+      // media mode, subs=failed, asr=pending, video=pending → asr excluded → not reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.video = pending();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), false,
+          'vtt2md: media mode, subs=failed, asr excluded (video pending) → not reachable');
+      }
+
+      // media mode, subs=failed, asr=pending, video=completed → asr runnable → vtt2md reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.video = completed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), true,
+          'vtt2md: media mode, subs=failed, video=completed → asr runnable → reachable');
+      }
+
+      // md2vtt=failed → summary still reachable (md2vtt is a side branch)
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = completed();
+        steps.vtt2md = completed();
+        steps.md2vtt = failed();
+        steps.article = completed();
+        assert.strictEqual(isNodeReachable('summary', steps, 'media', new Set()), true,
+          'summary: md2vtt=failed is a side branch → summary still reachable');
+      }
+
+      // Full chain: all steps pending, fetch not failed → summary reachable
+      {
+        const steps = baseSteps();
+        // All steps pending (default from baseSteps) — fetch is root, not excluded
+        assert.strictEqual(isNodeReachable('summary', steps, 'media', new Set()), true,
+          'summary: all steps pending → still reachable (fetch not failed)');
+      }
+    }
+
+    // isTaskFailed / isTaskCompleted tests
+    {
+      function makeTask(mode, stepsOverride) {
+        const steps = Object.assign(baseSteps(), stepsOverride || {});
+        return { params: { mode: mode || 'media' }, steps };
+      }
+
+      // subs=completed → not failed
+      assert.strictEqual(isTaskFailed(makeTask('media', {
+        fetch: completed(), subs: completed(), vtt2md: completed(), article: completed(), summary: completed()
+      })), false, 'isTaskFailed: all completed → false');
+
+      // subs=failed + asr=completed → not failed (fallback path succeeded)
+      assert.strictEqual(isTaskFailed(makeTask('media', {
+        fetch: completed(), subs: failed(), asr: completed(),
+        vtt2md: completed(), article: completed(), summary: completed()
+      })), false, 'isTaskFailed: subs=failed, asr=completed → false');
+
+      // subs=failed + asr=failed → failed
+      assert.strictEqual(isTaskFailed(makeTask('media', {
+        fetch: completed(), subs: failed(), asr: failed()
+      })), true, 'isTaskFailed: subs=failed, asr=failed → true');
+
+      // transcript mode: subs=failed, asr=excluded+pending → failed (core correctness test)
+      assert.strictEqual(isTaskFailed(makeTask('transcript', {
+        fetch: completed(), subs: failed()
+        // asr stays pending; transcript mode excludes it
+      })), true, 'isTaskFailed: transcript, subs=failed, asr=excluded+pending → true');
+
+      // md2vtt=failed, all others ok → NOT failed (md2vtt is a side branch)
+      assert.strictEqual(isTaskFailed(makeTask('media', {
+        fetch: completed(), subs: completed(), vtt2md: completed(),
+        md2vtt: failed(), article: completed(), summary: completed()
+      })), false, 'isTaskFailed: md2vtt=failed → false (side branch, not critical)');
+
+      // isTaskCompleted: all critical path done, subs completed → true
+      assert.strictEqual(isTaskCompleted(makeTask('media', {
+        fetch: completed(), subs: completed(), vtt2md: completed(),
+        article: completed(), summary: completed()
+      })), true, 'isTaskCompleted: all critical + subs done → true');
+
+      // isTaskCompleted: summary=skipped manually but vtt2md still pending → false
+      assert.strictEqual(isTaskCompleted(makeTask('media', {
+        fetch: completed(), subs: completed(), summary: { status: 'skipped', attempts: 0, error: null }
+        // vtt2md still pending
+      })), false, 'isTaskCompleted: summary skipped but vtt2md pending → false');
+
+      // isTaskCompleted: asr path — subs=failed, asr=completed, rest done → true
+      assert.strictEqual(isTaskCompleted(makeTask('media', {
+        fetch: completed(), subs: failed(), asr: completed(),
+        vtt2md: completed(), article: completed(), summary: completed()
+      })), true, 'isTaskCompleted: ASR path completed → true');
+
+      // isTaskCompleted: subs=failed, asr=skipped → false (asr=skipped produced no transcript)
+      assert.strictEqual(isTaskCompleted(makeTask('media', {
+        fetch: completed(), subs: failed(), asr: { status: 'skipped', attempts: 0, error: null },
+        vtt2md: completed(), article: completed(), summary: completed()
+      })), false, 'isTaskCompleted: subs=failed, asr=skipped → false (no transcript produced)');
     }
 
     console.log('orchestrator-schedule.test.js: PASS');
