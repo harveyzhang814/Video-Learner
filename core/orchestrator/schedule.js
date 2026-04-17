@@ -116,6 +116,40 @@ function isNodeReachable(node, steps, mode, visited) {
 }
 
 /**
+ * Returns true when the task has provably failed (terminal node unreachable).
+ * Replaces isContentStepFailure + CONTENT_STEPS in index.js.
+ * @param {{ params: { mode: string }, steps: object }} task
+ * @returns {boolean}
+ */
+function isTaskFailed(task) {
+  const mode = normalizeMode((task.params && task.params.mode) || 'media');
+  const steps = task.steps || {};
+  return !isNodeReachable(TERMINAL_NODE, steps, mode, new Set());
+}
+
+/**
+ * Returns true when the task has completed successfully.
+ * All CRITICAL_PATH nodes must be completed/skipped AND at least one of
+ * subs/asr must have actually completed (not just been skipped).
+ * Stricter than checking summary.status alone — prevents false completion
+ * when skipStep('summary') is called manually without the pipeline running.
+ * @param {{ steps: object }} task
+ * @returns {boolean}
+ */
+function isTaskCompleted(task) {
+  const steps = task.steps || {};
+  const criticalDone = CRITICAL_PATH.every(function(n) {
+    const s = steps[n] && steps[n].status;
+    return s === 'completed' || s === 'skipped';
+  });
+  if (!criticalDone) return false;
+  const subsOrAsrDone =
+    (steps.subs && (steps.subs.status === 'completed' || steps.subs.status === 'skipped')) ||
+    (steps.asr && steps.asr.status === 'completed');
+  return !!subsOrAsrDone;
+}
+
+/**
  * All nodes reachable from `stepName` following edges from → to (includes `stepName`).
  * @param {string} stepName
  * @returns {Set<string>}
@@ -283,6 +317,8 @@ module.exports = {
   TERMINAL_NODE,
   CRITICAL_PATH,
   isNodeReachable,
+  isTaskFailed,
+  isTaskCompleted,
   computeReadySteps,
   pickNextStep,
   getDownstreamClosure,
