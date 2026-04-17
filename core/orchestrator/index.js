@@ -10,7 +10,26 @@ const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts'
 const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode, normalizeMode } = require('./schedule');
 
 // Steps whose failure marks the overall task as failed (media steps are non-blocking).
-const CONTENT_STEPS = new Set(['fetch', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary']);
+const CONTENT_STEPS = new Set(['fetch', 'subs', 'asr', 'vtt2md', 'md2vtt', 'article', 'summary']);
+
+/**
+ * Returns true if a content step failure should propagate as task failure.
+ * subs and asr are OR-paired: subs failure is recoverable if asr completed,
+ * and asr failure is recoverable if subs completed/skipped.
+ */
+function isContentStepFailure(stepName, steps) {
+  if (!CONTENT_STEPS.has(stepName)) return false;
+  const s = steps[stepName];
+  if (!s || s.status !== 'failed') return false;
+  if (stepName === 'subs') {
+    return (steps.asr && steps.asr.status) !== 'completed';
+  }
+  if (stepName === 'asr') {
+    const subs = steps.subs;
+    return !(subs && (subs.status === 'completed' || subs.status === 'skipped'));
+  }
+  return true;
+}
 
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
@@ -129,13 +148,14 @@ function listTasks(options = {}) {
 }
 
 // Step definitions (aligned with scripts/*)
-const STEPS = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
+const STEPS = ['fetch', 'video', 'audio', 'subs', 'asr', 'vtt2md', 'md2vtt', 'article', 'summary'];
 
 const STEP_SCRIPTS = {
   fetch: 'fetch_info.sh',
   video: 'download_video.sh',
   audio: 'download_audio.sh',
   subs: 'download_subs.sh',
+  asr: 'asr_transcribe.sh',
   vtt2md: 'convert_vtt_md.sh',
   md2vtt: 'convert_md_vtt.sh',
   article: 'generate_article.sh',
@@ -193,17 +213,19 @@ function loadTaskFromDb(taskId, rootDir) {
   }
 
   const statusList = Object.values(steps).map((s) => s.status);
-  const contentFailed = Object.entries(steps).some(
-    ([name, s]) => CONTENT_STEPS.has(name) && s.status === 'failed'
-  );
+  const contentFailed = Object.keys(steps).some(name => isContentStepFailure(name, steps));
   let status = 'pending';
   if (statusList.some((s) => s === 'running')) status = 'running';
   else if (contentFailed) status = 'failed';
   else if (statusList.every((s) => s === 'completed' || s === 'skipped' || s === 'failed' || s === 'pending')) {
     // completed if all content steps are done (media steps may still be pending/failed)
-    const contentDone = ['fetch', 'subs', 'vtt2md', 'article', 'summary'].every(
-      (n) => steps[n]?.status === 'completed' || steps[n]?.status === 'skipped'
-    );
+    const subsOrAsrDone =
+      steps.subs?.status === 'completed' || steps.subs?.status === 'skipped' ||
+      steps.asr?.status === 'completed';
+    const contentDone =
+      ['fetch', 'vtt2md', 'article', 'summary'].every(
+        (n) => steps[n]?.status === 'completed' || steps[n]?.status === 'skipped'
+      ) && subsOrAsrDone;
     if (contentDone) status = 'completed';
   }
 
@@ -466,6 +488,13 @@ async function runStep(taskId, stepName, options = {}) {
     db.updateStep(id, stepName, 'skipped');
     return { success: true, skipped: true };
   }
+  // asr is never applicable in transcript mode (no media file to transcribe)
+  if (stepName === 'asr' && mode === 'transcript') {
+    stepState.status = 'skipped';
+    task.steps[stepName] = stepState;
+    db.updateStep(id, stepName, 'skipped');
+    return { success: true, skipped: true };
+  }
 
   // A-layer: required artifacts / writable paths only (no upstream step status).
   const pre = validateStepArtifacts(task, stepName);
@@ -618,6 +647,9 @@ async function runStep(taskId, stepName, options = {}) {
       args = [url, dir, id, force ? '1' : '0'];
       break;
     case 'subs':
+      args = [url, dir, id];
+      break;
+    case 'asr':
       args = [url, dir, id];
       break;
     case 'vtt2md': {
@@ -896,9 +928,10 @@ async function runTask(taskId, options = {}) {
 
     updateTaskMetaFromFilesystem(task);
 
-    // Mark overall task status: only content step failures count as task failure.
-    const contentStepFailed = Object.entries(task.steps || {}).some(
-      ([name, s]) => CONTENT_STEPS.has(name) && s.status === 'failed'
+    // Mark overall task status.
+    // subs failure alone does not fail the task — only subs+asr both failed does.
+    const contentStepFailed = Object.keys(task.steps || {}).some(
+      name => isContentStepFailure(name, task.steps || {})
     );
     task.status = contentStepFailed ? 'failed' : 'completed';
     task.updated_at = new Date().toISOString();
@@ -951,9 +984,7 @@ async function runTask(taskId, options = {}) {
         task.steps = steps;
 
         // Re-evaluate overall task status after filesystem reconciliation.
-        const reconContentFailed = Object.entries(steps).some(
-          ([name, s]) => CONTENT_STEPS.has(name) && s.status === 'failed'
-        );
+        const reconContentFailed = Object.keys(steps).some(name => isContentStepFailure(name, steps));
         const reconStatus = reconContentFailed ? 'failed' : 'completed';
         if (task.status !== reconStatus) {
           task.status = reconStatus;

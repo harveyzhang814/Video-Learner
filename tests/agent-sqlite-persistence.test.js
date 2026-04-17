@@ -87,17 +87,17 @@ async function run() {
     }
     console.log('[persistence-test] task row OK:', taskRow.id, taskRow.url);
 
-    // 4) Assert steps table has 8 rows for this task (all steps initialized)
+    // 4) Assert steps table has 9 rows for this task (all steps initialized)
     const stepsAfterCreate = db.getSteps(taskId);
-    if (!Array.isArray(stepsAfterCreate) || stepsAfterCreate.length !== 8) {
-      throw new Error(`steps table: expected 8 rows, got ${stepsAfterCreate?.length ?? 0}`);
+    if (!Array.isArray(stepsAfterCreate) || stepsAfterCreate.length !== 9) {
+      throw new Error(`steps table: expected 9 rows, got ${stepsAfterCreate?.length ?? 0}`);
     }
     const stepNames = stepsAfterCreate.map((s) => s.step_name).sort();
-    const expectedSteps = ['article', 'audio', 'fetch', 'md2vtt', 'subs', 'summary', 'video', 'vtt2md'];
+    const expectedSteps = ['article', 'asr', 'audio', 'fetch', 'md2vtt', 'subs', 'summary', 'video', 'vtt2md'];
     if (JSON.stringify(stepNames) !== JSON.stringify(expectedSteps)) {
       throw new Error(`steps table: names mismatch ${JSON.stringify(stepNames)}`);
     }
-    console.log('[persistence-test] 8 steps present after create');
+    console.log('[persistence-test] 9 steps present after create');
 
     // 5) Run only the fetch step and wait for it to finish
     const runFetchRes = await jsonRequest(`/api/tasks/${taskId}/steps/fetch/run`, {
@@ -134,7 +134,7 @@ async function run() {
     }
 
     const getStepsRes = await jsonRequest(`/api/tasks/${taskId}/steps`);
-    if (getStepsRes.status !== 200 || !Array.isArray(getStepsRes.body) || getStepsRes.body.length !== 8) {
+    if (getStepsRes.status !== 200 || !Array.isArray(getStepsRes.body) || getStepsRes.body.length !== 9) {
       throw new Error('GET /api/tasks/:id/steps failed or wrong length');
     }
     const apiFetchStep = getStepsRes.body.find((s) => s.name === 'fetch');
