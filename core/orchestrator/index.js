@@ -488,6 +488,13 @@ async function runStep(taskId, stepName, options = {}) {
     db.updateStep(id, stepName, 'skipped');
     return { success: true, skipped: true };
   }
+  // asr is never applicable in transcript mode (no media file to transcribe)
+  if (stepName === 'asr' && mode === 'transcript') {
+    stepState.status = 'skipped';
+    task.steps[stepName] = stepState;
+    db.updateStep(id, stepName, 'skipped');
+    return { success: true, skipped: true };
+  }
 
   // A-layer: required artifacts / writable paths only (no upstream step status).
   const pre = validateStepArtifacts(task, stepName);

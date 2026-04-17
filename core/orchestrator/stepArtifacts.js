@@ -100,6 +100,15 @@ function validateStepArtifacts(task, stepName) {
       }
       return canWriteOrCreateTaskDir(rootDir, id);
     }
+    case 'asr': {
+      const mediaDir = path.join(dir, 'media');
+      const hasVideo = fs.existsSync(path.join(mediaDir, 'video.mp4'));
+      const hasAudio = fs.existsSync(path.join(mediaDir, 'audio.m4a'));
+      if (!hasVideo && !hasAudio) {
+        return { ok: false, error: 'No media file found for ASR transcription' };
+      }
+      return { ok: true };
+    }
     case 'vtt2md': {
       if (!fs.existsSync(subsDir) || !fs.statSync(subsDir).isDirectory()) {
         return { ok: false, error: 'transcript/subs directory does not exist' };
