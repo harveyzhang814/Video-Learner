@@ -10,7 +10,7 @@ const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts'
 const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode, normalizeMode } = require('./schedule');
 
 // Steps whose failure marks the overall task as failed (media steps are non-blocking).
-const CONTENT_STEPS = new Set(['fetch', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary']);
+const CONTENT_STEPS = new Set(['fetch', 'subs', 'asr', 'vtt2md', 'md2vtt', 'article', 'summary']);
 
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
@@ -129,13 +129,14 @@ function listTasks(options = {}) {
 }
 
 // Step definitions (aligned with scripts/*)
-const STEPS = ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'];
+const STEPS = ['fetch', 'video', 'audio', 'subs', 'asr', 'vtt2md', 'md2vtt', 'article', 'summary'];
 
 const STEP_SCRIPTS = {
   fetch: 'fetch_info.sh',
   video: 'download_video.sh',
   audio: 'download_audio.sh',
   subs: 'download_subs.sh',
+  asr: 'asr_transcribe.sh',
   vtt2md: 'convert_vtt_md.sh',
   md2vtt: 'convert_md_vtt.sh',
   article: 'generate_article.sh',
@@ -201,9 +202,13 @@ function loadTaskFromDb(taskId, rootDir) {
   else if (contentFailed) status = 'failed';
   else if (statusList.every((s) => s === 'completed' || s === 'skipped' || s === 'failed' || s === 'pending')) {
     // completed if all content steps are done (media steps may still be pending/failed)
-    const contentDone = ['fetch', 'subs', 'vtt2md', 'article', 'summary'].every(
-      (n) => steps[n]?.status === 'completed' || steps[n]?.status === 'skipped'
-    );
+    const subsOrAsrDone =
+      steps.subs?.status === 'completed' || steps.subs?.status === 'skipped' ||
+      steps.asr?.status === 'completed';
+    const contentDone =
+      ['fetch', 'vtt2md', 'article', 'summary'].every(
+        (n) => steps[n]?.status === 'completed' || steps[n]?.status === 'skipped'
+      ) && subsOrAsrDone;
     if (contentDone) status = 'completed';
   }
 
@@ -620,6 +625,9 @@ async function runStep(taskId, stepName, options = {}) {
     case 'subs':
       args = [url, dir, id];
       break;
+    case 'asr':
+      args = [url, dir, id];
+      break;
     case 'vtt2md': {
       const subsDir = path.join(dir, 'transcript', 'subs');
       const vttFiles = fs.existsSync(subsDir)
@@ -896,10 +904,16 @@ async function runTask(taskId, options = {}) {
 
     updateTaskMetaFromFilesystem(task);
 
-    // Mark overall task status: only content step failures count as task failure.
-    const contentStepFailed = Object.entries(task.steps || {}).some(
-      ([name, s]) => CONTENT_STEPS.has(name) && s.status === 'failed'
-    );
+    // Mark overall task status.
+    // subs failure alone does not fail the task — only subs+asr both failed does.
+    const contentStepFailed = Object.entries(task.steps || {}).some(([name, s]) => {
+      if (!CONTENT_STEPS.has(name) || s.status !== 'failed') return false;
+      if (name === 'subs') {
+        // subs failure is recoverable if asr completed
+        return (task.steps.asr && task.steps.asr.status) !== 'completed';
+      }
+      return true;
+    });
     task.status = contentStepFailed ? 'failed' : 'completed';
     task.updated_at = new Date().toISOString();
     emitOrchestratorEvent('task.updated', taskId, { status: task.status });
