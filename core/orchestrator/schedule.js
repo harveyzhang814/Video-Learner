@@ -8,7 +8,9 @@ const STEP_EDGES = [
   ['fetch', 'video'],
   ['fetch', 'audio'],
   ['fetch', 'subs'],
+  ['fetch', 'asr'],
   ['subs', 'vtt2md'],
+  ['asr', 'vtt2md'],
   ['vtt2md', 'md2vtt'],
   ['vtt2md', 'article'],
   ['article', 'summary']
@@ -19,6 +21,7 @@ const ALL_STEPS = [
   'video',
   'audio',
   'subs',
+  'asr',
   'vtt2md',
   'md2vtt',
   'article',
@@ -76,7 +79,7 @@ const PRIMARY_CHAIN = ['fetch', 'subs', 'vtt2md', 'article', 'summary'];
  * Secondary-chain order; filtered by mode inside pickNextStep.
  * both: video + md2vtt (never audio, matching runTask).
  */
-const SECONDARY_CHAIN_BASE = ['video', 'audio', 'md2vtt'];
+const SECONDARY_CHAIN_BASE = ['video', 'audio', 'asr', 'md2vtt'];
 
 function predecessorSatisfied(task, predName) {
   const st = task.steps && task.steps[predName];
@@ -120,6 +123,21 @@ function excludedByMode(mode, steps) {
     ex.add('audio');
   }
   // 'full': nothing excluded — video and audio both run, video has higher secondary-chain priority
+
+  // asr: fallback step — only runs when subs failed AND media is available
+  const subsFailed = steps && steps.subs && steps.subs.status === 'failed';
+  if (!subsFailed || m === 'transcript') {
+    ex.add('asr');
+  } else if (m === 'audio') {
+    const audioOk = steps && steps.audio && steps.audio.status === 'completed';
+    if (!audioOk) ex.add('asr');
+  } else {
+    // media and full: need video.mp4 or audio.m4a (audio fallback in media mode)
+    const videoOk = steps && steps.video && steps.video.status === 'completed';
+    const audioOk = steps && steps.audio && steps.audio.status === 'completed';
+    if (!videoOk && !audioOk) ex.add('asr');
+  }
+
   return ex;
 }
 

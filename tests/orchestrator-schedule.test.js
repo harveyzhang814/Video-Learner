@@ -21,6 +21,7 @@ function baseSteps() {
     video: pending(),
     audio: pending(),
     subs: pending(),
+    asr: pending(),
     vtt2md: pending(),
     md2vtt: pending(),
     article: pending(),
@@ -54,9 +55,10 @@ function run() {
       assert.ok(excludedByMode('media', videoPending).has('audio'), 'media: audio excluded when video pending');
     }
 
-    // excludedByMode: full mode — nothing excluded
+    // excludedByMode: full mode — video and audio not excluded (asr excluded until subs fails)
     {
-      assert.strictEqual(excludedByMode('full').size, 0, 'full: nothing excluded');
+      assert.ok(!excludedByMode('full').has('video'), 'full: video not excluded');
+      assert.ok(!excludedByMode('full').has('audio'), 'full: audio not excluded');
     }
 
     // excludedByMode: audio mode — video excluded
@@ -69,6 +71,48 @@ function run() {
     {
       assert.ok(excludedByMode('transcript').has('video'), 'transcript: video excluded');
       assert.ok(excludedByMode('transcript').has('audio'), 'transcript: audio excluded');
+    }
+
+    // excludedByMode: asr — excluded when subs not failed
+    {
+      const subsNotFailed = { subs: { status: 'pending' }, video: { status: 'completed' } };
+      assert.ok(excludedByMode('media', subsNotFailed).has('asr'), 'asr excluded when subs not failed');
+    }
+
+    // excludedByMode: asr — excluded in transcript mode even if subs failed
+    {
+      const subsFailed = { subs: { status: 'failed' }, video: { status: 'completed' } };
+      assert.ok(excludedByMode('transcript', subsFailed).has('asr'), 'asr excluded in transcript mode');
+    }
+
+    // excludedByMode: asr — excluded in media mode when video not yet completed
+    {
+      const subsFailed = { subs: { status: 'failed' }, video: { status: 'pending' } };
+      assert.ok(excludedByMode('media', subsFailed).has('asr'), 'asr excluded when video pending');
+    }
+
+    // excludedByMode: asr — NOT excluded in media mode when subs failed and video completed
+    {
+      const subsFailed = { subs: { status: 'failed' }, video: { status: 'completed' } };
+      assert.ok(!excludedByMode('media', subsFailed).has('asr'), 'asr allowed when subs failed + video completed');
+    }
+
+    // excludedByMode: asr — NOT excluded in media mode when video failed but audio completed
+    {
+      const steps = { subs: { status: 'failed' }, video: { status: 'failed' }, audio: { status: 'completed' } };
+      assert.ok(!excludedByMode('media', steps).has('asr'), 'asr allowed when video failed + audio completed');
+    }
+
+    // excludedByMode: asr — excluded in audio mode when audio not yet completed
+    {
+      const steps = { subs: { status: 'failed' }, audio: { status: 'pending' } };
+      assert.ok(excludedByMode('audio', steps).has('asr'), 'asr excluded in audio mode when audio pending');
+    }
+
+    // excludedByMode: asr — NOT excluded in audio mode when subs failed and audio completed
+    {
+      const steps = { subs: { status: 'failed' }, audio: { status: 'completed' } };
+      assert.ok(!excludedByMode('audio', steps).has('asr'), 'asr allowed in audio mode when audio completed');
     }
 
     // media: fetch completed → subs+video ready, audio excluded; pick subs
