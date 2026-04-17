@@ -7,29 +7,7 @@ const { EventEmitter } = require('events');
 const { generateId } = require('../id');
 const { createDb } = require('./db');
 const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts');
-const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode, normalizeMode } = require('./schedule');
-
-// Steps whose failure marks the overall task as failed (media steps are non-blocking).
-const CONTENT_STEPS = new Set(['fetch', 'subs', 'asr', 'vtt2md', 'md2vtt', 'article', 'summary']);
-
-/**
- * Returns true if a content step failure should propagate as task failure.
- * subs and asr are OR-paired: subs failure is recoverable if asr completed,
- * and asr failure is recoverable if subs completed/skipped.
- */
-function isContentStepFailure(stepName, steps) {
-  if (!CONTENT_STEPS.has(stepName)) return false;
-  const s = steps[stepName];
-  if (!s || s.status !== 'failed') return false;
-  if (stepName === 'subs') {
-    return (steps.asr && steps.asr.status) !== 'completed';
-  }
-  if (stepName === 'asr') {
-    const subs = steps.subs;
-    return !(subs && (subs.status === 'completed' || subs.status === 'skipped'));
-  }
-  return true;
-}
+const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode, normalizeMode, isTaskFailed, isTaskCompleted } = require('./schedule');
 
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
@@ -213,21 +191,11 @@ function loadTaskFromDb(taskId, rootDir) {
   }
 
   const statusList = Object.values(steps).map((s) => s.status);
-  const contentFailed = Object.keys(steps).some(name => isContentStepFailure(name, steps));
+  const tempTask = { params: { mode: row.mode }, steps };
   let status = 'pending';
   if (statusList.some((s) => s === 'running')) status = 'running';
-  else if (contentFailed) status = 'failed';
-  else if (statusList.every((s) => s === 'completed' || s === 'skipped' || s === 'failed' || s === 'pending')) {
-    // completed if all content steps are done (media steps may still be pending/failed)
-    const subsOrAsrDone =
-      steps.subs?.status === 'completed' || steps.subs?.status === 'skipped' ||
-      steps.asr?.status === 'completed';
-    const contentDone =
-      ['fetch', 'vtt2md', 'article', 'summary'].every(
-        (n) => steps[n]?.status === 'completed' || steps[n]?.status === 'skipped'
-      ) && subsOrAsrDone;
-    if (contentDone) status = 'completed';
-  }
+  else if (isTaskFailed(tempTask))    status = 'failed';
+  else if (isTaskCompleted(tempTask)) status = 'completed';
 
   const task = {
     task_id: taskId,
@@ -928,12 +896,8 @@ async function runTask(taskId, options = {}) {
 
     updateTaskMetaFromFilesystem(task);
 
-    // Mark overall task status.
-    // subs failure alone does not fail the task — only subs+asr both failed does.
-    const contentStepFailed = Object.keys(task.steps || {}).some(
-      name => isContentStepFailure(name, task.steps || {})
-    );
-    task.status = contentStepFailed ? 'failed' : 'completed';
+    // Mark overall task status using DAG reachability.
+    task.status = isTaskFailed(task) ? 'failed' : (isTaskCompleted(task) ? 'completed' : task.status);
     task.updated_at = new Date().toISOString();
     emitOrchestratorEvent('task.updated', taskId, { status: task.status });
   } finally {
@@ -984,8 +948,7 @@ async function runTask(taskId, options = {}) {
         task.steps = steps;
 
         // Re-evaluate overall task status after filesystem reconciliation.
-        const reconContentFailed = Object.keys(steps).some(name => isContentStepFailure(name, steps));
-        const reconStatus = reconContentFailed ? 'failed' : 'completed';
+        const reconStatus = isTaskFailed(task) ? 'failed' : (isTaskCompleted(task) ? 'completed' : task.status);
         if (task.status !== reconStatus) {
           task.status = reconStatus;
           task.updated_at = new Date().toISOString();
