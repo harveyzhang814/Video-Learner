@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { computeReadySteps, pickNextStep, getDownstreamClosure, normalizeMode, excludedByMode } = require('../core/orchestrator/schedule');
+const { computeReadySteps, pickNextStep, getDownstreamClosure, normalizeMode, excludedByMode, isNodeReachable } = require('../core/orchestrator/schedule');
 
 function pending() {
   return { status: 'pending', attempts: 0, error: null };
@@ -273,8 +273,6 @@ function run() {
 
     // isNodeReachable tests
     {
-      const { isNodeReachable } = require('../core/orchestrator/schedule');
-
       function skipped() { return { status: 'skipped', attempts: 0, error: null }; }
       function running() { return { status: 'running',  attempts: 1, error: null }; }
 
@@ -373,6 +371,26 @@ function run() {
         steps.video = completed();
         assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), true,
           'vtt2md: media mode, subs=failed, video=completed → asr runnable → reachable');
+      }
+
+      // md2vtt=failed → summary still reachable (md2vtt is a side branch)
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = completed();
+        steps.vtt2md = completed();
+        steps.md2vtt = failed();
+        steps.article = completed();
+        assert.strictEqual(isNodeReachable('summary', steps, 'media', new Set()), true,
+          'summary: md2vtt=failed is a side branch → summary still reachable');
+      }
+
+      // Full chain: all steps pending, fetch not failed → summary reachable
+      {
+        const steps = baseSteps();
+        // All steps pending (default from baseSteps) — fetch is root, not excluded
+        assert.strictEqual(isNodeReachable('summary', steps, 'media', new Set()), true,
+          'summary: all steps pending → still reachable (fetch not failed)');
       }
     }
 
