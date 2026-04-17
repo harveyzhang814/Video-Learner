@@ -179,9 +179,11 @@ async function run() {
     assert.ok(fs.existsSync(audioPath), 'audio.m4a not found after audio step');
     console.log('[asr-e2e] audio: OK — audio.m4a:', fs.statSync(audioPath).size, 'bytes');
 
-    // Inject subs=failed directly into DB (simulates a video with no YouTube subtitles)
+    // Inject subs=failed directly into DB (simulates a video with no YouTube subtitles).
+    // Then drop the in-memory task so runStep/getTask re-reads fresh state from DB.
     const db = createDb(ROOT_DIR);
     db.updateStep(taskId, 'subs', 'failed', 'no subtitles (injected for ASR e2e test)');
+    orchestrator._dropTaskFromMemory(taskId);
     console.log('[asr-e2e] subs: injected as failed (simulating no-subtitle video)');
 
     // Step 3: asr — ASR path activated because subs=failed + audio=completed
@@ -242,6 +244,11 @@ async function run() {
     const summaryPath = path.join(ROOT_DIR, 'work', taskId, 'writing', 'summary.md');
     assert.ok(fs.existsSync(summaryPath), 'writing/summary.md not found');
     console.log('[asr-e2e] summary: OK —', fs.statSync(summaryPath).size, 'bytes');
+
+    // Drop in-memory task so getTask recomputes status from the final DB step states.
+    // Running steps individually (not via runTask) leaves task.status stale —
+    // loadTaskFromDb recomputes the correct status from the current step states.
+    orchestrator._dropTaskFromMemory(taskId);
 
     // Final assertions: task should not be in a failed state
     const finalTask = await orchestrator.getTask(taskId, { rootDir: ROOT_DIR });
