@@ -446,6 +446,12 @@ function run() {
         fetch: completed(), subs: failed(), asr: completed(),
         vtt2md: completed(), article: completed(), summary: completed()
       })), true, 'isTaskCompleted: ASR path completed → true');
+
+      // isTaskCompleted: subs=failed, asr=skipped → false (asr=skipped produced no transcript)
+      assert.strictEqual(isTaskCompleted(makeTask('media', {
+        fetch: completed(), subs: failed(), asr: { status: 'skipped', attempts: 0, error: null },
+        vtt2md: completed(), article: completed(), summary: completed()
+      })), false, 'isTaskCompleted: subs=failed, asr=skipped → false (no transcript produced)');
     }
 
     console.log('orchestrator-schedule.test.js: PASS');

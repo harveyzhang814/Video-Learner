@@ -129,8 +129,10 @@ function isTaskFailed(task) {
 
 /**
  * Returns true when the task has completed successfully.
- * All CRITICAL_PATH nodes must be completed/skipped AND at least one of
- * subs/asr must have actually completed (not just been skipped).
+ * All CRITICAL_PATH nodes must be completed/skipped AND:
+ *   - subs must be completed or skipped, OR asr must be completed.
+ * Note: asr must be completed (not just skipped) because a skipped asr
+ * produced no transcript. subs=skipped is allowed (e.g., transcript fast-path).
  * Stricter than checking summary.status alone — prevents false completion
  * when skipStep('summary') is called manually without the pipeline running.
  * @param {{ steps: object }} task
