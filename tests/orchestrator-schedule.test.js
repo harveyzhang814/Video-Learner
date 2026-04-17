@@ -271,6 +271,111 @@ function run() {
       assert.ok(c.has('summary'));
     }
 
+    // isNodeReachable tests
+    {
+      const { isNodeReachable } = require('../core/orchestrator/schedule');
+
+      function skipped() { return { status: 'skipped', attempts: 0, error: null }; }
+      function running() { return { status: 'running',  attempts: 1, error: null }; }
+
+      // Root node: fetch=pending, no predecessors → reachable
+      {
+        const steps = baseSteps();
+        assert.strictEqual(isNodeReachable('fetch', steps, 'media', new Set()), true,
+          'fetch pending: reachable (root node)');
+      }
+
+      // fetch=failed → not reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = failed();
+        assert.strictEqual(isNodeReachable('fetch', steps, 'media', new Set()), false,
+          'fetch failed: not reachable');
+      }
+
+      // fetch=completed → reachable immediately
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        assert.strictEqual(isNodeReachable('fetch', steps, 'media', new Set()), true,
+          'fetch completed: reachable');
+      }
+
+      // subs: fetch=completed, subs=pending → reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        assert.strictEqual(isNodeReachable('subs', steps, 'media', new Set()), true,
+          'subs pending + fetch completed: reachable');
+      }
+
+      // subs: fetch=failed, subs=pending → not reachable (predecessor failed)
+      {
+        const steps = baseSteps();
+        steps.fetch = failed();
+        assert.strictEqual(isNodeReachable('subs', steps, 'media', new Set()), false,
+          'subs pending + fetch failed: not reachable');
+      }
+
+      // vtt2md OR gate: subs=completed, asr=pending → reachable (subs satisfies OR)
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = completed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), true,
+          'vtt2md: subs=completed satisfies OR gate');
+      }
+
+      // vtt2md OR gate: subs=failed, asr=completed → reachable (asr satisfies OR)
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.asr = completed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), true,
+          'vtt2md: asr=completed satisfies OR gate');
+      }
+
+      // vtt2md OR gate: subs=failed, asr=failed → not reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.asr = failed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), false,
+          'vtt2md: both subs and asr failed → not reachable');
+      }
+
+      // KEY: transcript mode, subs=failed, asr=pending+excluded → NOT reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'transcript', new Set()), false,
+          'vtt2md: transcript mode, subs=failed, asr=excluded+pending → not reachable');
+      }
+
+      // media mode, subs=failed, asr=pending, video=pending → asr excluded → not reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.video = pending();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), false,
+          'vtt2md: media mode, subs=failed, asr excluded (video pending) → not reachable');
+      }
+
+      // media mode, subs=failed, asr=pending, video=completed → asr runnable → vtt2md reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.video = completed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), true,
+          'vtt2md: media mode, subs=failed, video=completed → asr runnable → reachable');
+      }
+    }
+
     console.log('orchestrator-schedule.test.js: PASS');
     process.exit(0);
   } catch (err) {

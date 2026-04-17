@@ -51,6 +51,71 @@ const SUCCESSORS = (() => {
 })();
 
 /**
+ * Gate type per node. Omitted nodes default to AND.
+ * AND: all predecessors must be completed/skipped.
+ * OR:  at least one predecessor that can produce output must be reachable.
+ */
+const GATE_TYPE = {
+  vtt2md: 'OR'
+};
+
+/** The single terminal node whose reachability determines task failure. */
+const TERMINAL_NODE = 'summary';
+
+/**
+ * Nodes that must all be completed/skipped for isTaskCompleted.
+ * Excludes side-branch steps (md2vtt) not required for summary output.
+ */
+const CRITICAL_PATH = ['fetch', 'vtt2md', 'article', 'summary'];
+
+/**
+ * Returns true if `node` can still reach completed or skipped state.
+ *
+ * OR gate semantics: a mode-excluded or skipped predecessor does NOT satisfy
+ * the OR gate — it will never produce the required output (e.g. VTT files).
+ * Only a completed predecessor, or a pending+runnable predecessor whose own
+ * predecessors are reachable, satisfies an OR gate.
+ *
+ * @param {string} node
+ * @param {object} steps  - task.steps map
+ * @param {string} mode   - normalised mode string
+ * @param {Set<string>} visited - cycle guard; pass new Set() from callers
+ * @returns {boolean}
+ */
+function isNodeReachable(node, steps, mode, visited) {
+  if (!visited) visited = new Set();
+  if (visited.has(node)) return false; // cycle guard (DAG is acyclic; defensive)
+
+  const status = (steps[node] && steps[node].status) || 'pending';
+  if (status === 'completed' || status === 'skipped') return true;
+  if (status === 'failed') return false;
+
+  // pending / running: check mode exclusion first
+  if (excludedByMode(mode, steps).has(node)) return false; // won't produce output
+
+  // pending / running + not excluded: recurse into predecessors
+  const nextVisited = new Set(visited);
+  nextVisited.add(node);
+  const preds = PREDECESSORS[node] || [];
+  if (preds.length === 0) return true; // root node (fetch)
+
+  if (GATE_TYPE[node] === 'OR') {
+    // OR gate: need at least one predecessor that can actually produce output.
+    return preds.some(function(p) {
+      const ps = (steps[p] && steps[p].status) || 'pending';
+      if (ps === 'completed') return true;                     // produced output
+      if (ps === 'skipped') return false;                      // no output produced
+      if (excludedByMode(mode, steps).has(p)) return false;   // will never produce output
+      return isNodeReachable(p, steps, mode, new Set(nextVisited)); // path-local visited
+    });
+  }
+  // AND gate: every predecessor must be reachable (path-local visited per branch)
+  return preds.every(function(p) {
+    return isNodeReachable(p, steps, mode, new Set(nextVisited));
+  });
+}
+
+/**
  * All nodes reachable from `stepName` following edges from → to (includes `stepName`).
  * @param {string} stepName
  * @returns {Set<string>}
@@ -214,6 +279,10 @@ module.exports = {
   ALL_STEPS,
   PREDECESSORS,
   SUCCESSORS,
+  GATE_TYPE,
+  TERMINAL_NODE,
+  CRITICAL_PATH,
+  isNodeReachable,
   computeReadySteps,
   pickNextStep,
   getDownstreamClosure,
