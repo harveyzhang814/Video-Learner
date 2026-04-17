@@ -194,6 +194,50 @@ function run() {
       assert.ok(!ready.has('vtt2md'), 'vtt2md must not be ready when subs failed');
     }
 
+    // vtt2md OR: subs=completed → vtt2md ready (asr stays pending/excluded)
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('vtt2md'), 'vtt2md ready when subs=completed');
+    }
+
+    // vtt2md OR: subs=failed + asr=completed → vtt2md ready
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = failed();
+      steps.asr = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('vtt2md'), 'vtt2md ready when asr=completed');
+    }
+
+    // vtt2md OR: subs=failed + asr=failed → vtt2md NOT ready
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = failed();
+      steps.asr = failed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(!ready.has('vtt2md'), 'vtt2md not ready when both subs and asr failed');
+    }
+
+    // asr scheduled after subs=failed + video=completed (media mode)
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = failed();
+      steps.video = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('asr'), 'asr ready when subs=failed + video=completed');
+      assert.ok(!ready.has('vtt2md'), 'vtt2md not ready until asr completes');
+    }
+
     // video failed, fetch completed, subs pending → subs still ready
     {
       const steps = baseSteps();

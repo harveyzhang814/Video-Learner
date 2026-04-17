@@ -78,6 +78,7 @@ const PRIMARY_CHAIN = ['fetch', 'subs', 'vtt2md', 'article', 'summary'];
 /**
  * Secondary-chain order; filtered by mode inside pickNextStep.
  * both: video + md2vtt (never audio, matching runTask).
+ * asr is also secondary-chain — only activates when subs failed and media is ready.
  */
 const SECONDARY_CHAIN_BASE = ['video', 'audio', 'asr', 'md2vtt'];
 
@@ -163,12 +164,20 @@ function computeReadySteps(task) {
     const step = task.steps && task.steps[name];
     if (!step || step.status !== 'pending') continue;
 
-    const preds = PREDECESSORS[name] || [];
-    let ok = true;
-    for (const p of preds) {
-      if (!predecessorSatisfied(task, p)) {
-        ok = false;
-        break;
+    let ok;
+    if (name === 'vtt2md') {
+      // OR predecessor: subs completed OR asr completed
+      const subsOk = predecessorSatisfied(task, 'subs');
+      const asrOk = predecessorSatisfied(task, 'asr');
+      ok = subsOk || asrOk;
+    } else {
+      ok = true;
+      const preds = PREDECESSORS[name] || [];
+      for (const p of preds) {
+        if (!predecessorSatisfied(task, p)) {
+          ok = false;
+          break;
+        }
       }
     }
     if (ok) ready.add(name);
