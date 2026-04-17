@@ -12,6 +12,25 @@ const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode, n
 // Steps whose failure marks the overall task as failed (media steps are non-blocking).
 const CONTENT_STEPS = new Set(['fetch', 'subs', 'asr', 'vtt2md', 'md2vtt', 'article', 'summary']);
 
+/**
+ * Returns true if a content step failure should propagate as task failure.
+ * subs and asr are OR-paired: subs failure is recoverable if asr completed,
+ * and asr failure is recoverable if subs completed/skipped.
+ */
+function isContentStepFailure(stepName, steps) {
+  if (!CONTENT_STEPS.has(stepName)) return false;
+  const s = steps[stepName];
+  if (!s || s.status !== 'failed') return false;
+  if (stepName === 'subs') {
+    return (steps.asr && steps.asr.status) !== 'completed';
+  }
+  if (stepName === 'asr') {
+    const subs = steps.subs;
+    return !(subs && (subs.status === 'completed' || subs.status === 'skipped'));
+  }
+  return true;
+}
+
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
 const dbCache = new Map();
@@ -194,9 +213,7 @@ function loadTaskFromDb(taskId, rootDir) {
   }
 
   const statusList = Object.values(steps).map((s) => s.status);
-  const contentFailed = Object.entries(steps).some(
-    ([name, s]) => CONTENT_STEPS.has(name) && s.status === 'failed'
-  );
+  const contentFailed = Object.keys(steps).some(name => isContentStepFailure(name, steps));
   let status = 'pending';
   if (statusList.some((s) => s === 'running')) status = 'running';
   else if (contentFailed) status = 'failed';
@@ -906,14 +923,9 @@ async function runTask(taskId, options = {}) {
 
     // Mark overall task status.
     // subs failure alone does not fail the task — only subs+asr both failed does.
-    const contentStepFailed = Object.entries(task.steps || {}).some(([name, s]) => {
-      if (!CONTENT_STEPS.has(name) || s.status !== 'failed') return false;
-      if (name === 'subs') {
-        // subs failure is recoverable if asr completed
-        return (task.steps.asr && task.steps.asr.status) !== 'completed';
-      }
-      return true;
-    });
+    const contentStepFailed = Object.keys(task.steps || {}).some(
+      name => isContentStepFailure(name, task.steps || {})
+    );
     task.status = contentStepFailed ? 'failed' : 'completed';
     task.updated_at = new Date().toISOString();
     emitOrchestratorEvent('task.updated', taskId, { status: task.status });
@@ -965,9 +977,7 @@ async function runTask(taskId, options = {}) {
         task.steps = steps;
 
         // Re-evaluate overall task status after filesystem reconciliation.
-        const reconContentFailed = Object.entries(steps).some(
-          ([name, s]) => CONTENT_STEPS.has(name) && s.status === 'failed'
-        );
+        const reconContentFailed = Object.keys(steps).some(name => isContentStepFailure(name, steps));
         const reconStatus = reconContentFailed ? 'failed' : 'completed';
         if (task.status !== reconStatus) {
           task.status = reconStatus;
