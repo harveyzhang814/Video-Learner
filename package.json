@@ -10,6 +10,7 @@
     "test:agent": "node tests/agent-http.test.js",
     "test:agent:e2e": "node tests/agent-service-e2e.test.js",
     "test:agent:e2e:relaxed": "E2E_RELAX_CONTENT_ASSERT=1 E2E_PIPELINE_MODE=transcript node tests/agent-service-e2e.test.js",
+    "test:agent:e2e:asr": "E2E_ASR_ENABLED=1 node tests/asr-fallback-e2e.test.js",
     "test:runstep-a-layer": "node tests/runstep-a-layer-orchestrator.test.js",
     "test:agent:sqlite": "node tests/agent-sqlite-persistence.test.js",
     "test:fetch": "node tests/fetch-step.test.js",
