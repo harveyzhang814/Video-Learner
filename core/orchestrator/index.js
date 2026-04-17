@@ -191,7 +191,7 @@ function loadTaskFromDb(taskId, rootDir) {
   }
 
   const statusList = Object.values(steps).map((s) => s.status);
-  const tempTask = { params: { mode: row.mode }, steps };
+  const tempTask = { params: { mode: normalizeMode(row.mode) }, steps };
   let status = 'pending';
   if (statusList.some((s) => s === 'running')) status = 'running';
   else if (isTaskFailed(tempTask))    status = 'failed';
