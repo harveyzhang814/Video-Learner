@@ -535,7 +535,20 @@ module.exports = { createApp };
 if (require.main === module) {
   const port = process.env.PORT || 3000;
   const host = process.env.HOST || '127.0.0.1';
+  const TOKEN_FILE = '/tmp/vl-agent-token';
   const app = createApp();
+  const token = app.context.eventsToken;
+
+  // Write token file so CLI can discover it
+  try { fs.writeFileSync(TOKEN_FILE, token); } catch {}
+
+  function cleanup() {
+    try { fs.unlinkSync(TOKEN_FILE); } catch {}
+  }
+  process.on('exit', cleanup);
+  process.on('SIGINT', () => { cleanup(); process.exit(0); });
+  process.on('SIGTERM', () => { cleanup(); process.exit(0); });
+
   app.listen(port, host, () => {
     console.log(`Agent HTTP service listening on http://${host}:${port}`);
     // IMPORTANT: never log the SSE token.
