@@ -120,7 +120,7 @@ run_opencode() {
   # Send message and capture response
   local msg_json
   if ! msg_json="$(curl -fsS -H "Content-Type: application/json" \
-    -d "{\"parts\":[{\"type\":\"text\",\"text\":${prompt_json}}],\"model\":{\"providerID\":\"minimax-cn-coding-plan\",\"modelID\":\"MiniMax-M2.5\"}}" \
+    -d "{\"parts\":[{\"type\":\"text\",\"text\":${prompt_json}}],\"model\":{\"providerID\":\"minimax-cn-coding-plan\",\"modelID\":\"MiniMax-M2.7\"}}" \
     "${base_url}/session/${session_id}/message")"; then
     echo "Failed to send message to OpenCode session ${session_id}." >&2
     exit 1

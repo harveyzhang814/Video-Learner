@@ -162,7 +162,7 @@ npm run agent:serve
   - 启动 Agent Service 或 Electron **之前**在环境中设置 `WRITING_ENGINE=claude|opencode`，子进程中的 `llm_engine.sh` 会继承该覆盖。
 - **当前引擎实现**
   - `claude`：使用 Claude Code CLI。
-  - `opencode`：使用 OpenCode CLI `opencode run -m minimax-cn-coding-plan/MiniMax-M2.5 --format json`（PTY），从 NDJSON 事件流抽取文本。
+  - `opencode`：使用 OpenCode CLI，模型为 `minimax-cn-coding-plan/MiniMax-M2.7`，通过 HTTP 调用。
 
 ## 开发命令
 
