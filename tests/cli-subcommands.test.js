@@ -7,6 +7,7 @@ const client = require('../cli/lib/client');
 
 const TOKEN = 'cli-sub-test-token';
 let srv;
+let taskId;
 
 (async () => {
   const app = createApp({ token: TOKEN });
@@ -17,7 +18,7 @@ let srv;
   client.init(BASE, TOKEN);
 
   // Create a task to use in subcommand tests
-  const taskId = await client.createTask({
+  taskId = await client.createTask({
     url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     focus: 'subcommand test',
     mode: 'transcript',
@@ -48,6 +49,12 @@ let srv;
     assert.ok(/task not found/i.test(e.message), `unexpected error: ${e.message}`);
   }
 
+  await client.deleteTask(taskId);
   srv.close();
   console.log('cli-subcommands: PASS');
-})().catch(err => { srv && srv.close(); console.error(err); process.exit(1); });
+})().catch(async err => {
+  try { if (taskId) await client.deleteTask(taskId); } catch {}
+  srv && srv.close();
+  console.error(err);
+  process.exit(1);
+});

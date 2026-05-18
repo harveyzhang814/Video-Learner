@@ -82,4 +82,9 @@ function getResultContent(taskId, type) {
   });
 }
 
-module.exports = { init, createTask, getTask, runStep, getResultContent };
+async function deleteTask(taskId) {
+  const { status } = await request('DELETE', `/api/tasks/${taskId}`);
+  return status;
+}
+
+module.exports = { init, createTask, getTask, runStep, getResultContent, deleteTask };

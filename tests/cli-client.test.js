@@ -6,6 +6,7 @@ const client = require('../cli/lib/client');
 
 const TOKEN = 'cli-client-test-token';
 let server;
+let taskId;
 
 (async () => {
   const app = createApp({ token: TOKEN });
@@ -16,7 +17,7 @@ let server;
   client.init(BASE, TOKEN);
 
   // createTask — checks HTTP layer returns a task_id string
-  const taskId = await client.createTask({
+  taskId = await client.createTask({
     url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     focus: 'cli client test',
     mode: 'transcript',
@@ -36,6 +37,12 @@ let server;
     assert.ok(/task not found/i.test(err.message), `unexpected error: ${err.message}`);
   }
 
+  await client.deleteTask(taskId);
   server.close();
   console.log('cli-client: PASS');
-})().catch(err => { server && server.close(); console.error(err); process.exit(1); });
+})().catch(async err => {
+  try { if (taskId) await client.deleteTask(taskId); } catch {}
+  server && server.close();
+  console.error(err);
+  process.exit(1);
+});

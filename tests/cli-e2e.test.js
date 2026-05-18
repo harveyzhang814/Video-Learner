@@ -11,6 +11,7 @@ const POLL_INTERVAL = 1000;
 const POLL_TIMEOUT = 60000; // 60s max — pipeline will fail without real tools, that's OK
 
 let srv;
+let taskId1;
 
 async function pollUntilTerminal(taskId, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
@@ -34,7 +35,7 @@ async function pollUntilTerminal(taskId, timeoutMs) {
   // Same URL always produces same task_id
   const expectedId = generateId(TEST_URL);
 
-  const taskId1 = await client.createTask({ url: TEST_URL, focus: 'e2e test', mode: 'transcript' });
+  taskId1 = await client.createTask({ url: TEST_URL, focus: 'e2e test', mode: 'transcript' });
   assert.strictEqual(taskId1, expectedId, `task_id should be deterministic: expected ${expectedId}, got ${taskId1}`);
 
   // Creating the same task again returns the same id (idempotent)
@@ -79,6 +80,12 @@ async function pollUntilTerminal(taskId, timeoutMs) {
   const stepR = await client.runStep(taskId1, 'fetch', { reset_scope: 'step' });
   assert.ok([200, 202, 400, 409].includes(stepR.status), `runStep should return valid status, got: ${stepR.status}`);
 
+  await client.deleteTask(taskId1);
   srv.close();
   console.log('cli-e2e: PASS');
-})().catch(err => { srv && srv.close(); console.error(err); process.exit(1); });
+})().catch(async err => {
+  try { if (taskId1) await client.deleteTask(taskId1); } catch {}
+  srv && srv.close();
+  console.error(err);
+  process.exit(1);
+});
