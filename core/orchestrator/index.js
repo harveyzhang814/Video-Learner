@@ -661,6 +661,7 @@ async function runStep(taskId, stepName, options = {}) {
             errors.push(`${vtt}: ${result.output || 'failed'}`);
           }
         } catch (e) {
+          task._currentProc = null;
           errors.push(`${vtt}: ${e.message}`);
         }
       }
@@ -673,6 +674,7 @@ async function runStep(taskId, stepName, options = {}) {
         db.updateStep(id, stepName, 'pending');
         finishLogs();
         emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
+        emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'pending' });
         resolve();
         return { success: false, error: 'aborted' };
       }
@@ -713,6 +715,7 @@ async function runStep(taskId, stepName, options = {}) {
             errors.push(`${name}: ${result.output || 'failed'}`);
           }
         } catch (e) {
+          task._currentProc = null;
           errors.push(`${name}: ${e.message}`);
         }
       }
@@ -724,6 +727,7 @@ async function runStep(taskId, stepName, options = {}) {
         db.updateStep(id, stepName, 'pending');
         finishLogs();
         emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
+        emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'pending' });
         resolve();
         return { success: false, error: 'aborted' };
       }
