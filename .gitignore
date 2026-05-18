@@ -23,6 +23,7 @@ electron/node_modules/
 *.tmp
 *.temp
 *.part
+tmp/
 
 # Worktree
 .worktrees/

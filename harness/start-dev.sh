@@ -67,7 +67,9 @@ trap cleanup INT TERM EXIT
 # ── 1. 启动后端（HTTP Agent Service）─────────────────────────────
 echo "[start-dev] 启动后端: node services/http-server/index.js"
 : > "$BACKEND_LOG"  # 清空旧日志
-node "$PROJECT_DIR/services/http-server/index.js" >> "$BACKEND_LOG" 2>&1 &
+node "$PROJECT_DIR/services/http-server/index.js" 2>&1 \
+  | python3 -u -c 'import sys,datetime; [print(datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), l.rstrip(), flush=True) for l in iter(sys.stdin.readline,"")]' \
+  >> "$BACKEND_LOG" &
 BACKEND_PID=$!
 echo "$BACKEND_PID" > "$BACKEND_PID_FILE"
 CHILD_PIDS+=($BACKEND_PID)
