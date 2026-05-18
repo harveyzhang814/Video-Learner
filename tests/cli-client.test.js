@@ -40,6 +40,7 @@ let taskId;
   await client.deleteTask(taskId);
   server.close();
   console.log('cli-client: PASS');
+  process.exit(0);
 })().catch(async err => {
   try { if (taskId) await client.deleteTask(taskId); } catch {}
   server && server.close();

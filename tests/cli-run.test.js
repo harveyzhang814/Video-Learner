@@ -42,6 +42,7 @@ let taskId;
   await client.deleteTask(taskId);
   srv.close();
   console.log('cli-run: PASS');
+  process.exit(0);
 })().catch(async err => {
   try { if (taskId) await client.deleteTask(taskId); } catch {}
   srv && srv.close();

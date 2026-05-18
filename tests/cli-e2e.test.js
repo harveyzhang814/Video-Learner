@@ -83,6 +83,7 @@ async function pollUntilTerminal(taskId, timeoutMs) {
   await client.deleteTask(taskId1);
   srv.close();
   console.log('cli-e2e: PASS');
+  process.exit(0);
 })().catch(async err => {
   try { if (taskId1) await client.deleteTask(taskId1); } catch {}
   srv && srv.close();
