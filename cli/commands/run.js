@@ -112,4 +112,4 @@ async function run(args) {
   }
 }
 
-module.exports = { run };
+module.exports = { run, parseArgs };
