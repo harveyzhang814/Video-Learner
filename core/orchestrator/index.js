@@ -226,7 +226,11 @@ function loadTaskFromDb(taskId, rootDir) {
       summary_done: false
     },
     steps,
-    processInfo: null
+    processInfo: null,
+    _abortFlag: false,
+    _currentProc: null,
+    _abortResolvers: [],
+    _stepAbortResolve: null
   };
   tasks.set(taskId, task);
   updateTaskMetaFromFilesystem(task);
@@ -290,7 +294,11 @@ async function createTask(params) {
     params: { url, focus, mode: normalizedMode, force, output_lang, rootDir },
     meta,
     steps: initSteps(),
-    processInfo: null
+    processInfo: null,
+    _abortFlag: false,
+    _currentProc: null,
+    _abortResolvers: [],
+    _stepAbortResolve: null
   };
 
   tasks.set(taskId, task);
@@ -390,6 +398,12 @@ function spawnEnv() {
   return { ...process.env, PATH };
 }
 
+function tryDeleteFile(filePath) {
+  try {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch (_) {}
+}
+
 /**
  * Low-level helper to run a single step script and collect its exit code/output.
  * opts.onOutput(text) optional - called for each stdout/stderr chunk (e.g. for Electron log stream).
@@ -397,7 +411,8 @@ function spawnEnv() {
 function runStepScript(rootDir, stepName, args, opts = {}) {
   return new Promise((resolve, reject) => {
     const script = path.join(rootDir, 'scripts', STEP_SCRIPTS[stepName]);
-    const proc = spawn('bash', [script, ...args], { cwd: rootDir, env: spawnEnv() });
+    const proc = spawn('bash', [script, ...args], { cwd: rootDir, env: spawnEnv(), detached: true });
+    if (opts.onProc) opts.onProc(proc);
 
     let output = '';
     const onStdoutChunk = (data) => {
