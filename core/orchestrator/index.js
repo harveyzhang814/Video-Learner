@@ -1014,10 +1014,11 @@ async function runTask(taskId, options = {}) {
         }
         task.status = 'pending';
         task.updated_at = new Date().toISOString();
-        task._abortFlag = false;
-        task._currentProc = null;
         emitOrchestratorEvent('task.updated', taskId, { status: 'pending' });
       } catch (_) {}
+      task._abortFlag = false;
+      task._currentProc = null;
+      task._stepAbortResolve = null;
       const resolvers = task._abortResolvers.splice(0);
       resolvers.forEach((r) => r());
     } else {
