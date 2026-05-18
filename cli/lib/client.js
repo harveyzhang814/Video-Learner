@@ -53,6 +53,10 @@ async function getTask(taskId) {
   return r.body;
 }
 
+/**
+ * Returns { status, body }. Does NOT throw on HTTP errors — callers must check status.
+ * Use runStep when you need to handle 400/409 explicitly (e.g. rerun command).
+ */
 async function runStep(taskId, stepName, opts) {
   const r = await request('POST', `/api/tasks/${taskId}/steps/${stepName}/run`, opts || {});
   return { status: r.status, body: r.body };

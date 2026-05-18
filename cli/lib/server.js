@@ -34,7 +34,11 @@ async function ensureServer(opts = {}) {
   const alive = await _checkHealthz(healthzUrl);
   if (alive) {
     let token;
-    try { token = fs.readFileSync(tokenFile, 'utf8').trim(); } catch {}
+    try {
+      token = fs.readFileSync(tokenFile, 'utf8').trim();
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err;
+    }
     if (!token) {
       throw new Error(
         `Server is running but token file not found at ${tokenFile}. Restart the server.`
@@ -56,7 +60,10 @@ async function ensureServer(opts = {}) {
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 500));
-    if (await _checkHealthz(healthzUrl)) return token;
+    if (await _checkHealthz(healthzUrl)) {
+      try { fs.writeFileSync(tokenFile, token); } catch {}
+      return token;
+    }
   }
   child.kill();
   _managedChild = null;
