@@ -16,6 +16,7 @@
 |------|------|
 | [how-to/deploy.md](how-to/deploy.md) | 新机器/新环境部署：依赖、配置、安装步骤、启动方式 |
 | [how-to/agent-run-task.md](how-to/agent-run-task.md) | Agent/脚本通过 HTTP API 执行 YouTube 任务：创建→轮询→取结果→处理异常 |
+| [how-to/cli.md](how-to/cli.md) | `vdl` CLI 使用方式：安装、子命令、与 GUI/HTTP Service 并发使用 |
 
 开发调试环境（Dev Harness）：见 [`harness/README.md`](../harness/README.md)（就近原则，与代码同目录）。
 
