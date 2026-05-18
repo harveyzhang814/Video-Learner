@@ -540,10 +540,10 @@ if (require.main === module) {
   const token = app.context.eventsToken;
 
   // Write token file so CLI can discover it
-  try { require('fs').writeFileSync(TOKEN_FILE, token); } catch {}
+  try { fs.writeFileSync(TOKEN_FILE, token); } catch {}
 
   function cleanup() {
-    try { require('fs').unlinkSync(TOKEN_FILE); } catch {}
+    try { fs.unlinkSync(TOKEN_FILE); } catch {}
   }
   process.on('exit', cleanup);
   process.on('SIGINT', () => { cleanup(); process.exit(0); });
