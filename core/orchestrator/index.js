@@ -1260,6 +1260,35 @@ async function abortTask(taskId, options = {}) {
   return { task_id: taskId, status: 'pending' };
 }
 
+async function abortStep(taskId, stepName, options = {}) {
+  const task = ensureTask(taskId, options);
+  if (!STEPS.includes(stepName)) {
+    const e = new Error(`unknown step: ${stepName}`);
+    e.code = 'BAD_STEP';
+    throw e;
+  }
+  const s = task.steps && task.steps[stepName];
+  if (!s || s.status !== 'running') {
+    const e = new Error('step is not running');
+    e.code = 'STEP_NOT_RUNNING';
+    throw e;
+  }
+
+  const waitDone = new Promise((resolve) => { task._stepAbortResolve = resolve; });
+
+  const proc = task._currentProc;
+  if (proc && proc.pid) {
+    const sigkillTimer = setTimeout(() => {
+      try { process.kill(-proc.pid, 'SIGKILL'); } catch (_) {}
+    }, 5000);
+    waitDone.then(() => clearTimeout(sigkillTimer));
+    try { process.kill(-proc.pid, 'SIGTERM'); } catch (_) {}
+  }
+
+  await waitDone;
+  return { task_id: taskId, step: stepName, status: 'pending' };
+}
+
 /** For tests: drop task from memory to simulate process restart and test restore from DB */
 function _dropTaskFromMemory(taskId) {
   tasks.delete(taskId);
@@ -1271,6 +1300,7 @@ module.exports = {
   runTask,
   runStep,
   abortTask,
+  abortStep,
   applyResetScope,
   skipStep,
   deleteTask,
