@@ -967,6 +967,8 @@ async function runTask(taskId, options = {}) {
       const next = pickNextStep(ready, mode, task.steps);
       if (!next) break;
 
+      if (task._abortFlag) break;
+
       const stepOptions = { ...options };
       if (next === 'video' || next === 'audio') {
         stepOptions.force = task.params.force;
@@ -993,79 +995,106 @@ async function runTask(taskId, options = {}) {
     // Decrement active counter exactly once per runTask invocation.
     activeRunTasks = Math.max(0, activeRunTasks - 1);
 
-    try {
-      // Re-check outputs and reconcile step/meta state one last time.
-      updateTaskMetaFromFilesystem(task);
-
-      const rootDir = task.params && task.params.rootDir;
-      const id = task.meta && task.meta.id;
-      if (rootDir && id) {
-        const db = ensureDb(rootDir);
-        const steps = task.steps || initSteps();
-
-        const baseDir = getWorkDir(rootDir, id);
-        const transcriptDir = path.join(baseDir, 'transcript');
-        const writingDir = path.join(baseDir, 'writing');
-        const hasTranscript = fs.existsSync(path.join(transcriptDir, 'original_en.md')) || fs.existsSync(path.join(transcriptDir, 'original_zh.md'));
-        const hasArticle = fs.existsSync(path.join(writingDir, 'article.md'));
-        const hasSummary = fs.existsSync(path.join(writingDir, 'summary.md'));
-
-        // Only reconcile statuses if they look inconsistent with filesystem outputs.
-        if (hasTranscript && (steps.vtt2md?.status === 'failed' || steps.vtt2md?.status === 'pending')) {
-          steps.vtt2md = { ...(steps.vtt2md || {}), status: 'completed', error: null };
-          db.updateStep(id, 'vtt2md', 'completed');
-        }
-        if (hasArticle && (steps.article?.status === 'failed' || steps.article?.status === 'pending')) {
-          steps.article = { ...(steps.article || {}), status: 'completed', error: null };
-          db.updateStep(id, 'article', 'completed');
-        }
-        if (hasSummary && (steps.summary?.status === 'failed' || steps.summary?.status === 'pending')) {
-          steps.summary = { ...(steps.summary || {}), status: 'completed', error: null };
-          db.updateStep(id, 'summary', 'completed');
-        }
-
-        // If outputs are missing but step says completed, mark failed (keep error light).
-        if (!hasArticle && steps.article?.status === 'completed') {
-          steps.article = { ...(steps.article || {}), status: 'failed', error: 'article.md missing after step completed' };
-          db.updateStep(id, 'article', 'failed', steps.article.error);
-        }
-        if (!hasSummary && steps.summary?.status === 'completed') {
-          steps.summary = { ...(steps.summary || {}), status: 'failed', error: 'summary.md missing after step completed' };
-          db.updateStep(id, 'summary', 'failed', steps.summary.error);
-        }
-
-        task.steps = steps;
-
-        // Re-evaluate overall task status after filesystem reconciliation.
-        const reconStatus = isTaskFailed(task) ? 'failed' : (isTaskCompleted(task) ? 'completed' : task.status);
-        if (task.status !== reconStatus) {
-          task.status = reconStatus;
-          task.updated_at = new Date().toISOString();
-          emitOrchestratorEvent('task.updated', taskId, { status: task.status });
-        }
-
-        emitOrchestratorEvent('task.finalized', taskId, {
-          outputs: { transcript: hasTranscript, article: hasArticle, summary: hasSummary }
-        });
-
-        // Stop opencode server for this repo when no other runTask is active.
-        // (Future-proof for concurrency: only last task triggers stop.)
-        if (activeRunTasks === 0) {
-          try {
-            const script = path.join(rootDir, 'scripts', 'opencode_server.sh');
-            // Run stop as a standalone bash command (not a step).
-            await new Promise((resolve) => {
-              const proc = spawn('bash', [script, 'stop-if-started'], { cwd: rootDir, env: spawnEnv() });
-              proc.on('close', () => resolve());
-              proc.on('error', () => resolve());
-            });
-          } catch (_) {
-            // ignore
+    if (task._abortFlag) {
+      try {
+        const _rootDir = task.params && task.params.rootDir;
+        const _id = task.meta && task.meta.id;
+        if (_rootDir && _id) {
+          const db = ensureDb(_rootDir);
+          const workDir = getWorkDir(_rootDir, _id);
+          for (const stepName of STEPS) {
+            const s = task.steps && task.steps[stepName];
+            if (s && s.status === 'running') {
+              if (stepName === 'article') tryDeleteFile(path.join(workDir, 'writing', 'article.md'));
+              if (stepName === 'summary') tryDeleteFile(path.join(workDir, 'writing', 'summary.md'));
+              task.steps[stepName] = { status: 'pending', attempts: s.attempts, error: null };
+              db.updateStep(_id, stepName, 'pending');
+            }
           }
         }
+        task.status = 'pending';
+        task.updated_at = new Date().toISOString();
+        task._abortFlag = false;
+        task._currentProc = null;
+        emitOrchestratorEvent('task.updated', taskId, { status: 'pending' });
+      } catch (_) {}
+      const resolvers = task._abortResolvers.splice(0);
+      resolvers.forEach((r) => r());
+    } else {
+      try {
+        // Re-check outputs and reconcile step/meta state one last time.
+        updateTaskMetaFromFilesystem(task);
+
+        const rootDir = task.params && task.params.rootDir;
+        const id = task.meta && task.meta.id;
+        if (rootDir && id) {
+          const db = ensureDb(rootDir);
+          const steps = task.steps || initSteps();
+
+          const baseDir = getWorkDir(rootDir, id);
+          const transcriptDir = path.join(baseDir, 'transcript');
+          const writingDir = path.join(baseDir, 'writing');
+          const hasTranscript = fs.existsSync(path.join(transcriptDir, 'original_en.md')) || fs.existsSync(path.join(transcriptDir, 'original_zh.md'));
+          const hasArticle = fs.existsSync(path.join(writingDir, 'article.md'));
+          const hasSummary = fs.existsSync(path.join(writingDir, 'summary.md'));
+
+          // Only reconcile statuses if they look inconsistent with filesystem outputs.
+          if (hasTranscript && (steps.vtt2md?.status === 'failed' || steps.vtt2md?.status === 'pending')) {
+            steps.vtt2md = { ...(steps.vtt2md || {}), status: 'completed', error: null };
+            db.updateStep(id, 'vtt2md', 'completed');
+          }
+          if (hasArticle && (steps.article?.status === 'failed' || steps.article?.status === 'pending')) {
+            steps.article = { ...(steps.article || {}), status: 'completed', error: null };
+            db.updateStep(id, 'article', 'completed');
+          }
+          if (hasSummary && (steps.summary?.status === 'failed' || steps.summary?.status === 'pending')) {
+            steps.summary = { ...(steps.summary || {}), status: 'completed', error: null };
+            db.updateStep(id, 'summary', 'completed');
+          }
+
+          // If outputs are missing but step says completed, mark failed (keep error light).
+          if (!hasArticle && steps.article?.status === 'completed') {
+            steps.article = { ...(steps.article || {}), status: 'failed', error: 'article.md missing after step completed' };
+            db.updateStep(id, 'article', 'failed', steps.article.error);
+          }
+          if (!hasSummary && steps.summary?.status === 'completed') {
+            steps.summary = { ...(steps.summary || {}), status: 'failed', error: 'summary.md missing after step completed' };
+            db.updateStep(id, 'summary', 'failed', steps.summary.error);
+          }
+
+          task.steps = steps;
+
+          // Re-evaluate overall task status after filesystem reconciliation.
+          const reconStatus = isTaskFailed(task) ? 'failed' : (isTaskCompleted(task) ? 'completed' : task.status);
+          if (task.status !== reconStatus) {
+            task.status = reconStatus;
+            task.updated_at = new Date().toISOString();
+            emitOrchestratorEvent('task.updated', taskId, { status: task.status });
+          }
+
+          emitOrchestratorEvent('task.finalized', taskId, {
+            outputs: { transcript: hasTranscript, article: hasArticle, summary: hasSummary }
+          });
+
+          // Stop opencode server for this repo when no other runTask is active.
+          // (Future-proof for concurrency: only last task triggers stop.)
+          if (activeRunTasks === 0) {
+            try {
+              const script = path.join(rootDir, 'scripts', 'opencode_server.sh');
+              // Run stop as a standalone bash command (not a step).
+              await new Promise((resolve) => {
+                const proc = spawn('bash', [script, 'stop-if-started'], { cwd: rootDir, env: spawnEnv() });
+                proc.on('close', () => resolve());
+                proc.on('error', () => resolve());
+              });
+            } catch (_) {
+              // ignore
+            }
+          }
+        }
+      } catch (_) {
+        // ignore finalize errors
       }
-    } catch (_) {
-      // ignore finalize errors
     }
   }
 }
@@ -1202,6 +1231,34 @@ function deleteTask(taskId, options = {}) {
   }
 }
 
+async function abortTask(taskId, options = {}) {
+  const task = ensureTask(taskId, options);
+  if (task.status !== 'running') {
+    const e = new Error('task is not running');
+    e.code = 'NOT_RUNNING';
+    throw e;
+  }
+
+  const waitDone = new Promise((resolve) => task._abortResolvers.push(resolve));
+
+  task._abortFlag = true;
+
+  const proc = task._currentProc;
+  if (proc && proc.pid) {
+    const sigkillTimer = setTimeout(() => {
+      try { process.kill(-proc.pid, 'SIGKILL'); } catch (_) {}
+    }, 5000);
+    waitDone.then(() => clearTimeout(sigkillTimer));
+    try { process.kill(-proc.pid, 'SIGTERM'); } catch (_) {}
+  } else {
+    // No proc running (between steps): DAG loop will see _abortFlag and break,
+    // then the finally block calls resolvers. Nothing extra needed here.
+  }
+
+  await waitDone;
+  return { task_id: taskId, status: 'pending' };
+}
+
 /** For tests: drop task from memory to simulate process restart and test restore from DB */
 function _dropTaskFromMemory(taskId) {
   tasks.delete(taskId);
@@ -1212,6 +1269,7 @@ module.exports = {
   listTasks,
   runTask,
   runStep,
+  abortTask,
   applyResetScope,
   skipStep,
   deleteTask,
