@@ -649,13 +649,36 @@ async function runStep(taskId, stepName, options = {}) {
           const match = vtt.match(/\.([^.]+)\./);
           const lang = match && match[1] ? match[1] : 'en';
           const outPath = path.join(dir, 'transcript', `original_${lang}.md`);
-          const result = await runStepScript(rootDir, 'vtt2md', [path.join(subsDir, vtt), outPath], { onOutput: options.onOutput, onStdout, onStderr });
+          const result = await runStepScript(rootDir, 'vtt2md', [path.join(subsDir, vtt), outPath], {
+            onOutput: options.onOutput,
+            onStdout,
+            onStderr,
+            onProc: (proc) => { task._currentProc = proc; }
+          });
+          task._currentProc = null;
+          if (task._abortFlag || task._stepAbortResolve) break;
           if (result.code !== 0) {
             errors.push(`${vtt}: ${result.output || 'failed'}`);
           }
         } catch (e) {
           errors.push(`${vtt}: ${e.message}`);
         }
+      }
+      // Abort check after loop (covers both task-level and step-level abort).
+      if (task._stepAbortResolve) {
+        const resolve = task._stepAbortResolve;
+        task._stepAbortResolve = null;
+        stepState.status = 'pending';
+        task.steps[stepName] = stepState;
+        db.updateStep(id, stepName, 'pending');
+        finishLogs();
+        emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
+        resolve();
+        return { success: false, error: 'aborted' };
+      }
+      if (task._abortFlag) {
+        finishLogs();
+        return { success: false, error: 'aborted' };
       }
       if (errors.length > 0) {
         stepState.status = 'failed';
@@ -681,14 +704,32 @@ async function runStep(taskId, stepName, options = {}) {
           const result = await runStepScript(rootDir, 'md2vtt', [mdPath, mdPath.replace('.md', '.vtt')], {
             onOutput: options.onOutput,
             onStdout,
-            onStderr
+            onStderr,
+            onProc: (proc) => { task._currentProc = proc; }
           });
+          task._currentProc = null;
+          if (task._abortFlag || task._stepAbortResolve) break;
           if (result.code !== 0) {
             errors.push(`${name}: ${result.output || 'failed'}`);
           }
         } catch (e) {
           errors.push(`${name}: ${e.message}`);
         }
+      }
+      if (task._stepAbortResolve) {
+        const resolve = task._stepAbortResolve;
+        task._stepAbortResolve = null;
+        stepState.status = 'pending';
+        task.steps[stepName] = stepState;
+        db.updateStep(id, stepName, 'pending');
+        finishLogs();
+        emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
+        resolve();
+        return { success: false, error: 'aborted' };
+      }
+      if (task._abortFlag) {
+        finishLogs();
+        return { success: false, error: 'aborted' };
       }
       if (errors.length > 0) {
         stepState.status = 'failed';
@@ -771,7 +812,33 @@ async function runStep(taskId, stepName, options = {}) {
       };
     }
 
-    const result = await runStepScript(rootDir, stepName, args, { onOutput, onStdout, onStderr });
+    const result = await runStepScript(rootDir, stepName, args, {
+      onOutput,
+      onStdout,
+      onStderr,
+      onProc: (proc) => { task._currentProc = proc; }
+    });
+    task._currentProc = null;
+    // Step-level abort: runStep resets step to pending and notifies abortStep.
+    if (task._stepAbortResolve) {
+      const resolve = task._stepAbortResolve;
+      task._stepAbortResolve = null;
+      if (stepName === 'article') tryDeleteFile(path.join(dir, 'writing', 'article.md'));
+      if (stepName === 'summary') tryDeleteFile(path.join(dir, 'writing', 'summary.md'));
+      stepState.status = 'pending';
+      task.steps[stepName] = stepState;
+      db.updateStep(id, stepName, 'pending');
+      finishLogs();
+      emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
+      emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'pending' });
+      resolve();
+      return { success: false, error: 'aborted' };
+    }
+    // Task-level abort: runTask's finally block handles state cleanup.
+    if (task._abortFlag) {
+      finishLogs();
+      return { success: false, error: 'aborted' };
+    }
     if (result.code === 0) {
       stepState.status = 'completed';
       stepState.error = null;
