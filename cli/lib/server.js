@@ -50,7 +50,7 @@ async function ensureServer(opts = {}) {
   // Spawn our own server
   const token = crypto.randomBytes(24).toString('hex');
   const child = spawn(process.execPath, [entry], {
-    env: { ...process.env, AGENT_EVENTS_TOKEN: token },
+    env: { ...process.env, ...(opts.extraEnv || {}), AGENT_EVENTS_TOKEN: token },
     stdio: 'ignore',
     detached: false,
   });
