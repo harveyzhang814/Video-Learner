@@ -7,6 +7,7 @@ const RESET_MAP = { downstream: 'downstream', step: 'step', off: 'off' };
 
 async function pollUntilDone(taskId, startedAt) {
   const INTERVAL = 2000;
+  const stepStatus = {};
   while (true) {
     await new Promise(r => setTimeout(r, INTERVAL));
     const task = await client.getTask(taskId);
@@ -17,7 +18,12 @@ async function pollUntilDone(taskId, startedAt) {
       fmt.renderProgress(title, steps);
     } else {
       for (const [name, info] of Object.entries(steps)) {
-        if (info) fmt.logStepLine(name, info.status);
+        if (!info) continue;
+        const prev = stepStatus[name];
+        if (prev !== info.status) {
+          stepStatus[name] = info.status;
+          fmt.logStepLine(name, info.status);
+        }
       }
     }
 
