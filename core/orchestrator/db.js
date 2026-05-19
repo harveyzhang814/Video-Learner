@@ -61,6 +61,15 @@ function initTables(db) {
     // ignore
   }
 
+  try {
+    const cols = db.prepare('PRAGMA table_info(tasks)').all();
+    if (!cols.some((c) => c.name === 'status')) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN status TEXT`);
+      // NULL default: existing rows use computed status from steps, behavior unchanged
+    }
+  } catch (_) {
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS steps (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
