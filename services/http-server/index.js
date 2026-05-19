@@ -249,6 +249,46 @@ function createApp(options = {}) {
     }
   });
 
+  router.post('/tasks/:taskId/cancel', async (ctx) => {
+    const { taskId } = ctx.params;
+    try {
+      const result = await orchestrator.abortTask(taskId, { rootDir: ROOT_DIR });
+      ctx.status = 200;
+      ctx.body = result;
+    } catch (err) {
+      if (/task not found/.test(err.message)) {
+        ctx.status = 404;
+        ctx.body = { error: err.message };
+      } else if (err.code === 'NOT_RUNNING') {
+        ctx.status = 409;
+        ctx.body = { error: err.message, code: err.code };
+      } else {
+        ctx.status = 500;
+        ctx.body = { error: err.message || 'cancel failed' };
+      }
+    }
+  });
+
+  router.post('/tasks/:taskId/steps/:stepName/cancel', async (ctx) => {
+    const { taskId, stepName } = ctx.params;
+    try {
+      const result = await orchestrator.abortStep(taskId, stepName, { rootDir: ROOT_DIR });
+      ctx.status = 200;
+      ctx.body = result;
+    } catch (err) {
+      if (/task not found/.test(err.message) || err.code === 'BAD_STEP') {
+        ctx.status = 404;
+        ctx.body = { error: err.message };
+      } else if (err.code === 'STEP_NOT_RUNNING' || err.code === 'STEP_ABORT_IN_PROGRESS') {
+        ctx.status = 409;
+        ctx.body = { error: err.message, code: err.code };
+      } else {
+        ctx.status = 500;
+        ctx.body = { error: err.message || 'cancel step failed' };
+      }
+    }
+  });
+
   router.get('/tasks/:taskId/result', async (ctx) => {
   const { taskId } = ctx.params;
   try {

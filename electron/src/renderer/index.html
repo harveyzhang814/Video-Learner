@@ -1458,6 +1458,7 @@
       <div class="toolbar" id="toolbar">
         <button class="btn" id="openBtn">Open</button>
         <button class="btn" id="deleteBtn">Delete</button>
+        <button class="btn danger" id="cancelBtn" style="display:none">中止</button>
         <button class="btn" id="manageBtn">Manage</button>
       </div>
 
@@ -1767,7 +1768,14 @@
     const manageBtn = document.getElementById('manageBtn');
     const openBtn = document.getElementById('openBtn');
     const deleteBtn = document.getElementById('deleteBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
     const toolbar = document.getElementById('toolbar');
+
+    function syncCancelBtn(taskStatus) {
+      if (cancelBtn) {
+        cancelBtn.style.display = taskStatus === 'running' ? '' : 'none';
+      }
+    }
     const emptyState = document.getElementById('emptyState');
 
     const infoTitle = document.getElementById('infoTitle');
@@ -2293,6 +2301,7 @@
       const task = await client.getTask(taskId);
       taskCache.set(taskId, task);
       applyTaskToInfo(task);
+      syncCancelBtn(task.status);
 
       // 只把已有日志渲染到 DOM，不调用 appendLogLine（避免重复 push 到 st.logs 导致翻倍卡死）
       const st = ensureLogState(taskId);
@@ -2722,6 +2731,7 @@
               const snap = await client.getTask(currentTaskId);
               taskCache.set(currentTaskId, snap);
               applyTaskToInfo(snap);
+              syncCancelBtn(snap.status);
               appendLogLine(currentTaskId, '[stream] resync_required → refreshed task snapshot');
             } catch (e) {
               appendLogLine(currentTaskId, `[stream] resync refresh failed: ${e.message}`);
@@ -2741,6 +2751,7 @@
               const snap = await client.getTask(taskId);
               taskCache.set(taskId, snap);
               applyTaskToInfo(snap);
+              syncCancelBtn(snap.status);
             }
             refreshHistoryDebounced();
           }
@@ -2925,6 +2936,19 @@
       showConfirmDelete();
     });
     console.log('[delete-modal] deleteBtn click listener attached');
+
+    cancelBtn.addEventListener('click', async () => {
+      if (!currentTaskId || !client) return;
+      cancelBtn.disabled = true;
+      try {
+        await client.cancelTask(currentTaskId);
+      } catch (e) {
+        console.error('cancelTask failed', e);
+      } finally {
+        cancelBtn.disabled = false;
+      }
+    });
+
     const confirmDeleteModeTrigger = document.getElementById('confirmDeleteModeTrigger');
     const confirmDeleteModeDropdown = document.getElementById('confirmDeleteModeDropdown');
     const confirmDeleteModeSelect = document.getElementById('confirmDeleteModeSelect');
@@ -2970,6 +2994,7 @@
       }
       currentTaskId = null;
       toolbar.classList.add('hidden');
+      if (cancelBtn) cancelBtn.style.display = 'none';
       articleOutput.innerHTML = '';
       summaryOutput.innerHTML = '';
       emptyState.classList.remove('hidden');
@@ -2993,6 +3018,7 @@
 
     // === init ===
     toolbar.classList.add('hidden');
+    if (cancelBtn) cancelBtn.style.display = 'none';
     articleOutput.innerHTML = '';
     summaryOutput.innerHTML = '';
 

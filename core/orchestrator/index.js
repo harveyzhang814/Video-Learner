@@ -226,7 +226,11 @@ function loadTaskFromDb(taskId, rootDir) {
       summary_done: false
     },
     steps,
-    processInfo: null
+    processInfo: null,
+    _abortFlag: false,
+    _currentProc: null,
+    _abortResolvers: [],
+    _stepAbortResolve: null
   };
   tasks.set(taskId, task);
   updateTaskMetaFromFilesystem(task);
@@ -290,7 +294,11 @@ async function createTask(params) {
     params: { url, focus, mode: normalizedMode, force, output_lang, rootDir },
     meta,
     steps: initSteps(),
-    processInfo: null
+    processInfo: null,
+    _abortFlag: false,
+    _currentProc: null,
+    _abortResolvers: [],
+    _stepAbortResolve: null
   };
 
   tasks.set(taskId, task);
@@ -390,6 +398,12 @@ function spawnEnv() {
   return { ...process.env, PATH };
 }
 
+function tryDeleteFile(filePath) {
+  try {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch (_) {}
+}
+
 /**
  * Low-level helper to run a single step script and collect its exit code/output.
  * opts.onOutput(text) optional - called for each stdout/stderr chunk (e.g. for Electron log stream).
@@ -397,7 +411,8 @@ function spawnEnv() {
 function runStepScript(rootDir, stepName, args, opts = {}) {
   return new Promise((resolve, reject) => {
     const script = path.join(rootDir, 'scripts', STEP_SCRIPTS[stepName]);
-    const proc = spawn('bash', [script, ...args], { cwd: rootDir, env: spawnEnv() });
+    const proc = spawn('bash', [script, ...args], { cwd: rootDir, env: spawnEnv(), detached: true });
+    if (opts.onProc) opts.onProc(proc);
 
     let output = '';
     const onStdoutChunk = (data) => {
@@ -634,13 +649,38 @@ async function runStep(taskId, stepName, options = {}) {
           const match = vtt.match(/\.([^.]+)\./);
           const lang = match && match[1] ? match[1] : 'en';
           const outPath = path.join(dir, 'transcript', `original_${lang}.md`);
-          const result = await runStepScript(rootDir, 'vtt2md', [path.join(subsDir, vtt), outPath], { onOutput: options.onOutput, onStdout, onStderr });
+          const result = await runStepScript(rootDir, 'vtt2md', [path.join(subsDir, vtt), outPath], {
+            onOutput: options.onOutput,
+            onStdout,
+            onStderr,
+            onProc: (proc) => { task._currentProc = proc; }
+          });
+          task._currentProc = null;
+          if (task._abortFlag || task._stepAbortResolve) break;
           if (result.code !== 0) {
             errors.push(`${vtt}: ${result.output || 'failed'}`);
           }
         } catch (e) {
+          task._currentProc = null;
           errors.push(`${vtt}: ${e.message}`);
         }
+      }
+      // Abort check after loop (covers both task-level and step-level abort).
+      if (task._stepAbortResolve) {
+        const resolve = task._stepAbortResolve;
+        task._stepAbortResolve = null;
+        stepState.status = 'pending';
+        task.steps[stepName] = stepState;
+        db.updateStep(id, stepName, 'pending');
+        finishLogs();
+        emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
+        emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'pending' });
+        resolve();
+        return { success: false, error: 'aborted' };
+      }
+      if (task._abortFlag) {
+        finishLogs();
+        return { success: false, error: 'aborted' };
       }
       if (errors.length > 0) {
         stepState.status = 'failed';
@@ -666,14 +706,34 @@ async function runStep(taskId, stepName, options = {}) {
           const result = await runStepScript(rootDir, 'md2vtt', [mdPath, mdPath.replace('.md', '.vtt')], {
             onOutput: options.onOutput,
             onStdout,
-            onStderr
+            onStderr,
+            onProc: (proc) => { task._currentProc = proc; }
           });
+          task._currentProc = null;
+          if (task._abortFlag || task._stepAbortResolve) break;
           if (result.code !== 0) {
             errors.push(`${name}: ${result.output || 'failed'}`);
           }
         } catch (e) {
+          task._currentProc = null;
           errors.push(`${name}: ${e.message}`);
         }
+      }
+      if (task._stepAbortResolve) {
+        const resolve = task._stepAbortResolve;
+        task._stepAbortResolve = null;
+        stepState.status = 'pending';
+        task.steps[stepName] = stepState;
+        db.updateStep(id, stepName, 'pending');
+        finishLogs();
+        emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
+        emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'pending' });
+        resolve();
+        return { success: false, error: 'aborted' };
+      }
+      if (task._abortFlag) {
+        finishLogs();
+        return { success: false, error: 'aborted' };
       }
       if (errors.length > 0) {
         stepState.status = 'failed';
@@ -756,7 +816,33 @@ async function runStep(taskId, stepName, options = {}) {
       };
     }
 
-    const result = await runStepScript(rootDir, stepName, args, { onOutput, onStdout, onStderr });
+    const result = await runStepScript(rootDir, stepName, args, {
+      onOutput,
+      onStdout,
+      onStderr,
+      onProc: (proc) => { task._currentProc = proc; }
+    });
+    task._currentProc = null;
+    // Step-level abort: runStep resets step to pending and notifies abortStep.
+    if (task._stepAbortResolve) {
+      const resolve = task._stepAbortResolve;
+      task._stepAbortResolve = null;
+      if (stepName === 'article') tryDeleteFile(path.join(dir, 'writing', 'article.md'));
+      if (stepName === 'summary') tryDeleteFile(path.join(dir, 'writing', 'summary.md'));
+      stepState.status = 'pending';
+      task.steps[stepName] = stepState;
+      db.updateStep(id, stepName, 'pending');
+      finishLogs();
+      emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
+      emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'pending' });
+      resolve();
+      return { success: false, error: 'aborted' };
+    }
+    // Task-level abort: runTask's finally block handles state cleanup.
+    if (task._abortFlag) {
+      finishLogs();
+      return { success: false, error: 'aborted' };
+    }
     if (result.code === 0) {
       stepState.status = 'completed';
       stepState.error = null;
@@ -881,6 +967,8 @@ async function runTask(taskId, options = {}) {
       const next = pickNextStep(ready, mode, task.steps);
       if (!next) break;
 
+      if (task._abortFlag) break;
+
       const stepOptions = { ...options };
       if (next === 'video' || next === 'audio') {
         stepOptions.force = task.params.force;
@@ -897,89 +985,119 @@ async function runTask(taskId, options = {}) {
       await runStep(taskId, next, stepOptions);
     }
 
-    updateTaskMetaFromFilesystem(task);
+    if (!task._abortFlag) {
+      updateTaskMetaFromFilesystem(task);
 
-    // Mark overall task status using DAG reachability.
-    task.status = isTaskFailed(task) ? 'failed' : (isTaskCompleted(task) ? 'completed' : task.status);
-    task.updated_at = new Date().toISOString();
-    emitOrchestratorEvent('task.updated', taskId, { status: task.status });
+      // Mark overall task status using DAG reachability.
+      task.status = isTaskFailed(task) ? 'failed' : (isTaskCompleted(task) ? 'completed' : task.status);
+      task.updated_at = new Date().toISOString();
+      emitOrchestratorEvent('task.updated', taskId, { status: task.status });
+    }
   } finally {
     // Decrement active counter exactly once per runTask invocation.
     activeRunTasks = Math.max(0, activeRunTasks - 1);
 
-    try {
-      // Re-check outputs and reconcile step/meta state one last time.
-      updateTaskMetaFromFilesystem(task);
-
-      const rootDir = task.params && task.params.rootDir;
-      const id = task.meta && task.meta.id;
-      if (rootDir && id) {
-        const db = ensureDb(rootDir);
-        const steps = task.steps || initSteps();
-
-        const baseDir = getWorkDir(rootDir, id);
-        const transcriptDir = path.join(baseDir, 'transcript');
-        const writingDir = path.join(baseDir, 'writing');
-        const hasTranscript = fs.existsSync(path.join(transcriptDir, 'original_en.md')) || fs.existsSync(path.join(transcriptDir, 'original_zh.md'));
-        const hasArticle = fs.existsSync(path.join(writingDir, 'article.md'));
-        const hasSummary = fs.existsSync(path.join(writingDir, 'summary.md'));
-
-        // Only reconcile statuses if they look inconsistent with filesystem outputs.
-        if (hasTranscript && (steps.vtt2md?.status === 'failed' || steps.vtt2md?.status === 'pending')) {
-          steps.vtt2md = { ...(steps.vtt2md || {}), status: 'completed', error: null };
-          db.updateStep(id, 'vtt2md', 'completed');
-        }
-        if (hasArticle && (steps.article?.status === 'failed' || steps.article?.status === 'pending')) {
-          steps.article = { ...(steps.article || {}), status: 'completed', error: null };
-          db.updateStep(id, 'article', 'completed');
-        }
-        if (hasSummary && (steps.summary?.status === 'failed' || steps.summary?.status === 'pending')) {
-          steps.summary = { ...(steps.summary || {}), status: 'completed', error: null };
-          db.updateStep(id, 'summary', 'completed');
-        }
-
-        // If outputs are missing but step says completed, mark failed (keep error light).
-        if (!hasArticle && steps.article?.status === 'completed') {
-          steps.article = { ...(steps.article || {}), status: 'failed', error: 'article.md missing after step completed' };
-          db.updateStep(id, 'article', 'failed', steps.article.error);
-        }
-        if (!hasSummary && steps.summary?.status === 'completed') {
-          steps.summary = { ...(steps.summary || {}), status: 'failed', error: 'summary.md missing after step completed' };
-          db.updateStep(id, 'summary', 'failed', steps.summary.error);
-        }
-
-        task.steps = steps;
-
-        // Re-evaluate overall task status after filesystem reconciliation.
-        const reconStatus = isTaskFailed(task) ? 'failed' : (isTaskCompleted(task) ? 'completed' : task.status);
-        if (task.status !== reconStatus) {
-          task.status = reconStatus;
-          task.updated_at = new Date().toISOString();
-          emitOrchestratorEvent('task.updated', taskId, { status: task.status });
-        }
-
-        emitOrchestratorEvent('task.finalized', taskId, {
-          outputs: { transcript: hasTranscript, article: hasArticle, summary: hasSummary }
-        });
-
-        // Stop opencode server for this repo when no other runTask is active.
-        // (Future-proof for concurrency: only last task triggers stop.)
-        if (activeRunTasks === 0) {
-          try {
-            const script = path.join(rootDir, 'scripts', 'opencode_server.sh');
-            // Run stop as a standalone bash command (not a step).
-            await new Promise((resolve) => {
-              const proc = spawn('bash', [script, 'stop-if-started'], { cwd: rootDir, env: spawnEnv() });
-              proc.on('close', () => resolve());
-              proc.on('error', () => resolve());
-            });
-          } catch (_) {
-            // ignore
+    if (task._abortFlag) {
+      try {
+        const _rootDir = task.params && task.params.rootDir;
+        const _id = task.meta && task.meta.id;
+        if (_rootDir && _id) {
+          const db = ensureDb(_rootDir);
+          const workDir = getWorkDir(_rootDir, _id);
+          for (const stepName of STEPS) {
+            const s = task.steps && task.steps[stepName];
+            if (s && s.status === 'running') {
+              if (stepName === 'article') tryDeleteFile(path.join(workDir, 'writing', 'article.md'));
+              if (stepName === 'summary') tryDeleteFile(path.join(workDir, 'writing', 'summary.md'));
+              task.steps[stepName] = { status: 'pending', attempts: s.attempts, error: null };
+              db.updateStep(_id, stepName, 'pending');
+            }
           }
         }
+        task.status = 'pending';
+        task.updated_at = new Date().toISOString();
+        emitOrchestratorEvent('task.updated', taskId, { status: 'pending' });
+      } catch (_) {}
+      task._abortFlag = false;
+      task._currentProc = null;
+      task._stepAbortResolve = null;
+      const resolvers = task._abortResolvers.splice(0);
+      resolvers.forEach((r) => r());
+    } else {
+      try {
+        // Re-check outputs and reconcile step/meta state one last time.
+        updateTaskMetaFromFilesystem(task);
+
+        const rootDir = task.params && task.params.rootDir;
+        const id = task.meta && task.meta.id;
+        if (rootDir && id) {
+          const db = ensureDb(rootDir);
+          const steps = task.steps || initSteps();
+
+          const baseDir = getWorkDir(rootDir, id);
+          const transcriptDir = path.join(baseDir, 'transcript');
+          const writingDir = path.join(baseDir, 'writing');
+          const hasTranscript = fs.existsSync(path.join(transcriptDir, 'original_en.md')) || fs.existsSync(path.join(transcriptDir, 'original_zh.md'));
+          const hasArticle = fs.existsSync(path.join(writingDir, 'article.md'));
+          const hasSummary = fs.existsSync(path.join(writingDir, 'summary.md'));
+
+          // Only reconcile statuses if they look inconsistent with filesystem outputs.
+          if (hasTranscript && (steps.vtt2md?.status === 'failed' || steps.vtt2md?.status === 'pending')) {
+            steps.vtt2md = { ...(steps.vtt2md || {}), status: 'completed', error: null };
+            db.updateStep(id, 'vtt2md', 'completed');
+          }
+          if (hasArticle && (steps.article?.status === 'failed' || steps.article?.status === 'pending')) {
+            steps.article = { ...(steps.article || {}), status: 'completed', error: null };
+            db.updateStep(id, 'article', 'completed');
+          }
+          if (hasSummary && (steps.summary?.status === 'failed' || steps.summary?.status === 'pending')) {
+            steps.summary = { ...(steps.summary || {}), status: 'completed', error: null };
+            db.updateStep(id, 'summary', 'completed');
+          }
+
+          // If outputs are missing but step says completed, mark failed (keep error light).
+          if (!hasArticle && steps.article?.status === 'completed') {
+            steps.article = { ...(steps.article || {}), status: 'failed', error: 'article.md missing after step completed' };
+            db.updateStep(id, 'article', 'failed', steps.article.error);
+          }
+          if (!hasSummary && steps.summary?.status === 'completed') {
+            steps.summary = { ...(steps.summary || {}), status: 'failed', error: 'summary.md missing after step completed' };
+            db.updateStep(id, 'summary', 'failed', steps.summary.error);
+          }
+
+          task.steps = steps;
+
+          // Re-evaluate overall task status after filesystem reconciliation.
+          const reconStatus = isTaskFailed(task) ? 'failed' : (isTaskCompleted(task) ? 'completed' : task.status);
+          if (task.status !== reconStatus) {
+            task.status = reconStatus;
+            task.updated_at = new Date().toISOString();
+            emitOrchestratorEvent('task.updated', taskId, { status: task.status });
+          }
+
+          emitOrchestratorEvent('task.finalized', taskId, {
+            outputs: { transcript: hasTranscript, article: hasArticle, summary: hasSummary }
+          });
+
+          // Stop opencode server for this repo when no other runTask is active.
+          // (Future-proof for concurrency: only last task triggers stop.)
+          if (activeRunTasks === 0) {
+            try {
+              const script = path.join(rootDir, 'scripts', 'opencode_server.sh');
+              // Run stop as a standalone bash command (not a step).
+              await new Promise((resolve) => {
+                const proc = spawn('bash', [script, 'stop-if-started'], { cwd: rootDir, env: spawnEnv() });
+                proc.on('close', () => resolve());
+                proc.on('error', () => resolve());
+              });
+            } catch (_) {
+              // ignore
+            }
+          }
+        }
+      } catch (_) {
+        // ignore finalize errors
       }
-    } catch (_) {
-      // ignore finalize errors
     }
   }
 }
@@ -1116,6 +1234,69 @@ function deleteTask(taskId, options = {}) {
   }
 }
 
+async function abortTask(taskId, options = {}) {
+  const task = ensureTask(taskId, options);
+  if (task.status !== 'running') {
+    const e = new Error('task is not running');
+    e.code = 'NOT_RUNNING';
+    throw e;
+  }
+
+  const waitDone = new Promise((resolve) => task._abortResolvers.push(resolve));
+
+  task._abortFlag = true;
+
+  const proc = task._currentProc;
+  if (proc && proc.pid) {
+    const sigkillTimer = setTimeout(() => {
+      try { process.kill(-proc.pid, 'SIGKILL'); } catch (_) {}
+    }, 5000);
+    waitDone.then(() => clearTimeout(sigkillTimer));
+    try { process.kill(-proc.pid, 'SIGTERM'); } catch (_) {}
+  } else {
+    // No proc running (between steps): DAG loop will see _abortFlag and break,
+    // then the finally block calls resolvers. Nothing extra needed here.
+  }
+
+  await waitDone;
+  return { task_id: taskId, status: 'pending' };
+}
+
+async function abortStep(taskId, stepName, options = {}) {
+  const task = ensureTask(taskId, options);
+  if (!STEPS.includes(stepName)) {
+    const e = new Error(`unknown step: ${stepName}`);
+    e.code = 'BAD_STEP';
+    throw e;
+  }
+  const s = task.steps && task.steps[stepName];
+  if (!s || s.status !== 'running') {
+    const e = new Error('step is not running');
+    e.code = 'STEP_NOT_RUNNING';
+    throw e;
+  }
+
+  if (task._stepAbortResolve) {
+    const e = new Error('step abort already in progress');
+    e.code = 'STEP_ABORT_IN_PROGRESS';
+    throw e;
+  }
+
+  const waitDone = new Promise((resolve) => { task._stepAbortResolve = resolve; });
+
+  const proc = task._currentProc;
+  if (proc && proc.pid) {
+    const sigkillTimer = setTimeout(() => {
+      try { process.kill(-proc.pid, 'SIGKILL'); } catch (_) {}
+    }, 5000);
+    waitDone.then(() => clearTimeout(sigkillTimer));
+    try { process.kill(-proc.pid, 'SIGTERM'); } catch (_) {}
+  }
+
+  await waitDone;
+  return { task_id: taskId, step: stepName, status: 'pending' };
+}
+
 /** For tests: drop task from memory to simulate process restart and test restore from DB */
 function _dropTaskFromMemory(taskId) {
   tasks.delete(taskId);
@@ -1126,6 +1307,8 @@ module.exports = {
   listTasks,
   runTask,
   runStep,
+  abortTask,
+  abortStep,
   applyResetScope,
   skipStep,
   deleteTask,
