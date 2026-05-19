@@ -343,7 +343,87 @@ async function run() {
     }
   }
 
-  console.log('[resume-test] All 9 tests passed');
+  // ── Test 10: HTTP POST /resume on aborted task → 202 ─────────────────────
+  {
+    const rootDir = makeTempDir();   // fetch sleeps 30
+    const token = 'test-token-resume-10';
+    const { server, base } = await startServer(rootDir, token);
+    let task_id = null;
+    try {
+      ({ task_id } = await orchestrator.createTask({
+        url: 'https://www.youtube.com/watch?v=resume10',
+        mode: 'transcript', force: 1, rootDir
+      }));
+      orchestrator.runTask(task_id, { rootDir }).catch(() => {});
+      await pollUntil(async () => {
+        const t = await orchestrator.getTask(task_id, { rootDir });
+        return t.status === 'running' ? t : null;
+      });
+      await orchestrator.abortTask(task_id, { rootDir });
+
+      const res = await fetch(`${base}/api/tasks/${task_id}/resume`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      assert.equal(res.status, 202, `expected 202, got ${res.status}`);
+      const body = await res.json();
+      assert.equal(body.status, 'running', `expected status=running, got ${body.status}`);
+      assert.equal(body.task_id, task_id, `expected task_id=${task_id}, got ${body.task_id}`);
+
+      console.log('[resume-test] Test 10 passed: HTTP POST /resume on aborted task → 202');
+    } finally {
+      if (task_id) await safeAbort(task_id, rootDir);
+      await new Promise((resolve) => server.close(resolve));
+      fs.rmSync(rootDir, { recursive: true });
+    }
+  }
+
+  // ── Test 11: HTTP POST /resume on non-aborted task → 409 ─────────────────
+  {
+    const rootDir = makeTempDir();
+    const token = 'test-token-resume-11';
+    const { server, base } = await startServer(rootDir, token);
+    try {
+      const { task_id } = await orchestrator.createTask({
+        url: 'https://www.youtube.com/watch?v=resume11',
+        mode: 'transcript', rootDir
+      });
+
+      const res = await fetch(`${base}/api/tasks/${task_id}/resume`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      assert.equal(res.status, 409, `expected 409, got ${res.status}`);
+      const body = await res.json();
+      assert.equal(body.code, 'NOT_ABORTED', `expected code=NOT_ABORTED, got ${body.code}`);
+
+      console.log('[resume-test] Test 11 passed: HTTP POST /resume on pending task → 409 NOT_ABORTED');
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+      fs.rmSync(rootDir, { recursive: true });
+    }
+  }
+
+  // ── Test 12: HTTP POST /resume on unknown task → 404 ─────────────────────
+  {
+    const rootDir = makeTempDir();
+    const token = 'test-token-resume-12';
+    const { server, base } = await startServer(rootDir, token);
+    try {
+      const res = await fetch(`${base}/api/tasks/nonexistent-task-id/resume`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      assert.equal(res.status, 404, `expected 404, got ${res.status}`);
+
+      console.log('[resume-test] Test 12 passed: HTTP POST /resume on unknown task → 404');
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+      fs.rmSync(rootDir, { recursive: true });
+    }
+  }
+
+  console.log('[resume-test] All 12 tests passed');
   process.exit(0);
 }
 
