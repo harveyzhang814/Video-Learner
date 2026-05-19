@@ -198,15 +198,48 @@ sequenceDiagram
 
 主要表结构（简化）：
 
-- `tasks`：任务级信息（url / title / duration / created_at / focus / output_lang / mode 等）。
+- `tasks`：任务级信息（url / title / duration / created_at / focus / output_lang / mode / **status** 等）。
 - `steps`：按 step 维度记录 `status`（pending/running/completed/failed）、`attempts`、`error` 等。
 - `downloads`：视频下载详情（文件大小、格式、错误信息等）。
 
-### 5.3 WebSocket 通信
+### 5.3 任务状态机
+
+```
+pending ──[run]──> running ──[complete]──> completed
+                     │
+                     ├──[abort]──> aborted ──[resume]──> running
+                     │
+                     └──[fail]──> failed
+```
+
+| 状态 | 含义 | 进入条件 |
+|------|------|----------|
+| `pending` | 等待执行（从未启动） | `createTask` 初始状态 |
+| `running` | 流水线执行中 | `runTask` / `resumeTask` 触发 |
+| `completed` | 全部步骤完成 | DAG 无可调度步骤、无失败 |
+| `failed` | 有步骤失败终止 | 某步骤达到最大重试次数 |
+| `aborted` | 用户主动中止 | `abortTask` 调用，持久化到 `tasks.status` |
+
+`aborted` 与 `pending` 语义不同：前者代表"曾启动、被主动中止"，可通过 `resumeTask` 从中断处继续；后者代表"从未启动"。`failed` 不支持 resume，需手动通过 `reset_scope` 重置步骤。
+
+**Resume 行为**：`resumeTask` 直接调用现有 `runTask()`。`computeReadySteps()` 天然跳过 `completed`/`skipped` 步骤，从所有前驱已完成的 `pending` 步骤继续执行，无需额外逻辑。
+
+**操作守卫矩阵（aborted 任务）：**
+
+| 操作 | 是否允许 | 错误码 |
+|------|----------|--------|
+| `resumeTask` | ✓ | — |
+| `abortTask` | ✗ | `NOT_RUNNING` |
+| `abortStep` | ✗ | `STEP_NOT_RUNNING` |
+| `reset_scope` via HTTP | ✓（aborted 非 running，守卫通过） | — |
+
+进程重启后：`loadTaskFromDb` 优先读 `tasks.status` 列中的 `'aborted'` 值（而非从步骤状态重新计算），保证 aborted 状态在重启后持久存在，等待用户手动点击继续。
+
+### 5.4 WebSocket 通信
 
 `electron/src/websocket-server.js` 将 orchestrator 的事件通过 WebSocket 推送给前端；前端订阅这些事件，实现进度条、日志流、状态标签等 UI。
 
-### 5.4 前端（renderer/index.html）视角
+### 5.5 前端（renderer/index.html）视角
 
 典型布局（三栏 + 中间列四段式）：
 
@@ -216,7 +249,7 @@ sequenceDiagram
 
 前端通过 HTTP API 调用 `GET /api/tasks/:taskId/media`、`GET /api/tasks/:taskId/subtitles`、`GET /api/tasks/:taskId/result/content?type=article|summary`；任务状态通过 **SSE**（`/api/events?token=...`）实时刷新。
 
-### 5.5 下载失败排查
+### 5.6 下载失败排查
 
 | 类型 | 典型表现 | 处理建议 |
 |------|----------|----------|

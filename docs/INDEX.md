@@ -50,4 +50,9 @@
 
 ## archive/ — 历史归档
 
-`archive/` — 所有已完成的历史设计与实现计划（2026-03-05 ~ 2026-04-13），仅供回溯参考，不再更新。
+`archive/` — 所有已完成的历史设计与实现计划（2026-03-05 ~ 2026-05-19），仅供回溯参考，不再更新。新增归档（2026-05-19）：
+
+| 文件 | 内容 |
+|------|------|
+| [archive/2026-05-19-task-resume-design.md](archive/2026-05-19-task-resume-design.md) | Task Resume 功能设计规格（brainstorming 产出） |
+| [archive/2026-05-19-task-resume-plan.md](archive/2026-05-19-task-resume-plan.md) | Task Resume 功能实施计划（subagent-driven-development 执行模板） |
