@@ -1300,6 +1300,18 @@ async function abortStep(taskId, stepName, options = {}) {
   return { task_id: taskId, step: stepName, status: 'pending' };
 }
 
+async function resumeTask(taskId, options = {}) {
+  const task = ensureTask(taskId, options);
+  if (task.status !== 'aborted') {
+    const e = new Error('task is not aborted');
+    e.code = 'NOT_ABORTED';
+    throw e;
+  }
+  // runTask sets status='running' synchronously before any async ops; no race condition
+  runTask(taskId).catch((err) => console.error(`[resume] ${err.message}`));
+  return { task_id: taskId, status: 'running' };
+}
+
 /** For tests: drop task from memory to simulate process restart and test restore from DB */
 function _dropTaskFromMemory(taskId) {
   tasks.delete(taskId);
@@ -1312,6 +1324,7 @@ module.exports = {
   runStep,
   abortTask,
   abortStep,
+  resumeTask,
   applyResetScope,
   skipStep,
   deleteTask,
