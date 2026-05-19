@@ -19,6 +19,7 @@
     "test:reset-scope": "node tests/apply-reset-scope.test.js && node tests/reset-scope-http.test.js && node tests/reset-scope-all-steps-http.test.js && node tests/service-client-reset-scope-all-steps.test.js",
     "test:orchestrator:unit": "node tests/step-artifacts.test.js && node tests/orchestrator-progress-logging.test.js && npm run test:schedule && npm run test:reset-scope",
     "test:agent:core": "npm run test:orchestrator:unit && npm run test:runstep-a-layer && npm run test:agent && npm run test:agent:sqlite",
+    "test:abort": "node tests/task-abort.test.js",
     "test:sse": "node tests/sse-e2e.test.js",
     "test:gui:main": "node tests/main-process.test.js",
     "test:gui:preload": "node tests/preload.test.js",
