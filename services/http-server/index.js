@@ -279,7 +279,7 @@ function createApp(options = {}) {
       if (/task not found/.test(err.message) || err.code === 'BAD_STEP') {
         ctx.status = 404;
         ctx.body = { error: err.message };
-      } else if (err.code === 'STEP_NOT_RUNNING') {
+      } else if (err.code === 'STEP_NOT_RUNNING' || err.code === 'STEP_ABORT_IN_PROGRESS') {
         ctx.status = 409;
         ctx.body = { error: err.message, code: err.code };
       } else {
