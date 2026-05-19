@@ -9,6 +9,7 @@
 | [reference/architecture.md](reference/architecture.md) | 系统架构、目录结构、调用链、Pipeline 阶段、设计决策、维护注意事项 |
 | [reference/api.md](reference/api.md) | HTTP API 路由、reset_scope 语义、任务参数、测试约定 |
 | [reference/design-system.md](reference/design-system.md) | 前端设计系统（Swiss Minimal 风格、CSS Token、组件约定） |
+| [reference/cli.md](reference/cli.md) | `vdl` CLI 完整参考：子命令、选项、服务生命周期、Token 管理、进度格式、退出码 |
 
 ## how-to/ — 操作指南
 
@@ -26,6 +27,7 @@
 | 文件 | 用途 |
 |------|------|
 | [explanation/git-workflow.md](explanation/git-workflow.md) | GitFlow 分支策略与合并规范（为什么 no-ff，为什么 staging 作为中间层） |
+| [explanation/asr-and-dag.md](explanation/asr-and-dag.md) | ASR 回退机制与 DAG 可达性调度原理（两条路径到 vtt2md、OR 门语义、任务失败判定） |
 
 ## adr/ — Architecture Decision Records
 
@@ -33,8 +35,10 @@
 
 | 文件 | 内容 |
 |------|------|
-| [adr/2026-04-13-mode-redesign.md](adr/2026-04-13-mode-redesign.md) | Task mode 系统重设计（media/audio/transcript/full 替代旧 both/video/audio/transcript） |
 | [adr/2026-03-15-electron-modal-stacking.md](adr/2026-03-15-electron-modal-stacking.md) | Electron 全局弹窗层叠稳定性方案（appendChild + no inline onclick） |
+| [adr/2026-04-13-mode-redesign.md](adr/2026-04-13-mode-redesign.md) | Task mode 系统重设计（media/audio/transcript/full 替代旧 both/video/audio/transcript） |
+| [adr/2026-04-17-asr-fallback.md](adr/2026-04-17-asr-fallback.md) | ASR 回退集成（OR 门、动态排除条件、媒体源优先级、subs 语义不变） |
+| [adr/2026-04-18-dag-reachability.md](adr/2026-04-18-dag-reachability.md) | DAG 可达性算法（替代硬编码失败检测、GATE_TYPE/TERMINAL_NODE、md2vtt 静默 bug 修复） |
 | [adr/2026-05-19-task-abort.md](adr/2026-05-19-task-abort.md) | 任务中止机制（进程组 kill、运行时 abort flag、任务级/步骤级粒度、同步响应） |
 
 ## rfcs/ — 提案（未实现）
