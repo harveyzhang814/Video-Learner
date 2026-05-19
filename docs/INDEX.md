@@ -35,36 +35,13 @@
 |------|------|
 | [adr/2026-04-13-mode-redesign.md](adr/2026-04-13-mode-redesign.md) | Task mode 系统重设计（media/audio/transcript/full 替代旧 both/video/audio/transcript） |
 | [adr/2026-03-15-electron-modal-stacking.md](adr/2026-03-15-electron-modal-stacking.md) | Electron 全局弹窗层叠稳定性方案（appendChild + no inline onclick） |
+| [adr/2026-05-19-task-abort.md](adr/2026-05-19-task-abort.md) | 任务中止机制（进程组 kill、运行时 abort flag、任务级/步骤级粒度、同步响应） |
 
 ## rfcs/ — 提案（未实现）
 
 | 文件 | 内容 |
 |------|------|
 | [rfcs/2026-03-17-writing-engine-model-config.md](rfcs/2026-03-17-writing-engine-model-config.md) | OpenCode 模型可配置化设计（`WRITING_OPENCODE_MODEL_DEFAULT` 等，暂未实现） |
-
-## superpowers/ — 设计规格 & 实现计划
-
-由 superpowers 工作流产出的设计文档和实现计划，按日期命名，完成后不再更新。
-
-### superpowers/specs/ — 设计规格
-
-| 文件 | 内容 |
-|------|------|
-| [superpowers/specs/2026-04-16-whisper-asr-experiment-design.md](superpowers/specs/2026-04-16-whisper-asr-experiment-design.md) | Whisper ASR 实验设计（本地转录方案探索） |
-| [superpowers/specs/2026-04-17-asr-fallback-integration-design.md](superpowers/specs/2026-04-17-asr-fallback-integration-design.md) | ASR 回退集成设计（subs 失败时自动触发 ASR） |
-| [superpowers/specs/2026-04-18-dag-reachability-design.md](superpowers/specs/2026-04-18-dag-reachability-design.md) | DAG 可达性分析设计（基于图可达判断任务完成/失败） |
-| [superpowers/specs/2026-05-18-cli-vdl-design.md](superpowers/specs/2026-05-18-cli-vdl-design.md) | `vdl` CLI 设计规格（子命令、参数、与 HTTP Service 交互协议） |
-| [superpowers/specs/2026-05-19-task-abort-design.md](superpowers/specs/2026-05-19-task-abort-design.md) | 任务中止机制设计（进程组 kill、abort flag、步骤级/任务级中止、文件清理） |
-
-### superpowers/plans/ — 实现计划
-
-| 文件 | 内容 |
-|------|------|
-| [superpowers/plans/2026-04-16-whisper-asr-experiment.md](superpowers/plans/2026-04-16-whisper-asr-experiment.md) | Whisper ASR 实验实现计划 |
-| [superpowers/plans/2026-04-17-asr-fallback-integration.md](superpowers/plans/2026-04-17-asr-fallback-integration.md) | ASR 回退集成实现计划 |
-| [superpowers/plans/2026-04-18-dag-reachability.md](superpowers/plans/2026-04-18-dag-reachability.md) | DAG 可达性分析实现计划 |
-| [superpowers/plans/2026-05-18-cli-vdl.md](superpowers/plans/2026-05-18-cli-vdl.md) | `vdl` CLI 实现计划 |
-| [superpowers/plans/2026-05-19-task-abort.md](superpowers/plans/2026-05-19-task-abort.md) | 任务中止机制实现计划（9 个任务，含 orchestrator、HTTP、Electron GUI、测试） |
 
 ## archive/ — 历史归档
 

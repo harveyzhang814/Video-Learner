@@ -23,6 +23,8 @@
 | GET | `/api/tasks/:taskId/subtitles` | 一次性返回 `{ tracks: [{ id, lang, label, vtt }] }`（md2vtt 产出的 VTT 全文），供 GUI 解析并展示多轨字幕。 |
 | GET | `/api/tasks/:taskId/steps` | 获取该任务所有步骤的状态列表。 |
 | POST | `/api/tasks/:taskId/steps/:stepName/run` | 执行指定步骤。body 可选：`focus`、`force`；**`reset_scope`**（已实现）：`off`（默认）\| `step` \| `downstream`。 |
+| POST | `/api/tasks/:taskId/cancel` | 中止运行中的任务（同步等待进程退出）。任务重置为 `pending` 可直接重跑。任务非运行中 **409**（`code: NOT_RUNNING`）。 |
+| POST | `/api/tasks/:taskId/steps/:stepName/cancel` | 中止运行中的指定步骤（同步等待进程退出）。步骤重置为 `pending`，任务继续调度后续步骤。步骤非运行中 **409**（`code: STEP_NOT_RUNNING`）。 |
 | GET | `/api/events` | SSE 流（query: token），推送任务/步骤/日志事件，供 GUI 实时刷新。 |
 | GET | `/api/tasks/:taskId/paths` | 返回该任务的路径信息（base/media/transcript/writing），供 Electron 等客户端打开本地输出目录。 |
 | GET | `/healthz` | 健康检查，返回 200 OK。 |
@@ -68,6 +70,43 @@
   - `tests/reset-scope-all-steps-http.test.js`：对 `ALL_STEPS` × `mode` ∈ {`transcript`,`media`,`audio`,`full`} 分别请求 `reset_scope: downstream` 与 `reset_scope: step`。
   - `tests/service-client-reset-scope-all-steps.test.js`：同一矩阵通过 `electron/src/renderer/service-client.js` 调用。
 - **`downstream`** 在测试中不跑真实整条线：`createApp({ runTaskForDownstream: async () => {} })` 注入空实现。
+
+## 任务与步骤取消
+
+### `POST /api/tasks/:taskId/cancel`
+
+同步中止运行中任务。等待进程退出后响应。
+
+| 状态码 | 含义 |
+|--------|------|
+| 200 | 中止成功，body: `{ task_id, status: "pending" }` |
+| 404 | 任务不存在 |
+| 409 | 任务未在运行，body: `{ error, code: "NOT_RUNNING" }` |
+
+中止完成后：当前运行步骤重置为 `pending`，任务状态重置为 `pending`；`article.md` / `summary.md` 等不完整产物会被删除（视频/音频部分文件保留，支持续传）。
+
+### `POST /api/tasks/:taskId/steps/:stepName/cancel`
+
+同步中止运行中的指定步骤。等待进程退出后响应。步骤重置为 `pending`，任务 DAG 继续调度（可立即重跑该步或后续步骤）。
+
+| 状态码 | 含义 |
+|--------|------|
+| 200 | 中止成功，body: `{ task_id, step, status: "pending" }` |
+| 404 | 任务或步骤不存在 |
+| 409 | 步骤未在运行，body: `{ error, code: "STEP_NOT_RUNNING" \| "STEP_ABORT_IN_PROGRESS" }` |
+
+### SSE 事件（取消场景）
+
+取消不产生新事件类型，复用现有类型：
+
+| 场景 | 事件类型 | 关键字段 |
+|------|----------|---------|
+| 任务取消完成 | `task.updated` | `{ status: "pending" }` |
+| 步骤取消完成 | `step.finished` | `{ stepName, status: "pending", aborted: true }` |
+
+### 取消测试
+
+`npm run test:abort`（`tests/task-abort.test.js`），覆盖：任务级中止、步骤级中止、非运行中 409、不存在 404、`article.md` 文件清理。
 
 ## 端到端测试（HTTP 慢路径）
 
