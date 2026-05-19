@@ -38,7 +38,8 @@ function reduceTaskState(state, event) {
 
   if (type === 'step.finished' || type === 'step.failed') {
     const stepName = payload.stepName || payload.name;
-    const status = type === 'step.failed' ? 'failed' : 'completed';
+    const status = type === 'step.failed' ? 'failed'
+      : (payload.aborted ? 'pending' : 'completed');
     if (taskId && stepName) {
       next.tasks = next.tasks || {};
       const task = next.tasks[taskId] || { taskId, steps: {}, logs: [] };

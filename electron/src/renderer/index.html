@@ -185,6 +185,7 @@
     .history-item .status-dot.completed { background: #22C55E; }
     .history-item .status-dot.failed { background: #EF4444; }
     .history-item .status-dot.unknown { background: #999999; }
+    .history-item .status-dot.aborted { background: #F97316; }
 
 
     /* Input Section */
@@ -1458,7 +1459,8 @@
       <div class="toolbar" id="toolbar">
         <button class="btn" id="openBtn">Open</button>
         <button class="btn" id="deleteBtn">Delete</button>
-        <button class="btn danger" id="cancelBtn" style="display:none">中止</button>
+        <button class="btn danger"  id="cancelBtn"  style="display:none">中止</button>
+        <button class="btn primary" id="resumeBtn"  style="display:none">继续</button>
         <button class="btn" id="manageBtn">Manage</button>
       </div>
 
@@ -1769,12 +1771,12 @@
     const openBtn = document.getElementById('openBtn');
     const deleteBtn = document.getElementById('deleteBtn');
     const cancelBtn = document.getElementById('cancelBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
     const toolbar = document.getElementById('toolbar');
 
-    function syncCancelBtn(taskStatus) {
-      if (cancelBtn) {
-        cancelBtn.style.display = taskStatus === 'running' ? '' : 'none';
-      }
+    function syncActionButtons(taskStatus) {
+      if (cancelBtn) cancelBtn.style.display = taskStatus === 'running' ? '' : 'none';
+      if (resumeBtn) resumeBtn.style.display = taskStatus === 'aborted' ? '' : 'none';
     }
     const emptyState = document.getElementById('emptyState');
 
@@ -2301,7 +2303,7 @@
       const task = await client.getTask(taskId);
       taskCache.set(taskId, task);
       applyTaskToInfo(task);
-      syncCancelBtn(task.status);
+      syncActionButtons(task.status);
 
       // 只把已有日志渲染到 DOM，不调用 appendLogLine（避免重复 push 到 st.logs 导致翻倍卡死）
       const st = ensureLogState(taskId);
@@ -2731,7 +2733,7 @@
               const snap = await client.getTask(currentTaskId);
               taskCache.set(currentTaskId, snap);
               applyTaskToInfo(snap);
-              syncCancelBtn(snap.status);
+              syncActionButtons(snap.status);
               appendLogLine(currentTaskId, '[stream] resync_required → refreshed task snapshot');
             } catch (e) {
               appendLogLine(currentTaskId, `[stream] resync refresh failed: ${e.message}`);
@@ -2751,7 +2753,7 @@
               const snap = await client.getTask(taskId);
               taskCache.set(taskId, snap);
               applyTaskToInfo(snap);
-              syncCancelBtn(snap.status);
+              syncActionButtons(snap.status);
             }
             refreshHistoryDebounced();
           }
@@ -2949,6 +2951,19 @@
       }
     });
 
+    resumeBtn.addEventListener('click', async () => {
+      if (!currentTaskId) return;
+      resumeBtn.disabled = true;
+      try {
+        await client.resumeTask(currentTaskId);
+      } catch (e) {
+        console.error('resume failed:', e);
+        alert(e.message || '继续失败');
+      } finally {
+        resumeBtn.disabled = false;
+      }
+    });
+
     const confirmDeleteModeTrigger = document.getElementById('confirmDeleteModeTrigger');
     const confirmDeleteModeDropdown = document.getElementById('confirmDeleteModeDropdown');
     const confirmDeleteModeSelect = document.getElementById('confirmDeleteModeSelect');
@@ -2995,6 +3010,7 @@
       currentTaskId = null;
       toolbar.classList.add('hidden');
       if (cancelBtn) cancelBtn.style.display = 'none';
+      if (resumeBtn) resumeBtn.style.display = 'none';
       articleOutput.innerHTML = '';
       summaryOutput.innerHTML = '';
       emptyState.classList.remove('hidden');
@@ -3019,6 +3035,7 @@
     // === init ===
     toolbar.classList.add('hidden');
     if (cancelBtn) cancelBtn.style.display = 'none';
+    if (resumeBtn) resumeBtn.style.display = 'none';
     articleOutput.innerHTML = '';
     summaryOutput.innerHTML = '';
 

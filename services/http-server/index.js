@@ -269,6 +269,26 @@ function createApp(options = {}) {
     }
   });
 
+  router.post('/tasks/:taskId/resume', async (ctx) => {
+    const { taskId } = ctx.params;
+    try {
+      const result = await orchestrator.resumeTask(taskId, { rootDir: ROOT_DIR });
+      ctx.status = 202;
+      ctx.body = result; // { task_id, status: 'running' }
+    } catch (err) {
+      if (/task not found/.test(err.message)) {
+        ctx.status = 404;
+        ctx.body = { error: err.message };
+      } else if (err.code === 'NOT_ABORTED') {
+        ctx.status = 409;
+        ctx.body = { error: err.message, code: 'NOT_ABORTED' };
+      } else {
+        ctx.status = 500;
+        ctx.body = { error: err.message || 'resume failed' };
+      }
+    }
+  });
+
   router.post('/tasks/:taskId/steps/:stepName/cancel', async (ctx) => {
     const { taskId, stepName } = ctx.params;
     try {

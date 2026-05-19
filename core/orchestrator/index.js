@@ -193,7 +193,9 @@ function loadTaskFromDb(taskId, rootDir) {
   const statusList = Object.values(steps).map((s) => s.status);
   const tempTask = { params: { mode: normalizeMode(row.mode) }, steps };
   let status = 'pending';
-  if (statusList.some((s) => s === 'running')) status = 'running';
+  if (row.status === 'aborted') {
+    status = 'aborted'; // restore abort state across process restarts; do not auto-resume
+  } else if (statusList.some((s) => s === 'running')) status = 'running';
   else if (isTaskFailed(tempTask))    status = 'failed';
   else if (isTaskCompleted(tempTask)) status = 'completed';
 
@@ -1013,10 +1015,11 @@ async function runTask(taskId, options = {}) {
               db.updateStep(_id, stepName, 'pending');
             }
           }
+          db.updateTask(_id, { status: 'aborted' });
         }
-        task.status = 'pending';
+        task.status = 'aborted';
         task.updated_at = new Date().toISOString();
-        emitOrchestratorEvent('task.updated', taskId, { status: 'pending' });
+        emitOrchestratorEvent('task.updated', taskId, { status: 'aborted' });
       } catch (_) {}
       task._abortFlag = false;
       task._currentProc = null;
@@ -1259,7 +1262,7 @@ async function abortTask(taskId, options = {}) {
   }
 
   await waitDone;
-  return { task_id: taskId, status: 'pending' };
+  return { task_id: taskId, status: 'aborted' };
 }
 
 async function abortStep(taskId, stepName, options = {}) {
@@ -1297,6 +1300,18 @@ async function abortStep(taskId, stepName, options = {}) {
   return { task_id: taskId, step: stepName, status: 'pending' };
 }
 
+async function resumeTask(taskId, options = {}) {
+  const task = ensureTask(taskId, options);
+  if (task.status !== 'aborted') {
+    const e = new Error('task is not aborted');
+    e.code = 'NOT_ABORTED';
+    throw e;
+  }
+  // runTask sets status='running' synchronously before any async ops; no race condition
+  runTask(taskId).catch((err) => console.error(`[resume] ${err.message}`));
+  return { task_id: taskId, status: 'running' };
+}
+
 /** For tests: drop task from memory to simulate process restart and test restore from DB */
 function _dropTaskFromMemory(taskId) {
   tasks.delete(taskId);
@@ -1309,6 +1324,7 @@ module.exports = {
   runStep,
   abortTask,
   abortStep,
+  resumeTask,
   applyResetScope,
   skipStep,
   deleteTask,
