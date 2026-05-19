@@ -1274,6 +1274,12 @@ async function abortStep(taskId, stepName, options = {}) {
     throw e;
   }
 
+  if (task._stepAbortResolve) {
+    const e = new Error('step abort already in progress');
+    e.code = 'STEP_ABORT_IN_PROGRESS';
+    throw e;
+  }
+
   const waitDone = new Promise((resolve) => { task._stepAbortResolve = resolve; });
 
   const proc = task._currentProc;
