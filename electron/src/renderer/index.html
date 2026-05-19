@@ -2731,6 +2731,7 @@
               const snap = await client.getTask(currentTaskId);
               taskCache.set(currentTaskId, snap);
               applyTaskToInfo(snap);
+              syncCancelBtn(snap.status);
               appendLogLine(currentTaskId, '[stream] resync_required → refreshed task snapshot');
             } catch (e) {
               appendLogLine(currentTaskId, `[stream] resync refresh failed: ${e.message}`);

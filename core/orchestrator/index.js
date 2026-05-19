@@ -985,12 +985,14 @@ async function runTask(taskId, options = {}) {
       await runStep(taskId, next, stepOptions);
     }
 
-    updateTaskMetaFromFilesystem(task);
+    if (!task._abortFlag) {
+      updateTaskMetaFromFilesystem(task);
 
-    // Mark overall task status using DAG reachability.
-    task.status = isTaskFailed(task) ? 'failed' : (isTaskCompleted(task) ? 'completed' : task.status);
-    task.updated_at = new Date().toISOString();
-    emitOrchestratorEvent('task.updated', taskId, { status: task.status });
+      // Mark overall task status using DAG reachability.
+      task.status = isTaskFailed(task) ? 'failed' : (isTaskCompleted(task) ? 'completed' : task.status);
+      task.updated_at = new Date().toISOString();
+      emitOrchestratorEvent('task.updated', taskId, { status: task.status });
+    }
   } finally {
     // Decrement active counter exactly once per runTask invocation.
     activeRunTasks = Math.max(0, activeRunTasks - 1);
