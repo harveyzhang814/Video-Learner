@@ -40,6 +40,7 @@
 | [adr/2026-04-17-asr-fallback.md](adr/2026-04-17-asr-fallback.md) | ASR 回退集成（OR 门、动态排除条件、媒体源优先级、subs 语义不变） |
 | [adr/2026-04-18-dag-reachability.md](adr/2026-04-18-dag-reachability.md) | DAG 可达性算法（替代硬编码失败检测、GATE_TYPE/TERMINAL_NODE、md2vtt 静默 bug 修复） |
 | [adr/2026-05-19-task-abort.md](adr/2026-05-19-task-abort.md) | 任务中止机制（进程组 kill、运行时 abort flag、任务级/步骤级粒度、同步响应） |
+| [adr/2026-05-19-task-resume.md](adr/2026-05-19-task-resume.md) | 任务 Resume 机制（独立 aborted 状态、DB status 列迁移、复用 runTask() 继续执行、手动恢复语义） |
 
 ## rfcs/ — 提案（未实现）
 

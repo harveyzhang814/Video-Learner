@@ -23,7 +23,8 @@
 | GET | `/api/tasks/:taskId/subtitles` | 一次性返回 `{ tracks: [{ id, lang, label, vtt }] }`（md2vtt 产出的 VTT 全文），供 GUI 解析并展示多轨字幕。 |
 | GET | `/api/tasks/:taskId/steps` | 获取该任务所有步骤的状态列表。 |
 | POST | `/api/tasks/:taskId/steps/:stepName/run` | 执行指定步骤。body 可选：`focus`、`force`；**`reset_scope`**（已实现）：`off`（默认）\| `step` \| `downstream`。 |
-| POST | `/api/tasks/:taskId/cancel` | 中止运行中的任务（同步等待进程退出）。任务重置为 `pending` 可直接重跑。任务非运行中 **409**（`code: NOT_RUNNING`）。 |
+| POST | `/api/tasks/:taskId/cancel` | 中止运行中的任务（同步等待进程退出）。任务进入 `aborted` 状态。任务非运行中 **409**（`code: NOT_RUNNING`）。 |
+| POST | `/api/tasks/:taskId/resume` | 继续已中止（`aborted`）的任务，从中断处继续执行，已完成步骤不重跑。任务非 `aborted` **409**（`code: NOT_ABORTED`）。 |
 | POST | `/api/tasks/:taskId/steps/:stepName/cancel` | 中止运行中的指定步骤（同步等待进程退出）。步骤重置为 `pending`，任务继续调度后续步骤。步骤非运行中 **409**（`code: STEP_NOT_RUNNING`）。 |
 | GET | `/api/events` | SSE 流（query: token），推送任务/步骤/日志事件，供 GUI 实时刷新。 |
 | GET | `/api/tasks/:taskId/paths` | 返回该任务的路径信息（base/media/transcript/writing），供 Electron 等客户端打开本地输出目录。 |
@@ -79,11 +80,11 @@
 
 | 状态码 | 含义 |
 |--------|------|
-| 200 | 中止成功，body: `{ task_id, status: "pending" }` |
+| 200 | 中止成功，body: `{ task_id, status: "aborted" }` |
 | 404 | 任务不存在 |
 | 409 | 任务未在运行，body: `{ error, code: "NOT_RUNNING" }` |
 
-中止完成后：当前运行步骤重置为 `pending`，任务状态重置为 `pending`；`article.md` / `summary.md` 等不完整产物会被删除（视频/音频部分文件保留，支持续传）。
+中止完成后：当前运行步骤重置为 `pending`，任务状态变为 `aborted`（持久化到 DB，重启后恢复）；`article.md` / `summary.md` 等不完整产物会被删除（视频/音频部分文件保留，支持续传）。
 
 ### `POST /api/tasks/:taskId/steps/:stepName/cancel`
 
@@ -101,12 +102,34 @@
 
 | 场景 | 事件类型 | 关键字段 |
 |------|----------|---------|
-| 任务取消完成 | `task.updated` | `{ status: "pending" }` |
+| 任务取消完成 | `task.updated` | `{ status: "aborted" }` |
 | 步骤取消完成 | `step.finished` | `{ stepName, status: "pending", aborted: true }` |
+| 任务 resume 触发 | `task.updated` | `{ status: "running" }` |
 
 ### 取消测试
 
 `npm run test:abort`（`tests/task-abort.test.js`），覆盖：任务级中止、步骤级中止、非运行中 409、不存在 404、`article.md` 文件清理。
+
+### `POST /api/tasks/:taskId/resume`
+
+继续已中止的任务，从中断处继续执行。已完成步骤（`completed`/`skipped`）不重跑，DAG 从所有前驱完成的 `pending` 步骤重新调度。响应为 `202 Accepted`（fire-and-forget，任务进入 running 但流水线尚未完成）。
+
+| 状态码 | 含义 |
+|--------|------|
+| 202 | resume 已触发，body: `{ task_id, status: "running" }` |
+| 404 | 任务不存在 |
+| 409 | 任务非 `aborted` 状态，body: `{ error, code: "NOT_ABORTED" }` |
+
+注意：`failed` 任务不支持 resume，需通过 `reset_scope` 手动重置步骤。
+
+### Resume 测试
+
+`npm run test:resume`（`tests/task-resume.test.js`），覆盖：
+- T1–T3：abort → resume 主流程（已完成步骤保持、DAG 跳过、最终完成）
+- T4–T7：非 `aborted` 状态调用 resume → 409 NOT_ABORTED（running / pending / completed / failed）
+- T8：进程重启后 `aborted` 状态持久化（`_dropTaskFromMemory` + `getTask` 验证）
+- T9：对 `aborted` 任务再次调用 abortTask → NOT_RUNNING
+- T10–T12：HTTP 层验证（202 成功、409 NOT_ABORTED、404 不存在）
 
 ## 端到端测试（HTTP 慢路径）
 
