@@ -98,17 +98,17 @@ async function run() {
       });
 
       const result = await orchestrator.abortTask(task_id, { rootDir });
-      if (result.status !== 'pending') throw new Error(`expected pending, got ${result.status}`);
+      if (result.status !== 'aborted') throw new Error(`expected aborted, got ${result.status}`);
 
       const taskAfter = await orchestrator.getTask(task_id, { rootDir });
-      if (taskAfter.status !== 'pending') {
-        throw new Error(`task.status should be pending, got ${taskAfter.status}`);
+      if (taskAfter.status !== 'aborted') {
+        throw new Error(`task.status should be aborted, got ${taskAfter.status}`);
       }
       for (const [name, info] of Object.entries(taskAfter.steps)) {
         if (info.status === 'running') throw new Error(`step ${name} still running after abort`);
       }
 
-      console.log('[abort-test] Test 1 passed: abortTask resets to pending');
+      console.log('[abort-test] Test 1 passed: abortTask sets status to aborted');
     } finally {
       fs.rmSync(rootDir, { recursive: true });
     }
@@ -326,11 +326,11 @@ async function run() {
         throw new Error('article.md should have been deleted after task abort');
       }
       const taskAfter = await orchestrator.getTask(task_id, { rootDir });
-      if (taskAfter.status !== 'pending') {
-        throw new Error(`task should be pending after abort, got ${taskAfter.status}`);
+      if (taskAfter.status !== 'aborted') {
+        throw new Error(`task should be aborted after abort, got ${taskAfter.status}`);
       }
 
-      console.log('[abort-test] Test 8 passed: article.md deleted on task abort');
+      console.log('[abort-test] Test 8 passed: article.md deleted on task abort, status=aborted');
     } finally {
       if (task_id) await safeAbort(task_id, rootDir);
       fs.rmSync(rootDir, { recursive: true });
