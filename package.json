@@ -1,6 +1,6 @@
 {
   "name": "video-learner",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "YouTube Video Pipeline - Download, Transcript & Summary",
   "private": true,
   "scripts": {
