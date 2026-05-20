@@ -27,7 +27,8 @@ OUTPUT_PATH="$2"
 OUTPUT_LANG="${3:-zh-CN}"  # Default to zh-CN
 
 # Extract task ID from original path (e.g., work/<id>/transcript/original.md)
-# Get the directory containing the transcript folder
+# Convert to absolute path first to ensure regex matches correctly
+ORIGINAL_PATH="$(cd "$(dirname "$ORIGINAL_PATH")" && pwd)/$(basename "$ORIGINAL_PATH")"
 TASK_ID=$(echo "$ORIGINAL_PATH" | sed -E 's|.*/work/([^/]+)/transcript.*|\1|')
 
 # Validate input file exists
@@ -76,13 +77,25 @@ echo "Source language: $SOURCE_LANG"
 # Update step to running
 update_step "$TASK_ID" "article" "running"
 
-# Create temporary prompt file with replaced placeholders
+# Build prompt by inlining transcript content directly.
+# Passing a file path to opencode (agent mode) causes it to use the Read tool,
+# which loads the full content into the context and makes MiniMax stall.
 TEMP_PROMPT=$(mktemp)
-sed -e "s|{{ORIGINAL_PATH}}|$ORIGINAL_PATH|g" \
-    -e "s|{{OUTPUT_PATH}}|$OUTPUT_PATH|g" \
-    -e "s|{{SOURCE_LANG}}|$SOURCE_LANG|g" \
-    -e "s|OUTPUT_LANG=zh-CN|OUTPUT_LANG=$OUTPUT_LANG|g" \
-    "$PROMPT_TEMPLATE" > "$TEMP_PROMPT"
+# Use Python to safely substitute multiline content into the template
+python3 - "$PROMPT_TEMPLATE" "$TEMP_PROMPT" <<PYEOF
+import sys
+
+template_path, output_path = sys.argv[1], sys.argv[2]
+template = open(template_path).read()
+transcript = open("$ORIGINAL_PATH").read()
+
+result = (template
+    .replace("{{TRANSCRIPT_CONTENT}}", transcript)
+    .replace("{{SOURCE_LANG}}", "$SOURCE_LANG")
+    .replace("OUTPUT_LANG=zh-CN", "OUTPUT_LANG=$OUTPUT_LANG"))
+
+open(output_path, "w").write(result)
+PYEOF
 
 # Call the writing engine to generate article output.
 WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
