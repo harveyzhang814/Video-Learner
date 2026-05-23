@@ -59,27 +59,63 @@ npm unlink vdl  # 取消注册
 
 ---
 
+### `vdl gui`
+
+在后台启动 Electron GUI，CLI 本身立刻返回提示符。
+
+```bash
+vdl gui
+# GUI launched.
+# $  ← 立刻拿回 shell
+```
+
+等同于 `bash start-electron.sh`，但无需记住脚本路径。GUI 启动后会自动连接（或启动）后端，与 CLI 共享同一个 port 3000 实例。
+
+---
+
 ## 服务生命周期与 Token
 
-### 启动逻辑
+### 单例后端
+
+CLI、Electron GUI、`npm run agent:serve` 三种启动方式**共用同一个后端实例**，固定监听 `127.0.0.1:3000`。
+
+### 启动逻辑（`core/agent-connect`）
 
 ```
-vdl 启动
+任意客户端（CLI / Electron）启动
   └─ GET http://127.0.0.1:3000/healthz
-       ├─ 200 → 服务已在运行
-       │         读取 /tmp/vl-agent-token 获取 Bearer token
-       │         token 文件不存在 → 打印错误，exit 1
-       │         CLI 退出时不关闭该服务
-       └─ 失败 → 生成随机 token（crypto.randomBytes(24)）
-                  后台启动 node services/http-server/index.js
-                  每 500ms 轮询 healthz，最多等 5s
-                  超时 → 打印错误，exit 1
-                  CLI 退出时 kill 服务进程 + 删除 token 文件
+       ├─ 200 → 后端已在运行
+       │         读取 /tmp/vl-agent-token，注册心跳
+       │
+       └─ 失败 → 以 AUTO_SHUTDOWN=1 启动后端进程
+                  轮询 healthz，最多等 8s
+                  超时且仍无响应 → 打印错误，exit 1
+                  ── EADDRINUSE 竞态 ──
+                  两个进程同时启动时，输掉端口的一方
+                  再次检查 healthz；若已有赢家则直接连接
 ```
 
-**Token 文件**：`/tmp/vl-agent-token`
+**发现文件**（后端成功绑定端口后写入，退出时删除）：
 
-HTTP server 启动时写入，进程退出时删除。Electron 启动的 HTTP server 同样写入此文件，因此 CLI 可与 Electron 共用同一服务实例。
+| 文件 | 内容 |
+|------|------|
+| `/tmp/vl-agent-token` | Bearer token（HTTP 请求鉴权用） |
+| `/tmp/vl-agent.pid` | 后端进程 PID |
+
+### 心跳与自动关闭
+
+后端以 `AUTO_SHUTDOWN=1` 启动时（由 CLI 或 Electron 拉起），启用引用计数自动关闭机制：
+
+- 每个客户端每 10 秒向 `POST /api/heartbeat` 发送一次心跳
+- 超过 20 秒未收到心跳的客户端被驱逐
+- 无活跃客户端且无运行中任务时，30 秒宽限期后后端自动退出
+- **`npm run agent:serve` 不设 `AUTO_SHUTDOWN=1`**，服务会一直运行直到手动停止
+
+### 重启后的状态恢复
+
+后端重启时自动执行：
+- 将所有遗留的 `running` 步骤重置为 `failed`（可重跑）
+- 删除 `task_id` 不合法的孤儿 step 行
 
 ---
 
