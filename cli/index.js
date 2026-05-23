@@ -9,6 +9,7 @@ const commands = {
   result: () => require('./commands/result').run(args.slice(1)),
   rerun:  () => require('./commands/rerun').run(args.slice(1)),
   list:   () => require('./commands/list').run(args.slice(1)),
+  gui:    () => require('./commands/gui').run(),
 };
 
 function printUsage() {
@@ -21,6 +22,7 @@ Usage:
   vdl result <task_id> [--type summary|article]
   vdl rerun  <task_id> <step> [--reset downstream|step|off]
   vdl list
+  vdl gui
 \n`);
 }
 
