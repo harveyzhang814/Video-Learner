@@ -28,6 +28,17 @@ function _readToken(tokenFile) {
   }
 }
 
+/** Retry reading the token file up to 3 times with 100 ms gaps.
+ *  Guards against the narrow race where healthz responds before the token file is flushed. */
+async function _readTokenWithRetry(tokenFile) {
+  for (let i = 0; i < 3; i++) {
+    const t = _readToken(tokenFile);
+    if (t) return t;
+    if (i < 2) await new Promise(r => setTimeout(r, 100));
+  }
+  return null;
+}
+
 async function _waitForReady(baseUrl, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -68,7 +79,7 @@ async function connect(opts = {}) {
 
   // ── Phase 1: server already alive ────────────────────────────────────────
   if (await _checkHealthz(baseUrl)) {
-    const token = _readToken(tokenFile);
+    const token = await _readTokenWithRetry(tokenFile);
     if (!token) {
       throw new Error(
         `Server running but token file not found at ${tokenFile}. Restart the server.`
@@ -98,7 +109,7 @@ async function connect(opts = {}) {
     // Possible EADDRINUSE: another process won the race. Try healthz once more.
     if (await _checkHealthz(baseUrl)) {
       try { child.kill(); } catch (_) {}
-      const token = _readToken(tokenFile);
+      const token = await _readTokenWithRetry(tokenFile);
       if (!token) {
         throw new Error(
           `Server running but token file not found at ${tokenFile}. Restart the server.`
@@ -110,7 +121,7 @@ async function connect(opts = {}) {
     throw new Error(`Agent HTTP server failed to start within ${STARTUP_TIMEOUT_MS} ms`);
   }
 
-  const token = _readToken(tokenFile);
+  const token = await _readTokenWithRetry(tokenFile);
   if (!token) {
     try { child.kill(); } catch (_) {}
     throw new Error(`Server started but token file not found at ${tokenFile}`);
