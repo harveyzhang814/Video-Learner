@@ -16,8 +16,14 @@ let _heartbeatHandle = null;
 async function ensureServer(opts = {}) {
   // Back-compat: tests pass healthzUrl; derive baseUrl from it.
   const baseUrl = opts.healthzUrl
-    ? opts.healthzUrl.replace('/healthz', '')
+    ? opts.healthzUrl.replace(/\/healthz$/, '')
     : undefined;
+
+  // Stop any existing heartbeat before overwriting (prevents interval leak on re-entry).
+  if (_heartbeatHandle) {
+    await stopHeartbeat(_heartbeatHandle);
+    _heartbeatHandle = null;
+  }
 
   const { token, heartbeatHandle } = await connect({
     ...opts,
