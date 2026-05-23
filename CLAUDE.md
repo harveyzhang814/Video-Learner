@@ -85,25 +85,49 @@ work/
 
 ## 执行命令
 
-**`scripts/run.sh` 已废弃**（薄壳：仅打印说明并非零退出）。正式执行仅通过 **GUI（Electron）** 或 **Agent Service（HTTP → `core/orchestrator`）**。
+**`scripts/run.sh` 已废弃**（薄壳：仅打印说明并非零退出）。正式执行通过三种方式：**CLI (`vdl`)**、**GUI（Electron）** 或 **Agent Service（HTTP API）**，均共享同一个 `core/orchestrator` 和 SQLite 状态。
 
-### GUI
+### CLI (`vdl`)
+
+详见 `docs/reference/cli.md`。CLI 会自动启动或连接本地 HTTP 服务（端口 3000），Token 存于 `/tmp/vl-agent-token`。
+
+### GUI（Electron）
 ```bash
 bash start-electron.sh
 ```
 在界面中创建任务并填写 URL、`focus`、`mode`、是否强制重跑等。
 
-### Agent Service（HTTP）
+### Agent Service（HTTP API）
 ```bash
 npm run agent:serve
 ```
-使用 `POST /api/tasks` 创建任务（body 含 `url`、`focus`、`mode`、`force`、`output_lang` 等），轮询 `GET /api/tasks/:id` 或订阅 `GET /api/events`。约定见 `docs/reference/api.md`（Agent HTTP Service）。
+HTTP 服务启动后，使用以下端点操作（Bearer token 认证）：
 
-### 字段备忘（与旧 CLI 对应）
-- `output_lang`: 输出语言，默认 `zh-CN`（简体中文），可由 `settings.conf` 等扩展
+```bash
+# 创建任务
+POST /api/tasks  { url, focus, mode, force, output_lang }
+
+# 查询任务状态
+GET /api/tasks/:taskId
+
+# 获取输出内容（Markdown）
+GET /api/tasks/:taskId/result/content?type=article|summary
+
+# 重跑某步骤（支持 reset_scope）
+POST /api/tasks/:taskId/steps/:stepName/run  { reset_scope: "off"|"step"|"downstream" }
+
+# SSE 实时事件流（query param 传 token）
+GET /api/events?token=<token>
+```
+
+完整约定见 `docs/reference/api.md`。
+
+### 字段备忘
+- `output_lang`: 输出语言，默认 `zh-CN`（简体中文）
 - `mode`: `media`（默认）| `audio` | `transcript` | `full`（`both`/`video` 为旧别名，等同于 `media`）
 - `force`: 是否强制重跑
 - `focus`: 用户想了解的重点（如「技术细节」「主要论点」「行动项」）
+- `reset_scope`: `off`（只重置当前步骤）| `step`（重置后运行）| `downstream`（级联重置并重跑整条流水线）
 
 ## Claude 总结生成流程
 
@@ -144,11 +168,18 @@ npm run agent:serve
 - [术语2]: [定义]
 ```
 
-## 复用命令（最短）
+## 最短调用方式
+
+**CLI（推荐）：**
+```bash
+vdl <URL>
+```
+
+**自然语言触发（Claude Code 内）：**
 ```
 请处理这个 YouTube: <URL>
 ```
-在助手侧通过 **GUI** 或 **HTTP 创建任务** 完成处理；勿再使用 `scripts/run.sh`。
+在助手侧通过 **CLI (`vdl`)** 或 **HTTP 创建任务** 完成处理；勿再使用 `scripts/run.sh`。
 
 ## 多引擎写作
 
@@ -184,10 +215,20 @@ npm run test:orchestrator:unit
 # 全量 HTTP 集成（含 reset_scope × 各步骤）
 npm run test:reset-scope
 
+# 取消/恢复任务生命周期
+npm run test:abort
+npm run test:resume
+
+# SSE 事件流
+npm run test:sse
+
+# CLI 完整测试套件（8 个测试文件）
+npm run test:cli
+
 # Electron 主进程 + preload + 客户端状态
 npm run test:gui
 
-# 单个测试文件
+# 单个测试文件（无框架，直接 node 运行）
 node tests/orchestrator-schedule.test.js
 node tests/agent-http.test.js
 ```
