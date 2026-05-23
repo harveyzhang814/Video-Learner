@@ -29,12 +29,16 @@ vdl result <task_id> --type article           # 打印文章到 stdout
 vdl rerun  <task_id> <step>                   # 从某步骤重跑（默认级联下游）
 vdl rerun  <task_id> <step> --reset step      # 仅重跑该步骤
 vdl list                                       # 列出最近任务
+vdl gui                                        # 后台启动 Electron GUI，终端立刻返回
 ```
 
 ## 与 GUI / HTTP Service 并发使用
 
-- **若 Electron 已在运行**：CLI 自动复用 Electron 启动的 HTTP 服务（读 `/tmp/vl-agent-token`），两者共享同一 SQLite 数据库。
-- **若无服务在运行**：CLI 自动在后台启动 HTTP 服务，退出时自动关闭。
+CLI、Electron GUI 和 `npm run agent:serve` 三种方式共用 **同一个后端实例**（固定端口 3000）。
+
+- **若服务已在运行**（任意方式启动）：CLI 自动连接，读取 `/tmp/vl-agent-token`，注册心跳，共享同一 SQLite 数据库。
+- **若无服务在运行**：CLI 自动在后台启动 HTTP 服务（`AUTO_SHUTDOWN=1`）；CLI 退出时注销心跳，服务在无客户端 30s 后自动退出。
+- **`npm run agent:serve`**：服务永久运行，不会因 CLI 退出而关闭。
 
 ## 卸载
 
