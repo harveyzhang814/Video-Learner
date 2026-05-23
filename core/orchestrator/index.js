@@ -7,7 +7,7 @@ const { EventEmitter } = require('events');
 const { generateId } = require('../id');
 const { createDb } = require('./db');
 const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts');
-const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode, normalizeMode, isTaskFailed, isTaskCompleted } = require('./schedule');
+const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode, normalizeMode, isTaskFailed, isTaskCompleted, getStepTimeoutMs } = require('./schedule');
 
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
@@ -417,6 +417,8 @@ function runStepScript(rootDir, stepName, args, opts = {}) {
     if (opts.onProc) opts.onProc(proc);
 
     let output = '';
+    let settled = false;
+
     const onStdoutChunk = (data) => {
       const text = data.toString();
       output += text;
@@ -432,10 +434,29 @@ function runStepScript(rootDir, stepName, args, opts = {}) {
     proc.stdout.on('data', onStdoutChunk);
     proc.stderr.on('data', onStderrChunk);
 
+    // Per-step timeout: kill process group and resolve with timedOut flag.
+    const timeoutMs = opts.timeoutMs ?? getStepTimeoutMs(stepName);
+    const timeoutTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      const sigkillTimer = setTimeout(() => {
+        try { process.kill(-proc.pid, 'SIGKILL'); } catch (_) {}
+      }, 5000);
+      try { process.kill(-proc.pid, 'SIGTERM'); } catch (_) {}
+      proc.once('close', () => clearTimeout(sigkillTimer));
+      resolve({ code: null, output, timedOut: true, timeoutMs });
+    }, timeoutMs);
+
     proc.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutTimer);
       resolve({ code, output });
     });
     proc.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutTimer);
       reject(err);
     });
   });
@@ -845,7 +866,11 @@ async function runStep(taskId, stepName, options = {}) {
       finishLogs();
       return { success: false, error: 'aborted' };
     }
-    if (result.code === 0) {
+    if (result.timedOut) {
+      stepState.status = 'failed';
+      const mins = Math.round(result.timeoutMs / 60000);
+      stepState.error = `Step timed out after ${mins} min`;
+    } else if (result.code === 0) {
       stepState.status = 'completed';
       stepState.error = null;
     } else {
