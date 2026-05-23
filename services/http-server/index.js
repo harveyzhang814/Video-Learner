@@ -630,11 +630,12 @@ if (require.main === module) {
   const app   = createApp();
   const token = app.context.eventsToken;
 
-  // Write discovery files
-  try { fs.writeFileSync(TOKEN_FILE, token); }   catch (_) {}
-  try { fs.writeFileSync(PID_FILE, String(process.pid)); } catch (_) {}
-
   const rootDir = path.resolve(__dirname, '../..');
+
+  // Track whether this process successfully wrote discovery files.
+  // Only clean them up if WE wrote them (prevents EADDRINUSE loser from
+  // deleting the winner's token/PID files).
+  let discoveryFilesWritten = false;
 
   let cleanedUp = false;
   let graceTimer = null;
@@ -642,8 +643,10 @@ if (require.main === module) {
     if (cleanedUp) return;
     cleanedUp = true;
     if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
-    try { fs.unlinkSync(TOKEN_FILE); } catch (_) {}
-    try { fs.unlinkSync(PID_FILE);   } catch (_) {}
+    if (discoveryFilesWritten) {
+      try { fs.unlinkSync(TOKEN_FILE); } catch (_) {}
+      try { fs.unlinkSync(PID_FILE);   } catch (_) {}
+    }
   }
   process.on('exit',   cleanup);
   process.on('SIGINT',  () => { cleanup(); process.exit(0); });
@@ -697,6 +700,11 @@ if (require.main === module) {
   }
 
   const server = app.listen(port, host, () => {
+    // Write discovery files only after successful bind — prevents EADDRINUSE
+    // loser from overwriting/deleting the winner's token and PID files.
+    try { fs.writeFileSync(TOKEN_FILE, token); }   catch (_) {}
+    try { fs.writeFileSync(PID_FILE, String(process.pid)); } catch (_) {}
+    discoveryFilesWritten = true;
     console.log(`Agent HTTP service listening on http://${host}:${port}`);
     // IMPORTANT: never log the SSE token.
   });
