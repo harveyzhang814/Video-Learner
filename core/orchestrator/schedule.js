@@ -1,6 +1,43 @@
 'use strict';
 
 /**
+ * Per-step timeout in milliseconds.
+ * Steps that exceed their timeout are killed (SIGTERM → SIGKILL) and marked failed.
+ * Override any value at runtime via env var: VL_TIMEOUT_<STEP>=<ms>
+ * e.g.  VL_TIMEOUT_VIDEO=7200000  (2 h)
+ *
+ * Rationale:
+ *   video/audio  — large file download; network speed varies widely → 2 h
+ *   article      — LLM generation on long transcript; can be slow → 60 min
+ *   summary      — same as article → 60 min
+ *   asr          — Whisper on long audio → 60 min
+ *   fetch/subs   — HTTP metadata calls → 5 min
+ *   vtt2md/md2vtt — local text conversion, should be instant → 5 min
+ */
+const _STEP_TIMEOUTS_MS = {
+  fetch:   5  * 60 * 1000,   //  5 min
+  video:   120 * 60 * 1000,  //  2 h
+  audio:   30  * 60 * 1000,  // 30 min
+  subs:    5  * 60 * 1000,   //  5 min
+  asr:     60  * 60 * 1000,  // 60 min
+  vtt2md:  5  * 60 * 1000,   //  5 min
+  md2vtt:  5  * 60 * 1000,   //  5 min
+  article: 60  * 60 * 1000,  // 60 min
+  summary: 60  * 60 * 1000,  // 60 min
+};
+
+/** Returns the effective timeout for a step (env override takes precedence). */
+function getStepTimeoutMs(stepName) {
+  const envKey = `VL_TIMEOUT_${stepName.toUpperCase()}`;
+  const envVal = process.env[envKey];
+  if (envVal) {
+    const n = Number(envVal);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return _STEP_TIMEOUTS_MS[stepName] ?? (10 * 60 * 1000); // 10 min fallback
+}
+
+/**
  * DAG edges: predecessor → successor (B-layer schedule).
  * fetch fans out to video, audio, subs; subs → vtt2md; vtt2md → md2vtt & article; article → summary.
  */
@@ -315,5 +352,6 @@ module.exports = {
   pickNextStep,
   getDownstreamClosure,
   excludedByMode,
-  normalizeMode
+  normalizeMode,
+  getStepTimeoutMs,
 };
