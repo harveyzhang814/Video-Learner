@@ -705,6 +705,18 @@ if (require.main === module) {
     try { fs.writeFileSync(TOKEN_FILE, token); }   catch (_) {}
     try { fs.writeFileSync(PID_FILE, String(process.pid)); } catch (_) {}
     discoveryFilesWritten = true;
+
+    // Reset any steps left in 'running' state from a previous crash/restart.
+    try {
+      const { createDb } = require('../../core/orchestrator/db');
+      const db = createDb(rootDir);
+      const reset = db.resetStaleRunningSteps();
+      if (reset > 0) console.log(`[agent-http] Reset ${reset} stale running step(s) from previous session`);
+      db.close();
+    } catch (e) {
+      console.error('[agent-http] Failed to reset stale steps:', e && e.message);
+    }
+
     console.log(`Agent HTTP service listening on http://${host}:${port}`);
     // IMPORTANT: never log the SSE token.
   });
