@@ -31,7 +31,7 @@ function createApp(options = {}) {
 
   // --- Heartbeat registry ---
   // clientId → lastSeen timestamp (ms). Used for auto-shutdown.
-  const _heartbeatRegistry = new Map();
+  const heartbeatRegistry = new Map();
 
   /** Optional test hook: replace fire-and-forget runTask after reset_scope downstream (default: real orchestrator.runTask). */
   const runTaskForDownstream =
@@ -584,20 +584,24 @@ function createApp(options = {}) {
   // POST /api/heartbeat  { clientId } — register/refresh a client
   router.post('/heartbeat', async (ctx) => {
     const { clientId } = ctx.request.body || {};
-    if (!clientId) { ctx.status = 400; ctx.body = { error: 'clientId required' }; return; }
-    _heartbeatRegistry.set(clientId, Date.now());
+    if (typeof clientId !== 'string' || !clientId.trim()) {
+      ctx.status = 400;
+      ctx.body = { error: 'clientId required' };
+      return;
+    }
+    heartbeatRegistry.set(clientId, Date.now());
     ctx.body = { ok: true };
+  });
+
+  // GET /api/heartbeat/status — diagnostic (static path before parameterized)
+  router.get('/heartbeat/status', async (ctx) => {
+    ctx.body = { clientCount: heartbeatRegistry.size, clients: [...heartbeatRegistry.keys()] };
   });
 
   // DELETE /api/heartbeat/:clientId — explicit deregister
   router.delete('/heartbeat/:clientId', async (ctx) => {
-    _heartbeatRegistry.delete(ctx.params.clientId);
+    heartbeatRegistry.delete(ctx.params.clientId);
     ctx.body = { ok: true };
-  });
-
-  // GET /api/heartbeat/status — diagnostic
-  router.get('/heartbeat/status', async (ctx) => {
-    ctx.body = { clientCount: _heartbeatRegistry.size, clients: [..._heartbeatRegistry.keys()] };
   });
 
   app.use(bodyParser());
@@ -608,7 +612,7 @@ function createApp(options = {}) {
 
   // Expose token for callers/tests (do not include in logs elsewhere).
   app.context.eventsToken = token;
-  app.context.heartbeatRegistry = _heartbeatRegistry;
+  app.context.heartbeatRegistry = heartbeatRegistry;
 
   return app;
 }
