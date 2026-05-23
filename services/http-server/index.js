@@ -622,25 +622,86 @@ module.exports = { createApp };
 
 // When run directly (npm run agent:serve), start the server.
 if (require.main === module) {
-  const port = process.env.PORT || 3000;
-  const host = process.env.HOST || '127.0.0.1';
-  const TOKEN_FILE = '/tmp/vl-agent-token';
-  const app = createApp();
+  const port     = Number(process.env.PORT)      || 3000;
+  const host     = process.env.HOST              || '127.0.0.1';
+  const TOKEN_FILE = process.env.TOKEN_FILE      || '/tmp/vl-agent-token';
+  const PID_FILE   = process.env.PID_FILE        || '/tmp/vl-agent.pid';
+
+  const app   = createApp();
   const token = app.context.eventsToken;
 
-  // Write token file so CLI can discover it
-  try { fs.writeFileSync(TOKEN_FILE, token); } catch {}
+  // Write discovery files
+  try { fs.writeFileSync(TOKEN_FILE, token); }   catch (_) {}
+  try { fs.writeFileSync(PID_FILE, String(process.pid)); } catch (_) {}
 
   function cleanup() {
-    try { fs.unlinkSync(TOKEN_FILE); } catch {}
+    try { fs.unlinkSync(TOKEN_FILE); } catch (_) {}
+    try { fs.unlinkSync(PID_FILE);   } catch (_) {}
   }
-  process.on('exit', cleanup);
-  process.on('SIGINT', () => { cleanup(); process.exit(0); });
+  process.on('exit',   cleanup);
+  process.on('SIGINT',  () => { cleanup(); process.exit(0); });
   process.on('SIGTERM', () => { cleanup(); process.exit(0); });
 
-  app.listen(port, host, () => {
+  // Auto-shutdown (only when AUTO_SHUTDOWN=1)
+  if (process.env.AUTO_SHUTDOWN === '1') {
+    const EVICT_MS    = Number(process.env.AUTO_SHUTDOWN_EVICT_MS)    || 20000;
+    const GRACE_MS    = Number(process.env.AUTO_SHUTDOWN_GRACE_MS)    || 30000;
+    const INTERVAL_MS = Number(process.env.AUTO_SHUTDOWN_INTERVAL_MS) || 5000;
+
+    let gracePending = false;
+    let graceTimer   = null;
+
+    const shutdownInterval = setInterval(() => {
+      const registry = app.context.heartbeatRegistry;
+      if (!registry) return;
+
+      const now = Date.now();
+      // Evict stale clients
+      for (const [id, lastSeen] of registry.entries()) {
+        if (now - lastSeen > EVICT_MS) registry.delete(id);
+      }
+
+      const hasClients = registry.size > 0;
+
+      // Check for running tasks
+      let hasRunningTasks = false;
+      try {
+        const tasks = orchestrator.listTasks();
+        hasRunningTasks = tasks.some(t => t.status === 'running');
+      } catch (_) {}
+
+      if (!hasClients && !hasRunningTasks) {
+        if (!gracePending) {
+          gracePending = true;
+          graceTimer = setTimeout(() => {
+            cleanup();
+            process.exit(0);
+          }, GRACE_MS);
+        }
+      } else {
+        // Cancel pending grace if a new client registered or tasks started
+        if (gracePending) {
+          clearTimeout(graceTimer);
+          gracePending = false;
+          graceTimer   = null;
+        }
+      }
+    }, INTERVAL_MS);
+    shutdownInterval.unref();
+  }
+
+  const server = app.listen(port, host, () => {
     console.log(`Agent HTTP service listening on http://${host}:${port}`);
     // IMPORTANT: never log the SSE token.
+  });
+
+  server.on('error', err => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[agent-http] Port ${port} already in use — another instance may be running.`);
+      process.exit(1);
+    } else {
+      throw err;
+    }
   });
 }
 
