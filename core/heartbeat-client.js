@@ -42,6 +42,7 @@ function _delete(baseUrl, token, clientId) {
 function start({ baseUrl, token, clientId, intervalMs = 10000 }) {
   _post(baseUrl, token, clientId); // immediate
   const intervalId = setInterval(() => _post(baseUrl, token, clientId), intervalMs);
+  intervalId.unref(); // don't prevent process exit if this is the only thing running
   return { intervalId, baseUrl, token, clientId };
 }
 
@@ -51,6 +52,7 @@ function start({ baseUrl, token, clientId, intervalMs = 10000 }) {
 async function stop(handle) {
   if (!handle) return;
   clearInterval(handle.intervalId);
+  handle.intervalId = null; // prevent double-stop
   await _delete(handle.baseUrl, handle.token, handle.clientId);
 }
 
