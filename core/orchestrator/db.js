@@ -237,6 +237,29 @@ function createDbManager(dbPath) {
       return db.prepare('SELECT * FROM steps WHERE task_id = ?').all(taskId);
     },
 
+    /**
+     * Reset any steps left in 'running' state (e.g. from a previous server crash).
+     * Also removes corrupted rows where task_id is not a valid 12-char hex ID.
+     * Returns the number of steps reset.
+     */
+    resetStaleRunningSteps() {
+      // Remove rows whose task_id is not a valid task ID (e.g. a file path leaked in).
+      db.prepare(`
+        DELETE FROM steps
+        WHERE task_id NOT IN (SELECT id FROM tasks)
+      `).run();
+
+      // Reset any steps stuck in 'running' back to 'failed' so they can be retried.
+      const result = db.prepare(`
+        UPDATE steps
+        SET status = 'failed',
+            error  = 'Server restarted while step was running'
+        WHERE status = 'running'
+      `).run();
+
+      return result.changes;
+    },
+
     close() {
       db.close();
     }
