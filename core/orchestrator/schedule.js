@@ -15,13 +15,13 @@
  *   vtt2md/md2vtt — local text conversion, should be instant → 5 min
  */
 const _STEP_TIMEOUTS_MS = {
-  fetch:   5  * 60 * 1000,   //  5 min
+  fetch:   10  * 60 * 1000,  // 10 min
   video:   120 * 60 * 1000,  //  2 h
   audio:   30  * 60 * 1000,  // 30 min
-  subs:    5  * 60 * 1000,   //  5 min
+  subs:    10  * 60 * 1000,  // 10 min
   asr:     60  * 60 * 1000,  // 60 min
-  vtt2md:  5  * 60 * 1000,   //  5 min
-  md2vtt:  5  * 60 * 1000,   //  5 min
+  vtt2md:  10  * 60 * 1000,  // 10 min
+  md2vtt:  10  * 60 * 1000,  // 10 min
   article: 60  * 60 * 1000,  // 60 min
   summary: 60  * 60 * 1000,  // 60 min
 };
