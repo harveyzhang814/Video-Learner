@@ -28,6 +28,11 @@ function createApp(options = {}) {
 
   const stream = options.eventStream ?? new EventStream({ maxBufferSize: options.maxEventBufferSize ?? 500 });
   const token = options.token ?? (process.env.AGENT_EVENTS_TOKEN || crypto.randomBytes(24).toString('hex'));
+
+  // --- Heartbeat registry ---
+  // clientId → lastSeen timestamp (ms). Used for auto-shutdown.
+  const heartbeatRegistry = new Map();
+
   /** Optional test hook: replace fire-and-forget runTask after reset_scope downstream (default: real orchestrator.runTask). */
   const runTaskForDownstream =
     typeof options.runTaskForDownstream === 'function'
@@ -576,6 +581,29 @@ function createApp(options = {}) {
     }
   });
 
+  // POST /api/heartbeat  { clientId } — register/refresh a client
+  router.post('/heartbeat', async (ctx) => {
+    const { clientId } = ctx.request.body || {};
+    if (typeof clientId !== 'string' || !clientId.trim()) {
+      ctx.status = 400;
+      ctx.body = { error: 'clientId required' };
+      return;
+    }
+    heartbeatRegistry.set(clientId, Date.now());
+    ctx.body = { ok: true };
+  });
+
+  // GET /api/heartbeat/status — diagnostic (static path before parameterized)
+  router.get('/heartbeat/status', async (ctx) => {
+    ctx.body = { clientCount: heartbeatRegistry.size, clients: [...heartbeatRegistry.keys()] };
+  });
+
+  // DELETE /api/heartbeat/:clientId — explicit deregister
+  router.delete('/heartbeat/:clientId', async (ctx) => {
+    heartbeatRegistry.delete(ctx.params.clientId);
+    ctx.body = { ok: true };
+  });
+
   app.use(bodyParser());
   app.use(rootRouter.routes());
   app.use(rootRouter.allowedMethods());
@@ -584,6 +612,7 @@ function createApp(options = {}) {
 
   // Expose token for callers/tests (do not include in logs elsewhere).
   app.context.eventsToken = token;
+  app.context.heartbeatRegistry = heartbeatRegistry;
 
   return app;
 }
@@ -593,25 +622,100 @@ module.exports = { createApp };
 
 // When run directly (npm run agent:serve), start the server.
 if (require.main === module) {
-  const port = process.env.PORT || 3000;
-  const host = process.env.HOST || '127.0.0.1';
-  const TOKEN_FILE = '/tmp/vl-agent-token';
-  const app = createApp();
+  const port     = Number(process.env.PORT)      || 3000;
+  const host     = process.env.HOST              || '127.0.0.1';
+  const TOKEN_FILE = process.env.TOKEN_FILE      || '/tmp/vl-agent-token';
+  const PID_FILE   = process.env.PID_FILE        || '/tmp/vl-agent.pid';
+
+  const app   = createApp();
   const token = app.context.eventsToken;
 
-  // Write token file so CLI can discover it
-  try { fs.writeFileSync(TOKEN_FILE, token); } catch {}
+  const rootDir = path.resolve(__dirname, '../..');
 
+  // Track whether this process successfully wrote discovery files.
+  // Only clean them up if WE wrote them (prevents EADDRINUSE loser from
+  // deleting the winner's token/PID files).
+  let discoveryFilesWritten = false;
+
+  let cleanedUp = false;
+  let graceTimer = null;
   function cleanup() {
-    try { fs.unlinkSync(TOKEN_FILE); } catch {}
+    if (cleanedUp) return;
+    cleanedUp = true;
+    if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
+    if (discoveryFilesWritten) {
+      try { fs.unlinkSync(TOKEN_FILE); } catch (_) {}
+      try { fs.unlinkSync(PID_FILE);   } catch (_) {}
+    }
   }
-  process.on('exit', cleanup);
-  process.on('SIGINT', () => { cleanup(); process.exit(0); });
+  process.on('exit',   cleanup);
+  process.on('SIGINT',  () => { cleanup(); process.exit(0); });
   process.on('SIGTERM', () => { cleanup(); process.exit(0); });
 
-  app.listen(port, host, () => {
+  // Auto-shutdown (only when AUTO_SHUTDOWN=1)
+  if (process.env.AUTO_SHUTDOWN === '1') {
+    const EVICT_MS    = Number(process.env.AUTO_SHUTDOWN_EVICT_MS)    || 20000;
+    const GRACE_MS    = Number(process.env.AUTO_SHUTDOWN_GRACE_MS)    || 30000;
+    const INTERVAL_MS = Number(process.env.AUTO_SHUTDOWN_INTERVAL_MS) || 5000;
+
+    let gracePending = false;
+
+    const shutdownInterval = setInterval(() => {
+      const registry = app.context.heartbeatRegistry;
+      if (!registry) return;
+
+      const now = Date.now();
+      // Evict stale clients
+      for (const [id, lastSeen] of registry.entries()) {
+        if (now - lastSeen > EVICT_MS) registry.delete(id);
+      }
+
+      const hasClients = registry.size > 0;
+
+      // Check for running tasks
+      let hasRunningTasks = false;
+      try {
+        const tasks = orchestrator.listTasks({ rootDir });
+        hasRunningTasks = tasks.some(t => t.status === 'running');
+      } catch (_) {}
+
+      if (!hasClients && !hasRunningTasks) {
+        if (!gracePending) {
+          gracePending = true;
+          graceTimer = setTimeout(() => {
+            cleanup();
+            process.exit(0);
+          }, GRACE_MS);
+        }
+      } else {
+        // Cancel pending grace if a new client registered or tasks started
+        if (gracePending) {
+          clearTimeout(graceTimer);
+          graceTimer   = null;
+          gracePending = false;
+        }
+      }
+    }, INTERVAL_MS);
+    shutdownInterval.unref();
+  }
+
+  const server = app.listen(port, host, () => {
+    // Write discovery files only after successful bind — prevents EADDRINUSE
+    // loser from overwriting/deleting the winner's token and PID files.
+    try { fs.writeFileSync(TOKEN_FILE, token); }   catch (_) {}
+    try { fs.writeFileSync(PID_FILE, String(process.pid)); } catch (_) {}
+    discoveryFilesWritten = true;
     console.log(`Agent HTTP service listening on http://${host}:${port}`);
     // IMPORTANT: never log the SSE token.
+  });
+
+  server.on('error', err => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[agent-http] Port ${port} already in use — another instance may be running.`);
+      process.exit(1);
+    } else {
+      throw err;
+    }
   });
 }
 
