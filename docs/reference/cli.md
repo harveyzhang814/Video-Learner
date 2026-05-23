@@ -59,6 +59,20 @@ npm unlink vdl  # 取消注册
 
 ---
 
+### `vdl gui`
+
+在后台启动 Electron GUI，CLI 本身立刻返回提示符。
+
+```bash
+vdl gui
+# GUI launched.
+# $  ← 立刻拿回 shell
+```
+
+等同于 `bash start-electron.sh`，但无需记住脚本路径。GUI 启动后会自动连接（或启动）后端，与 CLI 共享同一个 port 3000 实例。
+
+---
+
 ## 服务生命周期与 Token
 
 ### 启动逻辑
