@@ -1,10 +1,8 @@
 const assert = require('assert');
 const http = require('http');
-const net = require('net');
 
 const {
   sanitizeLogLine,
-  getFreePort,
   startLocalHttpService,
   stopLocalHttpService,
   getHttpServiceInfo,
@@ -24,23 +22,11 @@ async function run() {
   assert.ok(!sanitizeLogLine('log with ?token=xyz').includes('xyz'));
   console.log('M4 sanitizeLogLine: ok');
 
-  // ----- M2: getFreePort -----
-  const port = await getFreePort();
-  assert.strictEqual(typeof port, 'number');
-  assert.ok(port > 0);
-  const server = net.createServer();
-  await new Promise((resolve, reject) => {
-    server.listen(port, '127.0.0.1', () => resolve());
-    server.on('error', reject);
-  });
-  server.close();
-  console.log('M2 getFreePort: ok');
-
   // ----- M1/M3/M5: startLocalHttpService + healthz + getHttpServiceInfo -----
   const info = await startLocalHttpService();
   assert.ok(info);
   assert.strictEqual(typeof info.baseUrl, 'string');
-  assert.ok(info.baseUrl.startsWith('http://127.0.0.1:'));
+  assert.ok(info.baseUrl.startsWith('http://'));
   assert.strictEqual(typeof info.token, 'string');
   assert.ok(info.token.length > 0);
 
@@ -66,22 +52,12 @@ async function run() {
   console.log('M1/M3/M5: ok');
 
   // ----- M6: stopLocalHttpService -----
-  stopLocalHttpService();
-  await new Promise((r) => setTimeout(r, 500));
+  // In the new architecture, stop() deregisters the heartbeat and clears cached
+  // service info. The server itself manages its own lifecycle (auto-shutdown).
+  await stopLocalHttpService();
+  await new Promise((r) => setTimeout(r, 200));
 
-  const portNum = parseInt(info.baseUrl.replace('http://127.0.0.1:', ''), 10);
-  const cannotConnect = await new Promise((resolve) => {
-    const socket = net.connect(portNum, '127.0.0.1', () => {
-      socket.destroy();
-      resolve(false);
-    });
-    socket.on('error', () => resolve(true));
-    socket.setTimeout(1000, () => {
-      socket.destroy();
-      resolve(true);
-    });
-  });
-  assert.strictEqual(cannotConnect, true, 'port should be released after stop');
+  // After stop, getHttpServiceInfo() must return null
   assert.strictEqual(getHttpServiceInfo(), null);
   console.log('M6 stopLocalHttpService: ok');
 

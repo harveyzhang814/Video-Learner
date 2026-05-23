@@ -78,8 +78,9 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-app.on('before-quit', () => {
-  helpers.stopLocalHttpService();
+app.on('before-quit', (event) => {
+  event.preventDefault();
+  helpers.stopLocalHttpService().then(() => app.quit());
 });
 
 ipcMain.handle('open-task-folder', async (_event, taskId) => {
