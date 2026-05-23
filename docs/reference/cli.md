@@ -57,65 +57,54 @@ npm unlink vdl  # 取消注册
 
 列出最近任务。直接读取 `work/database.sqlite`，无需 HTTP 服务在运行。
 
----
-
 ### `vdl gui`
 
-在后台启动 Electron GUI，CLI 本身立刻返回提示符。
-
-```bash
-vdl gui
-# GUI launched.
-# $  ← 立刻拿回 shell
-```
-
-等同于 `bash start-electron.sh`，但无需记住脚本路径。GUI 启动后会自动连接（或启动）后端，与 CLI 共享同一个 port 3000 实例。
+在后台启动 Electron GUI 窗口，CLI 立刻返回（不阻塞终端）。若 HTTP 服务尚未运行，Electron 会自动启动并注册心跳；CLI 本身不再管理服务生命周期。
 
 ---
 
 ## 服务生命周期与 Token
 
-### 单例后端
+所有启动方式（CLI、Electron GUI、`npm run agent:serve`）共用 **固定端口 3000** 上的同一后端实例。底层逻辑由 `core/agent-connect.js` 统一处理。
 
-CLI、Electron GUI、`npm run agent:serve` 三种启动方式**共用同一个后端实例**，固定监听 `127.0.0.1:3000`。
-
-### 启动逻辑（`core/agent-connect`）
+### 启动逻辑
 
 ```
-任意客户端（CLI / Electron）启动
+vdl 启动
   └─ GET http://127.0.0.1:3000/healthz
-       ├─ 200 → 后端已在运行
-       │         读取 /tmp/vl-agent-token，注册心跳
-       │
-       └─ 失败 → 以 AUTO_SHUTDOWN=1 启动后端进程
-                  轮询 healthz，最多等 8s
-                  超时且仍无响应 → 打印错误，exit 1
-                  ── EADDRINUSE 竞态 ──
-                  两个进程同时启动时，输掉端口的一方
-                  再次检查 healthz；若已有赢家则直接连接
+       ├─ 200 → 服务已在运行
+       │         读取 /tmp/vl-agent-token（最多重试 3 次 × 100ms）
+       │         token 文件不存在 → 打印错误，exit 1
+       │         注册心跳（POST /api/heartbeat）
+       └─ 失败 → 以 AUTO_SHUTDOWN=1 后台启动 node services/http-server/index.js
+                  每 300ms 轮询 healthz，最多等 8s
+                  若 EADDRINUSE（并发竞争）→ 重试 healthz，复用赢家服务
+                  超时 → 打印错误，exit 1
+                  注册心跳
 ```
-
-**发现文件**（后端成功绑定端口后写入，退出时删除）：
-
-| 文件 | 内容 |
-|------|------|
-| `/tmp/vl-agent-token` | Bearer token（HTTP 请求鉴权用） |
-| `/tmp/vl-agent.pid` | 后端进程 PID |
 
 ### 心跳与自动关闭
 
-后端以 `AUTO_SHUTDOWN=1` 启动时（由 CLI 或 Electron 拉起），启用引用计数自动关闭机制：
+CLI 运行期间每 10 秒向 `POST /api/heartbeat` 发送一次心跳（clientId 唯一）。CLI 退出时发送 `DELETE /api/heartbeat/:clientId` 注销。
 
-- 每个客户端每 10 秒向 `POST /api/heartbeat` 发送一次心跳
-- 超过 20 秒未收到心跳的客户端被驱逐
-- 无活跃客户端且无运行中任务时，30 秒宽限期后后端自动退出
-- **`npm run agent:serve` 不设 `AUTO_SHUTDOWN=1`**，服务会一直运行直到手动停止
+服务在 `AUTO_SHUTDOWN=1` 模式下（CLI/Electron 启动时自动设置）监测心跳注册表：
 
-### 重启后的状态恢复
+- 超过 20s 未收到心跳的客户端自动驱逐
+- 注册表清空且无运行中任务 → 等待 30s 宽限期 → `process.exit(0)`
+- `npm run agent:serve` 不设置 `AUTO_SHUTDOWN=1`，服务永久运行
 
-后端重启时自动执行：
-- 将所有遗留的 `running` 步骤重置为 `failed`（可重跑）
-- 删除 `task_id` 不合法的孤儿 step 行
+### Token 文件
+
+| 文件 | 内容 | 生命周期 |
+|------|------|---------|
+| `/tmp/vl-agent-token` | Bearer token（hex） | 服务 `listen()` 成功后写入，进程退出时删除 |
+| `/tmp/vl-agent.pid` | 服务进程 PID | 同上 |
+
+两个文件均在 `listen()` 回调内写入（bind 成功后），防止 EADDRINUSE 竞争时被覆盖。
+
+### 服务重启行为
+
+服务启动时自动将数据库中所有 `running` 状态的步骤重置为 `failed`（防止崩溃后步骤永久卡死）。
 
 ---
 
@@ -204,10 +193,14 @@ cli/
     result.js
     rerun.js            ← reset_scope 映射 + 202 后切轮询
     list.js             ← 直读 SQLite
+    gui.js              ← 后台启动 Electron（detached + unref）
   lib/
-    server.js           ← healthz 检查、服务启动/关闭、token 文件读写
+    server.js           ← 委托 core/agent-connect；心跳注册/注销；shutdown 信号处理
     client.js           ← HTTP 封装（createTask, getTask, runStep, getResult）
     format.js           ← 步骤名映射、TTY 检测、进度渲染
+core/
+  agent-connect.js      ← 统一 check-or-start 逻辑（CLI 和 Electron 共用）
+  heartbeat-client.js   ← 心跳发送（start/stop，unref 防阻塞进程退出）
 ```
 
 ---
@@ -219,4 +212,4 @@ npm run test:cli
 # node tests/cli-run.test.js && node tests/cli-subcommands.test.js
 ```
 
-覆盖：token 文件读写、服务自启动/复用、主命令 happy path、focus 交互（stdin mock）、TTY/非 TTY 输出格式、各子命令、`rerun --reset downstream` 后切轮询、Ctrl-C 关闭自启动服务。
+覆盖：token 文件读写、服务自启动/复用、主命令 happy path、focus 交互（stdin mock）、TTY/非 TTY 输出格式、各子命令、`rerun --reset downstream` 后切轮询、Ctrl-C 心跳注销、心跳注册/驱逐/自动关闭、EADDRINUSE 并发竞争、单例后端集成（8 场景）。

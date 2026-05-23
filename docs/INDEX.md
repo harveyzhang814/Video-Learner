@@ -28,6 +28,7 @@
 |------|------|
 | [explanation/git-workflow.md](explanation/git-workflow.md) | GitFlow 分支策略与合并规范（为什么 no-ff，为什么 staging 作为中间层） |
 | [explanation/asr-and-dag.md](explanation/asr-and-dag.md) | ASR 回退机制与 DAG 可达性调度原理（两条路径到 vtt2md、OR 门语义、任务失败判定） |
+| [explanation/singleton-backend.md](explanation/singleton-backend.md) | 统一后端与心跳机制原理（固定端口 3000、心跳引用计数、auto-shutdown、EADDRINUSE 竞争处理、崩溃恢复） |
 
 ## adr/ — Architecture Decision Records
 
@@ -41,6 +42,7 @@
 | [adr/2026-04-18-dag-reachability.md](adr/2026-04-18-dag-reachability.md) | DAG 可达性算法（替代硬编码失败检测、GATE_TYPE/TERMINAL_NODE、md2vtt 静默 bug 修复） |
 | [adr/2026-05-19-task-abort.md](adr/2026-05-19-task-abort.md) | 任务中止机制（进程组 kill、运行时 abort flag、任务级/步骤级粒度、同步响应） |
 | [adr/2026-05-19-task-resume.md](adr/2026-05-19-task-resume.md) | 任务 Resume 机制（独立 aborted 状态、DB status 列迁移、复用 runTask() 继续执行、手动恢复语义） |
+| [adr/2026-05-23-singleton-backend.md](adr/2026-05-23-singleton-backend.md) | 单例后端决策（固定端口、心跳引用计数替代进程所有权、token 文件在 bind 后写入） |
 
 ## rfcs/ — 提案（未实现）
 
