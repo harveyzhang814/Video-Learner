@@ -97,7 +97,9 @@ async function connect(opts = {}) {
   // Ensure server starts on the expected port (default 3000)
   if (!spawnEnv.PORT) spawnEnv.PORT = String(new URL(baseUrl).port || '3000');
 
-  const child = spawn(process.execPath, [entry], {
+  // In Electron, process.execPath is the Electron binary — use 'node' instead.
+  const nodeExecutable = process.versions.electron ? 'node' : process.execPath;
+  const child = spawn(nodeExecutable, [entry], {
     env: spawnEnv,
     stdio: 'ignore',
     detached: false,
