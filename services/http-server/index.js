@@ -634,7 +634,14 @@ if (require.main === module) {
   try { fs.writeFileSync(TOKEN_FILE, token); }   catch (_) {}
   try { fs.writeFileSync(PID_FILE, String(process.pid)); } catch (_) {}
 
+  const rootDir = path.resolve(__dirname, '../..');
+
+  let cleanedUp = false;
+  let graceTimer = null;
   function cleanup() {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
     try { fs.unlinkSync(TOKEN_FILE); } catch (_) {}
     try { fs.unlinkSync(PID_FILE);   } catch (_) {}
   }
@@ -649,7 +656,6 @@ if (require.main === module) {
     const INTERVAL_MS = Number(process.env.AUTO_SHUTDOWN_INTERVAL_MS) || 5000;
 
     let gracePending = false;
-    let graceTimer   = null;
 
     const shutdownInterval = setInterval(() => {
       const registry = app.context.heartbeatRegistry;
@@ -666,7 +672,7 @@ if (require.main === module) {
       // Check for running tasks
       let hasRunningTasks = false;
       try {
-        const tasks = orchestrator.listTasks();
+        const tasks = orchestrator.listTasks({ rootDir });
         hasRunningTasks = tasks.some(t => t.status === 'running');
       } catch (_) {}
 
@@ -682,8 +688,8 @@ if (require.main === module) {
         // Cancel pending grace if a new client registered or tasks started
         if (gracePending) {
           clearTimeout(graceTimer);
-          gracePending = false;
           graceTimer   = null;
+          gracePending = false;
         }
       }
     }, INTERVAL_MS);
