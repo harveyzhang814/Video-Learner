@@ -1355,6 +1355,15 @@ function _dropTaskFromMemory(taskId) {
   tasks.delete(taskId);
 }
 
+/**
+ * Returns the number of runTask() invocations currently in flight.
+ * Used by the HTTP server's auto-shutdown check to avoid killing the
+ * backend while tasks are still running — even after all clients disconnect.
+ */
+function getActiveTaskCount() {
+  return activeRunTasks;
+}
+
 module.exports = {
   createTask,
   listTasks,
@@ -1372,7 +1381,8 @@ module.exports = {
   onEvent,
   STEPS,
   _dropTaskFromMemory,
-  validateStepArtifacts
+  validateStepArtifacts,
+  getActiveTaskCount,
 };
 
 

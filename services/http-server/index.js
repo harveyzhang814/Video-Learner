@@ -673,12 +673,9 @@ if (require.main === module) {
 
       const hasClients = registry.size > 0;
 
-      // Check for running tasks
-      let hasRunningTasks = false;
-      try {
-        const tasks = orchestrator.listTasks({ rootDir });
-        hasRunningTasks = tasks.some(t => t.status === 'running');
-      } catch (_) {}
+      // Check for running tasks via in-memory counter (listTasks queries the DB
+      // which does not include a live status field — activeRunTasks is authoritative).
+      const hasRunningTasks = orchestrator.getActiveTaskCount() > 0;
 
       if (!hasClients && !hasRunningTasks) {
         if (!gracePending) {
