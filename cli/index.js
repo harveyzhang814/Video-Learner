@@ -41,7 +41,8 @@ if (commands[sub]) {
     require('./lib/format').printError(err.message);
     process.exit(1);
   });
-} else if (sub.startsWith('http')) {
+} else if (sub.startsWith('http') || sub.startsWith('-')) {
+  // Route to run: either URL is first arg, or flags precede the URL
   require('./commands/run').run(args).catch(err => {
     require('./lib/format').printError(err.message);
     process.exit(1);

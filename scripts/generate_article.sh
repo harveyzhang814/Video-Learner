@@ -77,6 +77,119 @@ echo "Source language: $SOURCE_LANG"
 # Update step to running
 update_step "$TASK_ID" "article" "running"
 
+# ---------------------------------------------------------------------------
+# Chunking detection — always build manifest, then decide path
+# ---------------------------------------------------------------------------
+TRANSCRIPT_DIR="$(dirname "$ORIGINAL_PATH")"
+CHUNK_TRANSCRIPT_DIR="$TRANSCRIPT_DIR/chunks"
+CHUNK_ARTICLE_DIR="$OUTPUT_DIR/chunks"
+MANIFEST_PATH="$CHUNK_TRANSCRIPT_DIR/manifest.json"
+
+mkdir -p "$CHUNK_TRANSCRIPT_DIR"
+if ! python3 "$SCRIPT_DIR/chunk_transcript.py" "$ORIGINAL_PATH" "$CHUNK_TRANSCRIPT_DIR" 2>&1; then
+    echo "Warning: chunk_transcript.py failed, falling back to single-call path" >&2
+    TOTAL_SECONDS=0
+else
+    TOTAL_SECONDS=$(python3 -c "import json; print(json.load(open('$MANIFEST_PATH'))['total_seconds'])" 2>/dev/null || echo "0")
+fi
+
+# ---------------------------------------------------------------------------
+# CHUNKED PATH  (≥ 60 min / 3600 s)
+# ---------------------------------------------------------------------------
+if [ "${TOTAL_SECONDS:-0}" -ge 3600 ]; then
+    CHUNK_COUNT=$(python3 -c "import json; print(len(json.load(open('$MANIFEST_PATH'))['chunks']))" 2>/dev/null || echo "0")
+    echo "Long video (${TOTAL_SECONDS}s): generating ${CHUNK_COUNT} article chunks"
+
+    mkdir -p "$CHUNK_ARTICLE_DIR"
+
+    # Format seconds → HH:MM:SS helper
+    _fmt_ts() { printf '%02d:%02d:%02d' $(($1/3600)) $((($1%3600)/60)) $(($1%60)); }
+
+    # Build per-chunk prompt header + article for each chunk
+    TOTAL_TS=$(_fmt_ts "$TOTAL_SECONDS")
+    CHUNK_FAILED=0
+
+    for IDX in $(python3 -c "import json; [print(c['index']) for c in json.load(open('$MANIFEST_PATH'))['chunks']]" 2>/dev/null); do
+        CHUNK_ARTICLE="$CHUNK_ARTICLE_DIR/chunk_$(printf '%03d' $IDX)_article.md"
+
+        # Resume: skip already-generated chunks
+        if [ -s "$CHUNK_ARTICLE" ]; then
+            echo "  chunk $IDX: already exists, skipping"
+            continue
+        fi
+
+        # Read chunk boundaries from manifest
+        read SEAM_START SEAM_END SLICE_START SLICE_END <<< $(python3 -c "
+import json
+c = [x for x in json.load(open('$MANIFEST_PATH'))['chunks'] if x['index']==$IDX][0]
+print(c['seam_start'], c['seam_end'], c['slice_start'], c['slice_end'])
+")
+        CHUNK_TRANSCRIPT="$CHUNK_TRANSCRIPT_DIR/chunk_$(printf '%03d' $IDX).md"
+        SEAM_START_TS=$(_fmt_ts "$SEAM_START")
+        SEAM_END_TS=$(_fmt_ts "$SEAM_END")
+        SLICE_START_TS=$(_fmt_ts "$SLICE_START")
+        SLICE_END_TS=$(_fmt_ts "$SLICE_END")
+
+        echo "  chunk $IDX/$CHUNK_COUNT (${SEAM_START_TS}–${SEAM_END_TS})"
+
+        # Build per-chunk prompt: prepend context header, then article_prompt.txt + transcript
+        TEMP_PROMPT=$(mktemp)
+        python3 - "$PROMPT_TEMPLATE" "$TEMP_PROMPT" <<PYEOF
+import sys
+template_path, out_path = sys.argv[1], sys.argv[2]
+template  = open(template_path).read()
+transcript = open("$CHUNK_TRANSCRIPT").read()
+
+chunk_header = (
+    "【分段处理】完整视频时长 $TOTAL_TS，本段为第 $IDX/$CHUNK_COUNT 块\\n"
+    "（核心范围 $SEAM_START_TS–$SEAM_END_TS，含 1.5 分缓冲区 $SLICE_START_TS–$SLICE_END_TS）。\\n"
+    "合并要求：每个正文段落前必须标注时间戳，格式 [HH:MM:SS]（取该段第一句话的时间）。\\n\\n"
+)
+
+result = (chunk_header + template
+    .replace("{{TRANSCRIPT_CONTENT}}", transcript)
+    .replace("{{SOURCE_LANG}}", "$SOURCE_LANG")
+    .replace("OUTPUT_LANG=zh-CN", "OUTPUT_LANG=$OUTPUT_LANG"))
+
+open(out_path, "w").write(result)
+PYEOF
+
+        # Call writing engine for this chunk
+        if ! WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
+                --input "$TEMP_PROMPT" \
+                --output "$CHUNK_ARTICLE"; then
+            echo "[STATUS] article_error: chunk $IDX generation failed"
+            rm -f "$TEMP_PROMPT"
+            CHUNK_FAILED=1
+            break
+        fi
+        rm -f "$TEMP_PROMPT"
+    done
+
+    if [ "$CHUNK_FAILED" -eq 1 ]; then
+        update_step "$TASK_ID" "article" "failed" "chunk generation failed"
+        echo "[STATUS] article_error: Article generation failed (chunk error)"
+        exit 1
+    fi
+
+    # Merge all chunk articles
+    echo "Merging $CHUNK_COUNT chunks → $OUTPUT_PATH"
+    if ! python3 "$SCRIPT_DIR/merge_article_chunks.py" \
+            "$MANIFEST_PATH" "$CHUNK_ARTICLE_DIR" "$OUTPUT_PATH"; then
+        update_step "$TASK_ID" "article" "failed" "merge failed"
+        echo "[STATUS] article_error: Article merge failed"
+        exit 1
+    fi
+
+    update_step "$TASK_ID" "article" "completed"
+    echo "[STATUS] article_done"
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# SINGLE-CALL PATH  (< 60 min) — original code, unchanged
+# ---------------------------------------------------------------------------
+
 # Build prompt by inlining transcript content directly.
 # Passing a file path to opencode (agent mode) causes it to use the Read tool,
 # which loads the full content into the context and makes MiniMax stall.
