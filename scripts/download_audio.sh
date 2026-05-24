@@ -34,7 +34,7 @@ fi
 # Clean temp files
 rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
 
-FORMAT="bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio"
+FORMAT="bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/worst[ext=mp4]/worst"
 PROGRESS_TMPL="[progress] downloaded=%(progress.downloaded_bytes)d total=%(progress.total_bytes or progress.total_bytes_estimate or 0)d speed=%(progress.speed or 0.0)f eta=%(progress.eta or 0)d"
 
 # Helper: attempt audio download with given cookie opts, capture output
