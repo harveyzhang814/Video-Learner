@@ -258,7 +258,11 @@ function ensureTask(taskId, options = {}) {
  * params: { url, focus, mode, force, output_lang, rootDir }
  */
 async function createTask(params) {
-  const { url, focus = '', mode, force = 0, output_lang = 'zh-CN', rootDir } = params;
+  const { url, focus = '', mode, force = 0, output_lang = 'zh-CN', rootDir, timeout_scale } = params;
+  // Validate timeout_scale: must be a positive finite number (1 = default, 3 = long, 6 = ultra-long).
+  const normalizedScale = (Number.isFinite(Number(timeout_scale)) && Number(timeout_scale) > 0)
+    ? Number(timeout_scale)
+    : 1;
   const normalizedMode = normalizeMode(mode);
   if (!url) {
     throw new Error('url is required');
@@ -293,7 +297,7 @@ async function createTask(params) {
     status: 'pending',
     created_at: now,
     updated_at: now,
-    params: { url, focus, mode: normalizedMode, force, output_lang, rootDir },
+    params: { url, focus, mode: normalizedMode, force, output_lang, rootDir, timeout_scale: normalizedScale },
     meta,
     steps: initSteps(),
     processInfo: null,
@@ -307,7 +311,7 @@ async function createTask(params) {
 
   const db = ensureDb(rootDir);
   db.createTask(id, url);
-  db.updateTask(id, { url, title: '', focus, output_lang, mode: normalizedMode });
+  db.updateTask(id, { url, title: '', focus, output_lang, mode: normalizedMode, timeout_scale: normalizedScale });
   for (const step of STEPS) {
     db.updateStep(id, step, 'pending');
   }
@@ -435,7 +439,8 @@ function runStepScript(rootDir, stepName, args, opts = {}) {
     proc.stderr.on('data', onStderrChunk);
 
     // Per-step timeout: kill process group and resolve with timedOut flag.
-    const timeoutMs = opts.timeoutMs ?? getStepTimeoutMs(stepName);
+    // opts.timeoutMs is an absolute override; opts.timeoutScale multiplies the default.
+    const timeoutMs = opts.timeoutMs ?? getStepTimeoutMs(stepName, opts.timeoutScale);
     const timeoutTimer = setTimeout(() => {
       if (settled) return;
       settled = true;
@@ -464,7 +469,7 @@ function runStepScript(rootDir, stepName, args, opts = {}) {
 
 /**
  * Run a single logical step and update in-memory step status.
- * options: { focus, force }
+ * options: { focus, force, timeoutScale }
  */
 async function runStep(taskId, stepName, options = {}) {
   const task = ensureTask(taskId, options);
@@ -676,7 +681,8 @@ async function runStep(taskId, stepName, options = {}) {
             onOutput: options.onOutput,
             onStdout,
             onStderr,
-            onProc: (proc) => { task._currentProc = proc; }
+            onProc: (proc) => { task._currentProc = proc; },
+            timeoutScale: options.timeoutScale,
           });
           task._currentProc = null;
           if (task._abortFlag || task._stepAbortResolve) break;
@@ -730,7 +736,8 @@ async function runStep(taskId, stepName, options = {}) {
             onOutput: options.onOutput,
             onStdout,
             onStderr,
-            onProc: (proc) => { task._currentProc = proc; }
+            onProc: (proc) => { task._currentProc = proc; },
+            timeoutScale: options.timeoutScale,
           });
           task._currentProc = null;
           if (task._abortFlag || task._stepAbortResolve) break;
@@ -843,7 +850,8 @@ async function runStep(taskId, stepName, options = {}) {
       onOutput,
       onStdout,
       onStderr,
-      onProc: (proc) => { task._currentProc = proc; }
+      onProc: (proc) => { task._currentProc = proc; },
+      timeoutScale: options.timeoutScale,
     });
     task._currentProc = null;
     // Step-level abort: runStep resets step to pending and notifies abortStep.
@@ -997,6 +1005,10 @@ async function runTask(taskId, options = {}) {
       if (task._abortFlag) break;
 
       const stepOptions = { ...options };
+      // Propagate per-task timeout scale so runStepScript can apply it.
+      if (task.params.timeout_scale && task.params.timeout_scale !== 1) {
+        stepOptions.timeoutScale = task.params.timeout_scale;
+      }
       if (next === 'video' || next === 'audio') {
         stepOptions.force = task.params.force;
       }
@@ -1343,6 +1355,15 @@ function _dropTaskFromMemory(taskId) {
   tasks.delete(taskId);
 }
 
+/**
+ * Returns the number of runTask() invocations currently in flight.
+ * Used by the HTTP server's auto-shutdown check to avoid killing the
+ * backend while tasks are still running — even after all clients disconnect.
+ */
+function getActiveTaskCount() {
+  return activeRunTasks;
+}
+
 module.exports = {
   createTask,
   listTasks,
@@ -1360,7 +1381,8 @@ module.exports = {
   onEvent,
   STEPS,
   _dropTaskFromMemory,
-  validateStepArtifacts
+  validateStepArtifacts,
+  getActiveTaskCount,
 };
 
 

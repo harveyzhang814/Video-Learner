@@ -44,6 +44,7 @@ curl -s -X POST http://127.0.0.1:3000/api/tasks \
 | `mode` | 否 | `media` | `transcript`（仅转录+摘要）\| `audio`（含音频）\| `media`（含视频）\| `full`（含音视频） |
 | `output_lang` | 否 | `zh-CN` | 输出语言，如 `en`、`zh-CN` |
 | `force` | 否 | `false` | 是否强制重跑已完成的步骤 |
+| `timeout_scale` | 否 | `1` | 超时倍率，用于超长视频（见下方「超长视频」一节） |
 
 ### 响应
 
@@ -71,7 +72,7 @@ curl -s http://127.0.0.1:3000/api/tasks/<task_id>
 | `done` | 流水线完成 |
 | `failed` | 整体失败（可查 `steps` 细节） |
 
-**建议轮询间隔**：5 秒，超时上限 20 分钟（视频时长与网络不同，转录可能耗时较长）。
+**建议轮询间隔**：5 秒，超时上限：普通视频 20 分钟，`--long`（×3）60 分钟，`--ultra-long`（×6）2 小时。
 
 ### 快速判断是否完成
 
@@ -142,6 +143,30 @@ curl -s -X POST http://127.0.0.1:3000/api/tasks/<task_id>/steps/<step_name>/run 
 ```
 
 常见步骤名：`fetch_info`、`download_subs`、`convert_vtt_md`、`generate_article`、`generate_summary`、`download_video`。
+
+### 超长视频
+
+当用户描述或暗示视频时长较长时，Agent 应主动加上 `timeout_scale`，否则 ASR / LLM 写作步骤可能在完成前被超时终止：
+
+| 用户信号 | 推荐 `timeout_scale` | 等效 CLI |
+|---------|---------------------|---------|
+| 视频约 1–3 小时、"讲座"、"会议录像"、"播客" | `3` | `--long` |
+| 视频 3 小时以上、"超长"、"全天课程" | `6` | `--ultra-long` |
+| 用户明确说"用长模式"/"long mode" | `3`（至少） | `--long` |
+
+```bash
+# 超长视频示例（timeout_scale=3）
+curl -s -X POST http://127.0.0.1:3000/api/tasks \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "url": "https://www.youtube.com/watch?v=XXXX",
+    "focus": "核心论点",
+    "mode": "transcript",
+    "timeout_scale": 3
+  }'
+```
+
+**轮询超时上限**也需相应调整：`timeout_scale=3` 时建议将轮询上限从 20 分钟延长至 60 分钟，`timeout_scale=6` 延长至 2 小时。
 
 ### 视频下载失败
 

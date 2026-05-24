@@ -77,6 +77,16 @@ function initTables(db) {
   } catch (_) {
   }
 
+  // Migration: timeout_scale for long-video mode (1 = default, 3 = --long, 6 = --ultra-long)
+  try {
+    const cols = db.prepare('PRAGMA table_info(tasks)').all();
+    if (!cols.some((c) => c.name === 'timeout_scale')) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN timeout_scale REAL DEFAULT 1`);
+    }
+  } catch (_) {
+    // ignore
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS steps (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

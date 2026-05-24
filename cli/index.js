@@ -17,6 +17,11 @@ function printUsage() {
 Usage:
   vdl <url> [--focus <text>] [--mode transcript|media|audio|full]
             [--lang zh-CN|en] [--force] [--json]
+            [--long] [--ultra-long] [--timeout-scale <n>]
+
+  --long            超长任务模式：所有步骤超时 ×3（适合 1-3 小时视频）
+  --ultra-long      超超长任务模式：所有步骤超时 ×6（适合 4+ 小时视频）
+  --timeout-scale   自定义倍率，如 --timeout-scale 4
 
   vdl status <task_id>
   vdl result <task_id> [--type summary|article]
@@ -36,7 +41,8 @@ if (commands[sub]) {
     require('./lib/format').printError(err.message);
     process.exit(1);
   });
-} else if (sub.startsWith('http')) {
+} else if (sub.startsWith('http') || sub.startsWith('-')) {
+  // Route to run: either URL is first arg, or flags precede the URL
   require('./commands/run').run(args).catch(err => {
     require('./lib/format').printError(err.message);
     process.exit(1);

@@ -28,6 +28,20 @@ npm unlink vdl  # 取消注册
 | `--lang <lang>` | `zh-CN` | 输出语言，`zh-CN` \| `en` |
 | `--force` | false | 强制重跑已完成步骤 |
 | `--json` | false | 以 JSON 格式输出最终结果（供脚本化） |
+| `--long` | — | 超长视频模式：所有步骤超时 ×3（适合 1–3 小时视频） |
+| `--ultra-long` | — | 超超长视频模式：所有步骤超时 ×6（适合 4+ 小时视频） |
+| `--timeout-scale <n>` | `1` | 自定义超时倍率（正数，覆盖 `--long`/`--ultra-long`） |
+
+**超时倍率参考（默认 × scale）：**
+
+| 步骤 | 默认 | `--long` (×3) | `--ultra-long` (×6) |
+|------|------|--------------|---------------------|
+| `asr` / `article` / `summary` | 60 min | 3 h | 6 h |
+| `audio` | 30 min | 90 min | 3 h |
+| `video` | 2 h | 6 h | 12 h |
+| `fetch` / `subs` / `vtt2md` / `md2vtt` | 10 min | 30 min | 60 min |
+
+超时倍率也可通过环境变量 `VL_TIMEOUT_SCALE=<n>` 在服务端全局设置（对该服务上所有任务生效）；单步绝对覆盖仍可用 `VL_TIMEOUT_<STEP>=<ms>`，优先级最高。
 
 ### `vdl status <task_id>`
 

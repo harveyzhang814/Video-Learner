@@ -7,15 +7,24 @@ const client = require('../lib/client');
 const fmt = require('../lib/format');
 
 function parseArgs(args) {
-  const opts = { url: null, focus: '', mode: 'media', lang: 'zh-CN', force: false, json: false };
+  const opts = {
+    url: null, focus: '', mode: 'media', lang: 'zh-CN',
+    force: false, json: false, timeout_scale: 1,
+  };
   let i = 0;
   while (i < args.length) {
     const a = args[i];
-    if (a === '--focus')       { opts.focus  = args[++i]; }
-    else if (a === '--mode')   { opts.mode   = args[++i]; }
-    else if (a === '--lang')   { opts.lang   = args[++i]; }
-    else if (a === '--force')  { opts.force  = true; }
-    else if (a === '--json')   { opts.json   = true; }
+    if (a === '--focus')            { opts.focus  = args[++i]; }
+    else if (a === '--mode')        { opts.mode   = args[++i]; }
+    else if (a === '--lang')        { opts.lang   = args[++i]; }
+    else if (a === '--force')       { opts.force  = true; }
+    else if (a === '--json')        { opts.json   = true; }
+    else if (a === '--long')        { opts.timeout_scale = 3; }   // ×3 all step timeouts
+    else if (a === '--ultra-long')  { opts.timeout_scale = 6; }   // ×6 all step timeouts
+    else if (a === '--timeout-scale') {
+      const n = Number(args[++i]);
+      if (Number.isFinite(n) && n > 0) opts.timeout_scale = n;
+    }
     else if (!opts.url && a.startsWith('http')) { opts.url = a; }
     i++;
   }
@@ -91,6 +100,7 @@ async function run(args) {
     mode: opts.mode,
     output_lang: opts.lang,
     force: opts.force,
+    timeout_scale: opts.timeout_scale,
   });
 
   process.stdout.write(`Task: ${taskId}\n`);
