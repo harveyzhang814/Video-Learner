@@ -137,8 +137,10 @@ if has_track "en-orig"; then
 fi
 
 if [ "$en_downloaded" = false ] && has_track "en"; then
-    echo "  Downloading English auto: en"
-    if download_subtitle_for_lang "en" "en" "auto"; then
+    echo "  Downloading English (original then auto): en"
+    if download_subtitle_for_lang "en" "en" "original"; then
+        en_downloaded=true
+    elif download_subtitle_for_lang "en" "en" "auto"; then
         en_downloaded=true
     fi
 fi
@@ -159,8 +161,10 @@ if has_track "zh-Hans"; then
 fi
 
 if [ "$zh_downloaded" = false ] && has_track "zh"; then
-    echo "  Downloading generic Chinese auto: zh"
-    if download_subtitle_for_lang "zh" "zh" "auto"; then
+    echo "  Downloading generic Chinese (original then auto): zh"
+    if download_subtitle_for_lang "zh" "zh" "original"; then
+        zh_downloaded=true
+    elif download_subtitle_for_lang "zh" "zh" "auto"; then
         zh_downloaded=true
     fi
 fi
