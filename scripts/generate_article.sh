@@ -132,27 +132,19 @@ print(c['seam_start'], c['seam_end'], c['slice_start'], c['slice_end'])
 
         echo "  chunk $IDX/$CHUNK_COUNT (${SEAM_START_TS}–${SEAM_END_TS})"
 
-        # Build per-chunk prompt: prepend context header, then article_prompt.txt + transcript
+        # Build per-chunk prompt via standalone Python script (avoids heredoc encoding issues)
         TEMP_PROMPT=$(mktemp)
-        python3 - "$PROMPT_TEMPLATE" "$TEMP_PROMPT" <<PYEOF
-import sys
-template_path, out_path = sys.argv[1], sys.argv[2]
-template  = open(template_path).read()
-transcript = open("$CHUNK_TRANSCRIPT").read()
-
-chunk_header = (
-    "【分段处理】完整视频时长 $TOTAL_TS，本段为第 $IDX/$CHUNK_COUNT 块\\n"
-    "（核心范围 $SEAM_START_TS–$SEAM_END_TS，含 1.5 分缓冲区 $SLICE_START_TS–$SLICE_END_TS）。\\n"
-    "合并要求：每个正文段落前必须标注时间戳，格式 [HH:MM:SS]（取该段第一句话的时间）。\\n\\n"
-)
-
-result = (chunk_header + template
-    .replace("{{TRANSCRIPT_CONTENT}}", transcript)
-    .replace("{{SOURCE_LANG}}", "$SOURCE_LANG")
-    .replace("OUTPUT_LANG=zh-CN", "OUTPUT_LANG=$OUTPUT_LANG"))
-
-open(out_path, "w").write(result)
-PYEOF
+        if ! python3 "$SCRIPT_DIR/build_chunk_prompt.py" \
+                "$PROMPT_TEMPLATE" "$CHUNK_TRANSCRIPT" "$TEMP_PROMPT" \
+                "$TOTAL_TS" "$IDX" "$CHUNK_COUNT" \
+                "$SEAM_START_TS" "$SEAM_END_TS" \
+                "$SLICE_START_TS" "$SLICE_END_TS" \
+                "$SOURCE_LANG" "$OUTPUT_LANG"; then
+            echo "[STATUS] article_error: failed to build prompt for chunk $IDX"
+            rm -f "$TEMP_PROMPT"
+            CHUNK_FAILED=1
+            break
+        fi
 
         # Call writing engine for this chunk
         if ! WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
