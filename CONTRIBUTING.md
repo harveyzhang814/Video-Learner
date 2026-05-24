@@ -1,23 +1,5 @@
 # 贡献指南
 
-## 开发环境初始化
-
-克隆仓库后，运行以下命令安装 Git hooks：
-
-```bash
-bash hooks/install.sh
-```
-
-hooks 存放于 `hooks/` 目录，会被软链接到 `.git/hooks/`。目前包含：
-
-| Hook | 作用 |
-|------|------|
-| `pre-commit` | 禁止直接在 `master` / `staging` 上提交（只允许合并提交） |
-
-每次新增 hook 后重新运行 `bash hooks/install.sh` 即可。
-
----
-
 ## 提问与问题描述规范
 
 向 Claude Code 或其他协作者描述问题时，避免意图含糊的描述。以下示例说明如何将模糊问题精炼为可操作的技术 spec。

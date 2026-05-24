@@ -99,15 +99,6 @@ fi
 # Go back to project root
 cd "$PROJECT_DIR"
 
-# Install Git hooks
-echo ""
-echo "Installing Git hooks..."
-if [ -f "$PROJECT_DIR/hooks/install.sh" ]; then
-    bash "$PROJECT_DIR/hooks/install.sh"
-else
-    echo -e "${YELLOW}Warning: hooks/install.sh not found, skipping${NC}"
-fi
-
 echo ""
 echo -e "${GREEN}=== All dependencies installed successfully! ===${NC}"
 echo ""
