@@ -2145,7 +2145,7 @@
     }
 
     function formatDuration(seconds) {
-      if (!seconds || !Number.isFinite(seconds)) return '-';
+      if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return '-';
       const h = Math.floor(seconds / 3600);
       const m = Math.floor((seconds % 3600) / 60);
       const s = Math.floor(seconds % 60);
@@ -2157,7 +2157,7 @@
       const meta = (task && task.meta) || {};
       infoTitle.textContent = meta.title || '-';
       if (infoUploader) infoUploader.textContent = meta.uploader || '-';
-      infoUrl.textContent = meta.url || meta.url || '-';
+      infoUrl.textContent = meta.url || '-';
       infoLang.textContent = meta.output_lang || meta.lang || '-';
       infoDuration.textContent = meta.duration ? formatDuration(Number(meta.duration)) : '-';
       infoFocus.textContent = meta.focus || '-';
@@ -2265,6 +2265,15 @@
       document.querySelectorAll('.history-item').forEach((item) => {
         item.addEventListener('click', () => selectTask(item.dataset.id));
       });
+
+      // Re-apply search filter if a query is active
+      if (sidebarSearch && sidebarSearch.value.trim()) {
+        const q = sidebarSearch.value.toLowerCase().trim();
+        document.querySelectorAll('#historyList .history-item').forEach((item) => {
+          const title = (item.querySelector('.item-title') || item).textContent.toLowerCase();
+          item.style.display = q === '' || title.includes(q) ? '' : 'none';
+        });
+      }
     }
 
     async function refreshHistory() {
@@ -3214,6 +3223,9 @@
       infoLang.textContent = '-';
       infoDuration.textContent = '-';
       infoFocus.textContent = '-';
+      if (infoUploader) infoUploader.textContent = '-';
+      if (infoCreatedAt) infoCreatedAt.textContent = '-';
+      if (infoUpdatedAt) infoUpdatedAt.textContent = '-';
       ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'].forEach((s) => setPillState('#infoStatus', s, {}));
       await refreshHistory();
       const works = await client.listTasks({ limit: 200 });
