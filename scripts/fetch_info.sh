@@ -64,7 +64,11 @@ echo "Duration: $duration seconds"
 echo "Uploader: $uploader"
 
 # Update task in database with metadata
-sqlite3 "$DB_PATH" "UPDATE tasks SET title = '$title', duration = '$duration', updated_at = datetime('now') WHERE id = '$ID';"
+# Escape single quotes for SQLite (replace ' with '')
+_title_esc=$(echo "$title" | sed "s/'/''/g")
+_duration_esc=$(echo "$duration" | sed "s/'/''/g")
+_uploader_esc=$(echo "$uploader" | sed "s/'/''/g")
+sqlite3 "$DB_PATH" "UPDATE tasks SET title = '$_title_esc', duration = '$_duration_esc', uploader = '$_uploader_esc', updated_at = datetime('now') WHERE id = '$ID';"
 
 # Update step to completed
 update_step "$ID" "fetch" "completed"
