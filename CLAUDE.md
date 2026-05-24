@@ -28,6 +28,25 @@ npm run agent:serve      # HTTP API 服务
 - `output_lang`: `zh-CN`（默认）| `en`
 - `focus`: 用户关注点（如「技术架构」「主要论点」）
 - `reset_scope`: `off` | `step` | `downstream`
+- `timeout_scale`: `1`（默认）| `3`（长视频）| `6`（超长视频）
+
+## 超长视频模式
+用户描述含以下信号时，**必须**加上 `timeout_scale`，否则 ASR / LLM 步骤会在完成前超时：
+
+| 用户信号 | timeout_scale | CLI 等效 |
+|---------|--------------|---------|
+| 视频约 1–3 小时 / "讲座" / "会议" / "播客" / "long" | `3` | `--long` |
+| 视频 3 小时以上 / "超长" / "全天" / "ultra-long" | `6` | `--ultra-long` |
+| 用户明确要求"长模式"/"long mode" | `3`（至少） | `--long` |
+
+```bash
+# CLI
+vdl --long <URL>
+vdl --ultra-long <URL>
+
+# HTTP API
+POST /api/tasks  { "url": "...", "timeout_scale": 3 }
+```
 
 ## 多引擎写作
 
