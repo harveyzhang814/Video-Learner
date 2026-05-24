@@ -765,7 +765,7 @@
 <div class="state-block">
   <div class="state-label">
     <span>3 / 4</span>
-    <span class="state-name">running — 任务运行中，进度条 + 中止按钮</span>
+    <span class="state-name">running — 任务运行中，中止按钮 + 信息 tab 状态点</span>
   </div>
   <div class="app-frame">
     <div class="app">
@@ -816,22 +816,6 @@
                 <div class="tab active">文章</div>
                 <div class="tab">摘要</div>
               </div>
-              <!-- Progress Section visible during running -->
-              <div class="progress-section">
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: 62.5%"></div>
-                </div>
-                <div class="progress-steps">
-                  <div class="progress-step done"><span class="dot"></span>获取</div>
-                  <div class="progress-step done"><span class="dot"></span>视频</div>
-                  <div class="progress-step done"><span class="dot"></span>音频</div>
-                  <div class="progress-step done"><span class="dot"></span>字幕</div>
-                  <div class="progress-step done"><span class="dot"></span>转文案</div>
-                  <div class="progress-step active"><span class="dot"></span>字幕生成</div>
-                  <div class="progress-step"><span class="dot"></span>文章</div>
-                  <div class="progress-step"><span class="dot"></span>摘要</div>
-                </div>
-              </div>
             </div>
             <div class="content-card-body">
               <div class="empty" style="color:#BBB;">文章尚未生成（处理中…）</div>
@@ -846,7 +830,7 @@
       <div class="video-panel">
         <div class="panel-tabs">
           <button class="panel-tab active">播放</button>
-          <button class="panel-tab">信息</button>
+          <button class="panel-tab">信息<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#FFD700;margin-left:5px;vertical-align:middle;position:relative;top:-1px;animation:pulse 1.4s infinite;"></span></button>
         </div>
         <div class="panel-pane active">
           <div class="video-container">
