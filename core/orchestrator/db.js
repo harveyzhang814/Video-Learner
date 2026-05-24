@@ -23,11 +23,18 @@ function initTables(db) {
       duration TEXT,
       output_lang TEXT DEFAULT 'zh-CN',
       focus TEXT,
+      uploader TEXT,
       transcripts TEXT DEFAULT '{}',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migration: add uploader if missing
+  const _uploaderCols = db.prepare('PRAGMA table_info(tasks)').all();
+  if (!_uploaderCols.some((c) => c.name === 'uploader')) {
+    db.exec('ALTER TABLE tasks ADD COLUMN uploader TEXT');
+  }
 
   // Migration: add transcripts if missing
   try {
@@ -96,7 +103,7 @@ function createDbManager(dbPath) {
       const rows = db
         .prepare(
           `
-          SELECT id, url, ts, title, lang, duration, output_lang, focus, mode, transcripts, created_at, updated_at
+          SELECT id, url, ts, title, lang, duration, output_lang, focus, mode, transcripts, uploader, created_at, updated_at
           FROM tasks WHERE deleted_at IS NULL
           ORDER BY datetime(created_at) DESC, datetime(ts) DESC
           LIMIT ?
