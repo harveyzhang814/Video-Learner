@@ -31,10 +31,9 @@ function initTables(db) {
   `);
 
   // Migration: add uploader if missing
-  try {
-    db.prepare("ALTER TABLE tasks ADD COLUMN uploader TEXT").run();
-  } catch (_) {
-    // column already exists, ignore
+  const _uploaderCols = db.prepare('PRAGMA table_info(tasks)').all();
+  if (!_uploaderCols.some((c) => c.name === 'uploader')) {
+    db.exec('ALTER TABLE tasks ADD COLUMN uploader TEXT');
   }
 
   // Migration: add transcripts if missing
