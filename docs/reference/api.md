@@ -55,6 +55,7 @@
 | `mode` | string | 否 | `media`（默认）\| `audio` \| `transcript` \| `full` |
 | `force` | boolean | 否 | 是否强制重跑（影响 video/audio 步骤） |
 | `output_lang` | string | 否 | 输出语言，默认 `zh-CN` |
+| `timeout_scale` | number | 否 | 超时倍率，默认 `1`；`3` = `--long`，`6` = `--ultra-long`。非正数值自动归一化为 `1`，per-task 生效，不影响并发的其他任务。 |
 
 旧 mode 名称（`both`、`video`）会被静默规范化为 `media`，见 [adr/2026-04-13-mode-redesign.md](../adr/2026-04-13-mode-redesign.md)。
 
