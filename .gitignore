@@ -38,6 +38,10 @@ work/*
 # Claude（本地配置，不上传）
 .claude/
 
+# Design HTML previews（sync-design-html 生成，本地预览用）
+docs/reference/design-html-manifest.json
+docs/reference/design-previews/
+
 # Cursor（本地技能，不上传）
 .cursor/skills/ui-ux-pro-max/
 .gstack/
