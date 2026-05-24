@@ -616,68 +616,6 @@
       color: var(--bg);
     }
 
-    /* Progress Bar */
-    .progress-section {
-      margin-bottom: calc(var(--grid-unit) * 2);
-    }
-
-    .progress-bar {
-      height: 3px;
-      background: var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: var(--accent);
-      transition: width 0.3s ease;
-    }
-
-    .progress-steps {
-      display: flex;
-      gap: calc(var(--grid-unit) * 2);
-      margin-top: 8px;
-    }
-
-    .progress-step {
-      font-size: 11px;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .progress-step.active {
-      color: var(--text);
-      font-weight: 500;
-    }
-
-    .progress-step.done {
-      color: var(--text);
-    }
-
-    .progress-step .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--border);
-    }
-
-    .progress-step.active .dot {
-      background: var(--accent);
-      animation: pulse 1s infinite;
-    }
-
-    .progress-step.done .dot {
-      background: var(--accent);
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
     /* Toolbar */
     .toolbar {
       display: flex;
@@ -1614,21 +1552,6 @@
             <div class="tabs" role="tablist" aria-label="内容视图">
               <div class="tab active" role="tab" aria-selected="true" aria-controls="articlePane" data-tab="article">文章</div>
               <div class="tab" role="tab" aria-selected="false" aria-controls="summaryPane" data-tab="summary">摘要</div>
-            </div>
-            <div class="progress-section hidden" id="progressSection">
-              <div class="progress-bar">
-                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-              </div>
-              <div class="progress-steps">
-                <div class="progress-step" data-step="fetch"><span class="dot"></span>获取</div>
-                <div class="progress-step" data-step="video"><span class="dot"></span>视频</div>
-                <div class="progress-step" data-step="audio"><span class="dot"></span>音频</div>
-                <div class="progress-step" data-step="subs"><span class="dot"></span>字幕</div>
-                <div class="progress-step" data-step="vtt2md"><span class="dot"></span>转文案</div>
-                <div class="progress-step" data-step="md2vtt"><span class="dot"></span>字幕生成</div>
-                <div class="progress-step" data-step="article"><span class="dot"></span>文章</div>
-                <div class="progress-step" data-step="summary"><span class="dot"></span>摘要</div>
-              </div>
             </div>
           </div>
           <div class="content-card-body">
