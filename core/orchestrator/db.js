@@ -23,11 +23,19 @@ function initTables(db) {
       duration TEXT,
       output_lang TEXT DEFAULT 'zh-CN',
       focus TEXT,
+      uploader TEXT,
       transcripts TEXT DEFAULT '{}',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migration: add uploader if missing
+  try {
+    db.prepare("ALTER TABLE tasks ADD COLUMN uploader TEXT").run();
+  } catch (_) {
+    // column already exists, ignore
+  }
 
   // Migration: add transcripts if missing
   try {
