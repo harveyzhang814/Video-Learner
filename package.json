@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "start": "bash start-electron.sh",
+    "prepare": "bash hooks/install.sh",
     "install-deps": "bash scripts/install.sh",
     "agent:serve": "node services/http-server/index.js",
     "test:agent": "node tests/agent-http.test.js",
