@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { deriveUiState } = require('../electron/src/renderer/ui-state');
+const { deriveUiState, deriveInfoTabDot } = require('../electron/src/renderer/ui-state');
 
 async function run() {
   // U8: empty state
@@ -27,6 +27,39 @@ async function run() {
   assert.strictEqual(fromList.tasks.length, 2);
   assert.strictEqual(fromList.selectedTask, null);
   console.log('U1/U3 list state: ok');
+
+  // Tab dot: no steps → hidden
+  assert.strictEqual(deriveInfoTabDot({}), 'hidden');
+  console.log('tab-dot no steps: ok');
+
+  // Tab dot: all completed → hidden
+  assert.strictEqual(deriveInfoTabDot({
+    fetch: { status: 'completed' },
+    video: { status: 'completed' },
+  }), 'hidden');
+  console.log('tab-dot all done: ok');
+
+  // Tab dot: one running → running (even if others failed)
+  assert.strictEqual(deriveInfoTabDot({
+    fetch: { status: 'completed' },
+    video: { status: 'running' },
+    audio: { status: 'failed' },
+  }), 'running');
+  console.log('tab-dot running: ok');
+
+  // Tab dot: failed but no running → error
+  assert.strictEqual(deriveInfoTabDot({
+    fetch: { status: 'completed' },
+    video: { status: 'failed' },
+  }), 'error');
+  console.log('tab-dot error: ok');
+
+  // Tab dot: skipped counts as done (not error)
+  assert.strictEqual(deriveInfoTabDot({
+    fetch: { status: 'completed' },
+    video: { status: 'skipped' },
+  }), 'hidden');
+  console.log('tab-dot skipped is hidden: ok');
 
   console.log('gui-logic-state.test.js: all passed');
   process.exit(0);
