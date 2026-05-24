@@ -11,7 +11,7 @@
   <style>
     :root {
       --grid-unit: 8px;
-      --sidebar-width: 240px;
+      --sidebar-width: 220px;
       --video-panel-width: 400px;
       --video-container-height: 225px;
 
@@ -105,6 +105,38 @@
       letter-spacing: -0.02em;
     }
 
+    .sidebar-search {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .search-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      padding: 5px 8px;
+    }
+
+    .search-icon {
+      color: var(--text-muted);
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-search-input {
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text);
+      outline: none;
+      width: 100%;
+    }
+    .sidebar-search-input::placeholder { color: var(--text-muted); }
+
     .history-label {
       padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
       font-size: 11px;
@@ -156,29 +188,32 @@
       padding-left: calc(var(--grid-unit) * 3 - 2px);
     }
 
-    .history-item .title {
+    .history-item .item-title {
+      font-size: 12px;
       font-weight: 500;
-      font-size: 13px;
-      margin-bottom: 2px;
+      line-height: 1.4;
+      color: var(--text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      margin-bottom: 4px;
     }
 
-    .history-item .meta {
-      font-size: 11px;
-      color: var(--text-muted);
+    .history-item .item-meta {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
+    .history-item .item-time {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
     .history-item .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
-      display: inline-block;
-      margin-right: 8px;
       flex-shrink: 0;
     }
     .history-item .status-dot.running { background: #FFD700; }
@@ -862,6 +897,82 @@
       flex-direction: column;
       width: var(--video-panel-width);
       flex-shrink: 0;
+    }
+
+    /* Right panel Tab Strip */
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .panel-tab {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 11px;
+      font-weight: 500;
+      text-align: center;
+      cursor: pointer;
+      border: none;
+      background: var(--bg-alt);
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all var(--transition);
+      letter-spacing: 0.02em;
+      font-family: inherit;
+    }
+    .panel-tab:hover { color: var(--text); background: var(--bg); }
+    .panel-tab.active {
+      background: var(--bg);
+      color: var(--text);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .panel-pane { display: none; flex-direction: column; flex: 1; overflow: hidden; min-height: 0; }
+    .panel-pane.active { display: flex; }
+
+    .info-pane-scroll {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .info-pane-section {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .info-pane-section-label {
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .info-pane-field { margin-bottom: 8px; }
+    .info-pane-field:last-child { margin-bottom: 0; }
+
+    .info-pane-field-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .info-pane-field-value {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.4;
+      word-break: break-all;
+    }
+    .info-pane-field-value.is-title { font-size: 13px; font-weight: 500; word-break: break-word; }
+    .info-pane-field-value.is-url   { color: var(--text-muted); font-size: 11px; }
+
+    .info-pane-section .info-status {
+      gap: 4px;
     }
 
     .video-header {
