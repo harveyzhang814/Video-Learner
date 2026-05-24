@@ -1140,6 +1140,7 @@ async function getTask(taskId, options = {}) {
       if (row.title != null && row.title !== '') task.meta.title = row.title;
       if (row.duration != null && row.duration !== '') task.meta.duration = row.duration;
       if (row.lang != null && row.lang !== '') task.meta.lang = row.lang;
+      if (row.uploader != null && row.uploader !== '') task.meta.uploader = row.uploader;
     }
   }
   if (task.status === 'completed' || task.status === 'failed') {
