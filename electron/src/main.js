@@ -27,6 +27,8 @@ const MAIN_LOG_PATH = path.join(__dirname, '..', 'main-process.log');
   });
 })();
 
+const ICON_PATH = path.join(__dirname, '..', 'assets', 'icon.icns');
+
 function createWindow() {
   try {
     fs.writeFileSync(RENDERER_LOG_PATH, `[${new Date().toISOString()}] Electron launch, log started\n`, 'utf8');
@@ -36,6 +38,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 800,
+    icon: ICON_PATH,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -62,6 +65,10 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  // 设置 macOS Dock 图标
+  if (process.platform === 'darwin' && app.dock) {
+    try { app.dock.setIcon(ICON_PATH); } catch (_) {}
+  }
   try {
     await helpers.startLocalHttpService();
   } catch (e) {
