@@ -195,12 +195,10 @@
 
 | UI 元素 | 状态 |
 |---|---|
-| `#progressSection` | 显示 |
-| `#progressFill` | 宽度按完成步骤比例更新 |
-| `.progress-step` | `active`（脉冲点）/ `done`（实心点）/ 默认（空心点） |
 | 工具栏「中止」 | 显示（红色危险按钮） |
 | 侧栏状态点 | 黄色 |
 | 信息面板 status pill | `active` ◐ / `done` ✓ / `error` ✗（可点击重试） |
+| 「信息」tab 状态点（`#infoTabDot`） | 运行中：黄色脉冲 / 有失败：红色静止 / 完成或空：隐藏 |
 
 **8 步流水线：**
 
