@@ -2282,13 +2282,17 @@
 
     function clampVideoPanelWidth(px) {
       const min = 260;
-      const max = 720;
+      const sidebarWidth = parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width') || '220',
+        10
+      );
+      const max = window.innerWidth - sidebarWidth;
       return Math.max(min, Math.min(max, px));
     }
 
     function clampVideoContainerHeight(px) {
       const min = 160;
-      const max = 480;
+      const max = window.innerHeight - 120; // 留顶栏 + 控制栏空间
       return Math.max(min, Math.min(max, px));
     }
 
