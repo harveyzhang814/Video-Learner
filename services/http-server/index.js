@@ -151,13 +151,14 @@ function createApp(options = {}) {
 
   router.post('/tasks', async (ctx) => {
   try {
-    const { url, focus, mode, force, output_lang } = ctx.request.body || {};
+    const { url, focus, mode, force, output_lang, timeout_scale } = ctx.request.body || {};
     const task = await orchestrator.createTask({
       url,
       focus,
       mode,
       force,
       output_lang,
+      timeout_scale,
       rootDir: ROOT_DIR
     });
 

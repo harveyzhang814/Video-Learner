@@ -26,15 +26,37 @@ const _STEP_TIMEOUTS_MS = {
   summary: 60  * 60 * 1000,  // 60 min
 };
 
-/** Returns the effective timeout for a step (env override takes precedence). */
-function getStepTimeoutMs(stepName) {
+/**
+ * Returns the effective timeout for a step, with optional per-task scale.
+ *
+ * Priority (highest → lowest):
+ *   1. Per-step env override: VL_TIMEOUT_<STEP>=<ms>  (absolute, scale not applied)
+ *   2. Base default × scale  (scale = per-task timeout_scale param or VL_TIMEOUT_SCALE env)
+ *
+ * scale values: 1 = default, 3 = --long, 6 = --ultra-long.
+ * Example: VL_TIMEOUT_SCALE=3 vdl <URL>   → all steps ×3
+ */
+function getStepTimeoutMs(stepName, scale) {
+  // Per-step absolute override (bypasses scale entirely).
   const envKey = `VL_TIMEOUT_${stepName.toUpperCase()}`;
   const envVal = process.env[envKey];
   if (envVal) {
     const n = Number(envVal);
     if (Number.isFinite(n) && n > 0) return n;
   }
-  return _STEP_TIMEOUTS_MS[stepName] ?? (10 * 60 * 1000); // 10 min fallback
+
+  const base = _STEP_TIMEOUTS_MS[stepName] ?? (10 * 60 * 1000);
+
+  // Effective scale: per-task param > VL_TIMEOUT_SCALE env > 1.
+  let effectiveScale = 1;
+  if (Number.isFinite(scale) && scale > 0) {
+    effectiveScale = scale;
+  } else {
+    const envScale = Number(process.env.VL_TIMEOUT_SCALE);
+    if (Number.isFinite(envScale) && envScale > 0) effectiveScale = envScale;
+  }
+
+  return Math.round(base * effectiveScale);
 }
 
 /**
