@@ -94,10 +94,97 @@ function apiReq(method, urlPath, token, port, body) {
   assert.ok(!fs.existsSync(TOKEN_FILE), 'Token file cleaned on auto-shutdown');
   assert.ok(!fs.existsSync(PID_FILE),   'PID file cleaned on auto-shutdown');
 
-  // ---- Test C: AUTO_SHUTDOWN=1 does NOT shut down when tasks are running ----
-  // (uses a lower-level check: we verify the server is still alive after grace
-  //  period when a task is running — tested by checking the orchestrator
-  //  guard indirectly; full integration in singleton-backend.test.js)
+  // ---- Test C: getActiveTaskCount() correctly gates auto-shutdown ----
+  // In-process: verifies the counter that the shutdown check relies on.
+  // Scenario: CLI creates task → CLI exits (heartbeat stops) →
+  //           backend stays alive until task done → backend exits.
+  {
+    const orchestrator = require('../core/orchestrator');
+    const os = require('os');
+    const tmp3 = fs.mkdtempSync(require('path').join(os.tmpdir(), 'vl-shutdown-c-'));
+
+    // Before any task: counter is 0 → shutdown would proceed
+    assert.strictEqual(orchestrator.getActiveTaskCount(), 0,
+      'C: initial getActiveTaskCount=0');
+
+    // Create task and fire runTask (simulates CLI creating task then exiting)
+    const { task_id } = await orchestrator.createTask({
+      url: 'https://example.com/watch?v=shutdown-test',
+      mode: 'transcript',
+      rootDir: tmp3,
+    });
+    const runPromise = orchestrator.runTask(task_id, { rootDir: tmp3 });
+
+    // Immediately after runTask() call: counter is 1 (incremented synchronously
+    // before first await) → shutdown check sees hasRunningTasks=true → deferred
+    assert.strictEqual(orchestrator.getActiveTaskCount(), 1,
+      'C: getActiveTaskCount=1 while task running — shutdown deferred');
+
+    // Wait for task to finish (will fail: fake URL, no yt-dlp output expected)
+    await runPromise.catch(() => {});
+
+    // After task ends: counter drops to 0 → shutdown check can now proceed
+    assert.strictEqual(orchestrator.getActiveTaskCount(), 0,
+      'C: getActiveTaskCount=0 after task done — shutdown can proceed');
+  }
+
+  // ---- Test D: server exits AFTER task completes, not before ----
+  // Subprocess test: spawn server, register client, start task, deregister client,
+  // verify server stays alive while task runs, verify server exits after task ends.
+  {
+    try { fs.unlinkSync(TOKEN_FILE); } catch {}
+    const childD = spawn(process.execPath, [SERVER], {
+      env: {
+        ...process.env,
+        PORT: String(PORT),
+        TOKEN_FILE,
+        PID_FILE,
+        AUTO_SHUTDOWN: '1',
+        AUTO_SHUTDOWN_EVICT_MS:    '200',
+        AUTO_SHUTDOWN_GRACE_MS:    '200',
+        AUTO_SHUTDOWN_INTERVAL_MS: '100',
+      },
+      stdio: 'ignore',
+    });
+    await waitHealthz(baseUrl);
+    const tokenD = fs.readFileSync(TOKEN_FILE, 'utf8').trim();
+
+    // Register client (simulates CLI connecting)
+    await apiReq('POST', '/api/heartbeat', tokenD, PORT, { clientId: 'cli-d' });
+
+    // Create a task via HTTP (fire-and-forget; increments activeRunTasks)
+    await apiReq('POST', '/api/tasks', tokenD, PORT, {
+      url: 'https://example.com/watch?v=shutdown-d',
+      mode: 'transcript',
+    });
+
+    // Small pause so runTask's synchronous increment registers before we
+    // deregister the client. The task itself runs asynchronously.
+    await new Promise(r => setTimeout(r, 50));
+
+    // Deregister client (simulates CLI exiting)
+    await apiReq('DELETE', `/api/heartbeat/cli-d`, tokenD, PORT);
+
+    // Server must still be alive just after deregister — task is running.
+    // Grace window is 200 ms; check immediately.
+    const aliveStatus = await new Promise(resolve => {
+      http.get(`${baseUrl}/healthz`, res => resolve(res.statusCode))
+          .on('error', () => resolve(null));
+    });
+    assert.strictEqual(aliveStatus, 200,
+      'D: server still alive immediately after client exit (task running)');
+
+    // Wait for server to exit on its own (task fails → activeRunTasks=0 →
+    // grace 200 ms → exit). Budget: task up to 8 s + grace 200 ms + buffer 2 s.
+    const exitedD = await new Promise(resolve => {
+      childD.once('exit', code => resolve(code ?? 0));
+      setTimeout(() => resolve(null), 12000);
+    });
+    assert.ok(exitedD !== null,
+      'D: server should exit automatically after task completes and no clients remain');
+    assert.ok(!fs.existsSync(TOKEN_FILE), 'D: token file cleaned on exit');
+    assert.ok(!fs.existsSync(PID_FILE),   'D: PID file cleaned on exit');
+  }
 
   console.log('auto-shutdown: PASS');
 })().catch(err => { console.error(err); process.exit(1); });
