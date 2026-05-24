@@ -2104,6 +2104,19 @@
       }
     }
 
+    function updateInfoTabDot(steps) {
+      const dot = document.getElementById('infoTabDot');
+      if (!dot) return;
+      const values = Object.values(steps || {});
+      const state = values.some((s) => s.status === 'running')
+        ? 'running'
+        : values.some((s) => s.status === 'failed')
+          ? 'error'
+          : 'hidden';
+      dot.classList.remove('running', 'error', 'hidden');
+      dot.classList.add(state);
+    }
+
     function formatDuration(seconds) {
       if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return '-';
       const h = Math.floor(seconds / 3600);
@@ -2150,6 +2163,8 @@
           }
         }
       }
+      const taskSteps = task && task.steps ? task.steps : {};
+      updateInfoTabDot(taskSteps);
     }
 
     function ensureLogState(taskId) {
@@ -3194,6 +3209,7 @@
       if (infoCreatedAt) infoCreatedAt.textContent = '-';
       if (infoUpdatedAt) infoUpdatedAt.textContent = '-';
       ['fetch', 'video', 'audio', 'subs', 'vtt2md', 'md2vtt', 'article', 'summary'].forEach((s) => setPillState('#infoStatus', s, {}));
+      updateInfoTabDot({});
       await refreshHistory();
       const works = await client.listTasks({ limit: 200 });
       if (works && works.length > 0) {
