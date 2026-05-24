@@ -888,6 +888,32 @@
       font-weight: 600;
     }
 
+    /* Info tab status dot */
+    .tab-status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-left: 5px;
+      vertical-align: middle;
+      position: relative;
+      top: -1px;
+    }
+
+    .tab-status-dot.running {
+      background: #FFD700;
+      animation: pulse 1.4s infinite;
+    }
+
+    .tab-status-dot.error {
+      background: #EF4444;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
     .panel-pane { display: none; flex-direction: column; flex: 1; overflow: hidden; min-height: 0; }
     .panel-pane.active { display: flex; }
 
@@ -1575,7 +1601,7 @@
       <!-- Tab Strip -->
       <div class="panel-tabs" id="panelTabs" role="tablist" aria-label="Right panel">
         <button class="panel-tab active" role="tab" aria-selected="true" aria-controls="playerPane" data-panel="player">播放</button>
-        <button class="panel-tab" role="tab" aria-selected="false" aria-controls="infoPane" data-panel="info">信息</button>
+        <button class="panel-tab" role="tab" aria-selected="false" aria-controls="infoPane" data-panel="info">信息<span class="tab-status-dot hidden" id="infoTabDot"></span></button>
       </div>
 
       <!-- 播放 tab -->
