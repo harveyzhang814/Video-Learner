@@ -43,7 +43,7 @@
 ### 5. 布局
 
 - **栅格**：padding / margin 以 `calc(var(--grid-unit) * N)` 为主（如 2、3）
-- **侧栏**：240px 固定宽；主区 flex:1；视频面板 400px 固定宽
+- 具体面板尺寸（侧栏宽、视频面板宽、拖拽范围）见 [DESIGN.md §二](../../DESIGN.md)
 
 ---
 
