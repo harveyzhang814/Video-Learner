@@ -18,6 +18,7 @@
 | `--grid-unit` | 8px | 间距与留白基准 |
 | `--bg` | #FFFFFF | 主背景（卡片、弹窗） |
 | `--bg-alt` | #FAFAFA | 页面底衬 |
+| `--bg-hover` | #F5F5F5 | 可交互元素 hover 背景（radio、list item 等） |
 | `--text` | #111111 | 主文字 |
 | `--text-secondary` | #666666 | 次要文字 |
 | `--text-muted` | #999999 | 辅助/说明文字 |

@@ -45,6 +45,7 @@
     "better-sqlite3": "^12.6.2"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.8",
     "koa": "^3.1.2",
     "koa-bodyparser": "^4.4.1",
     "koa-router": "^14.0.0"

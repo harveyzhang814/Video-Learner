@@ -1,14 +1,34 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YouTube Pipeline</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="../../node_modules/marked/lib/marked.umd.js"></script>
   <style>
+    /* Inter — 本地字体，无需网络请求 */
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: url('./fonts/inter-latin-400-normal.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 500;
+      font-display: swap;
+      src: url('./fonts/inter-latin-500-normal.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 600;
+      font-display: swap;
+      src: url('./fonts/inter-latin-600-normal.woff2') format('woff2');
+    }
+
     :root {
       --grid-unit: 8px;
       --sidebar-width: 220px;
@@ -18,6 +38,7 @@
       /* Swiss Minimal */
       --bg: #FFFFFF;
       --bg-alt: #FAFAFA;
+      --bg-hover: #F5F5F5;
       --text: #111111;
       --text-secondary: #666666;
       --text-muted: #999999;
@@ -568,7 +589,7 @@
     .tabs {
       display: inline-flex;
       background: var(--bg-alt);
-      border-radius: 4px;
+      border-radius: var(--radius);
       padding: 2px;
       margin-bottom: calc(var(--grid-unit) * 2);
       gap: 0;
@@ -582,7 +603,7 @@
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
-      border-radius: 3px;
+      border-radius: var(--radius);
       transition: all var(--transition);
     }
 
@@ -603,7 +624,7 @@
     .progress-bar {
       height: 3px;
       background: var(--border);
-      border-radius: 2px;
+      border-radius: var(--radius);
       overflow: hidden;
     }
 
@@ -768,13 +789,13 @@
       font-size: 12px;
       background: var(--bg-alt);
       padding: 2px 6px;
-      border-radius: 3px;
+      border-radius: var(--radius);
     }
 
     .markdown-content pre {
       background: var(--bg-alt);
       padding: 12px;
-      border-radius: 4px;
+      border-radius: var(--radius);
       overflow-x: auto;
       margin: 0 0 12px 0;
     }
@@ -1103,7 +1124,7 @@
     .language-switcher {
       display: flex;
       background: var(--bg-alt);
-      border-radius: 4px;
+      border-radius: var(--radius);
       padding: 2px;
     }
 
@@ -1115,7 +1136,7 @@
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
-      border-radius: 3px;
+      border-radius: var(--radius);
       transition: all var(--transition);
     }
 
@@ -1147,7 +1168,7 @@
 
     .subtitle-item {
       padding: calc(var(--grid-unit) * 1.5) calc(var(--grid-unit) * 2);
-      border-radius: 4px;
+      border-radius: var(--radius);
       cursor: pointer;
       transition: background var(--transition);
       margin-bottom: 4px;
@@ -1496,31 +1517,32 @@
     }
     .reset-popup.hidden { display: none; }
     .reset-popup-content {
-      background: #1e1e1e;
-      border-radius: 8px;
-      padding: 20px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: calc(var(--grid-unit) * 3);
       min-width: 300px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      max-width: 90vw;
     }
     .reset-popup-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      margin-bottom: calc(var(--grid-unit) * 2);
     }
-    .reset-popup-title { font-size: 16px; font-weight: 600; }
+    .reset-popup-title { font-size: 14px; font-weight: 600; color: var(--text); }
     .reset-popup-close {
       background: none;
       border: none;
-      color: #888;
-      font-size: 24px;
+      color: var(--text-muted);
+      font-size: 20px;
       cursor: pointer;
+      line-height: 1;
+      transition: color var(--transition);
     }
-    .reset-popup-body { margin-bottom: 20px; }
-    .reset-popup-hint { color: #888; font-size: 12px; margin-top: 8px; }
+    .reset-popup-close:hover { color: var(--text); }
+    .reset-popup-body { margin-bottom: calc(var(--grid-unit) * 2); color: var(--text); font-size: 13px; line-height: 1.5; }
+    .reset-popup-hint { color: var(--text-muted); font-size: 12px; margin-top: 8px; }
     .reset-popup-actions { display: flex; gap: 10px; justify-content: flex-end; }
-    .btn.danger { background: #d32f2f; color: white; }
-    .btn.danger:hover { background: #b71c1c; }
 
     @keyframes spin {
       0% { transform: rotate(0deg); }
@@ -1572,11 +1594,11 @@
     <div class="main">
       <!-- Function Bar -->
       <div class="toolbar" id="toolbar">
-        <button class="btn" id="openBtn">Open</button>
-        <button class="btn" id="deleteBtn">Delete</button>
+        <button class="btn" id="openBtn">打开</button>
+        <button class="btn" id="deleteBtn">删除</button>
         <button class="btn danger"  id="cancelBtn"  style="display:none">中止</button>
         <button class="btn primary" id="resumeBtn"  style="display:none">继续</button>
-        <button class="btn" id="manageBtn">Manage</button>
+        <button class="btn" id="manageBtn">管理</button>
       </div>
 
       <!-- Hidden inputs for JavaScript compatibility -->
@@ -1589,32 +1611,33 @@
       <div class="output-section">
         <div class="content">
           <div class="content-card-header">
-            <div class="tabs">
-              <div class="tab active" data-tab="article">Article</div>
-              <div class="tab" data-tab="summary">Summary</div>
+            <div class="tabs" role="tablist" aria-label="内容视图">
+              <div class="tab active" role="tab" aria-selected="true" aria-controls="articlePane" data-tab="article">文章</div>
+              <div class="tab" role="tab" aria-selected="false" aria-controls="summaryPane" data-tab="summary">摘要</div>
             </div>
             <div class="progress-section hidden" id="progressSection">
               <div class="progress-bar">
                 <div class="progress-fill" id="progressFill" style="width: 0%"></div>
               </div>
               <div class="progress-steps">
-                <div class="progress-step" data-step="fetch"><span class="dot"></span>Fetch</div>
-                <div class="progress-step" data-step="video"><span class="dot"></span>Video</div>
-                <div class="progress-step" data-step="audio"><span class="dot"></span>Audio</div>
-                <div class="progress-step" data-step="subs"><span class="dot"></span>Subs</div>
-                <div class="progress-step" data-step="vtt2md"><span class="dot"></span>VTT2MD</div>
-                <div class="progress-step" data-step="md2vtt"><span class="dot"></span>MD2VTT</div>
-                <div class="progress-step" data-step="article"><span class="dot"></span>Article</div>
-                <div class="progress-step" data-step="summary"><span class="dot"></span>Summary</div>
+                <div class="progress-step" data-step="fetch"><span class="dot"></span>获取</div>
+                <div class="progress-step" data-step="video"><span class="dot"></span>视频</div>
+                <div class="progress-step" data-step="audio"><span class="dot"></span>音频</div>
+                <div class="progress-step" data-step="subs"><span class="dot"></span>字幕</div>
+                <div class="progress-step" data-step="vtt2md"><span class="dot"></span>转文案</div>
+                <div class="progress-step" data-step="md2vtt"><span class="dot"></span>字幕生成</div>
+                <div class="progress-step" data-step="article"><span class="dot"></span>文章</div>
+                <div class="progress-step" data-step="summary"><span class="dot"></span>摘要</div>
               </div>
             </div>
           </div>
           <div class="content-card-body">
-            <div id="articlePane" class="pane active">
-              <div class="empty" id="emptyState">Enter a YouTube URL to begin</div>
+            <div id="articlePane" class="pane active" role="tabpanel" aria-labelledby="tab-article">
+              <div class="empty" id="emptyState">输入 YouTube 链接开始</div>
               <div class="markdown-content" id="articleOutput"></div>
             </div>
-            <div id="summaryPane" class="pane">
+            <div id="summaryPane" class="pane" role="tabpanel" aria-labelledby="tab-summary">
+              <div class="empty" id="summaryEmptyState">选择已完成的任务查看摘要</div>
               <div class="markdown-content" id="summaryOutput"></div>
             </div>
           </div>
@@ -1627,30 +1650,30 @@
     <div class="video-panel" id="videoPanel">
 
       <!-- Tab Strip -->
-      <div class="panel-tabs" id="panelTabs">
-        <button class="panel-tab active" data-panel="player">播放</button>
-        <button class="panel-tab" data-panel="info">信息</button>
+      <div class="panel-tabs" id="panelTabs" role="tablist" aria-label="Right panel">
+        <button class="panel-tab active" role="tab" aria-selected="true" aria-controls="playerPane" data-panel="player">播放</button>
+        <button class="panel-tab" role="tab" aria-selected="false" aria-controls="infoPane" data-panel="info">信息</button>
       </div>
 
       <!-- 播放 tab -->
-      <div class="panel-pane active" id="playerPane">
+      <div class="panel-pane active" id="playerPane" role="tabpanel">
         <div class="video-container">
           <video id="videoPlayer" class="hidden"></video>
           <div class="video-empty" id="videoEmpty">
             <div class="video-empty-icon">▶</div>
-            <div>No video</div>
+            <div>暂无视频</div>
           </div>
         </div>
         <div class="video-controls">
-          <button class="video-btn" id="playPauseBtn">▶</button>
-          <button class="video-btn" id="stopBtn">■</button>
-          <input type="range" class="video-progress" id="progressBar" value="0" min="0" max="100">
+          <button class="video-btn" id="playPauseBtn" aria-label="播放">▶</button>
+          <button class="video-btn" id="stopBtn" aria-label="停止">■</button>
+          <input type="range" class="video-progress" id="progressBar" value="0" min="0" max="100" aria-label="视频进度">
           <span class="video-time" id="timeDisplay">0:00 / 0:00</span>
         </div>
         <div class="video-resizer" id="videoResizer"></div>
         <div class="subtitle-module hidden" id="subtitleModule">
           <div class="subtitle-header">
-            <span class="subtitle-header-label">Subtitle</span>
+            <span class="subtitle-header-label">字幕</span>
             <div class="language-switcher" id="languageSwitcher">
               <button class="active" data-lang="zh">中文</button>
               <button data-lang="en">English</button>
@@ -1668,7 +1691,7 @@
       </div>
 
       <!-- 信息 tab -->
-      <div class="panel-pane" id="infoPane">
+      <div class="panel-pane" id="infoPane" role="tabpanel">
         <div class="info-pane-scroll">
 
           <!-- 视频信息 -->
@@ -1757,18 +1780,6 @@
             </div>
           </div>
 
-          <!-- TODO：待存 DB 后展示 -->
-          <div class="info-pane-section" style="background: var(--bg-alt);">
-            <div class="info-pane-section-label">待补充（需存入 DB）</div>
-            <div style="display:flex;flex-direction:column;gap:5px;">
-              <div style="font-size:11px;color:var(--text-muted);">○ 发布日期 <code style="font-size:10px;background:var(--border);padding:1px 4px;">upload_date</code></div>
-              <div style="font-size:11px;color:var(--text-muted);">○ 播放量 <code style="font-size:10px;background:var(--border);padding:1px 4px;">view_count</code></div>
-              <div style="font-size:11px;color:var(--text-muted);">○ 点赞数 <code style="font-size:10px;background:var(--border);padding:1px 4px;">like_count</code></div>
-              <div style="font-size:11px;color:var(--text-muted);">○ 视频简介 <code style="font-size:10px;background:var(--border);padding:1px 4px;">description</code></div>
-              <div style="font-size:11px;color:var(--text-muted);">○ 封面缩略图 <code style="font-size:10px;background:var(--border);padding:1px 4px;">thumbnail</code></div>
-              <div style="font-size:11px;color:var(--text-muted);">○ 分辨率/帧率 <code style="font-size:10px;background:var(--border);padding:1px 4px;">width·height·fps</code></div>
-            </div>
-          </div>
 
         </div>
       </div>
@@ -1780,8 +1791,8 @@
   <div class="modal-overlay hidden" id="newTaskModal" data-mode="new">
     <div class="modal">
       <div class="modal-header">
-        <span class="modal-title" id="modalTitle">New Task</span>
-        <button class="modal-close" id="modalCloseBtn">&times;</button>
+        <span class="modal-title" id="modalTitle">新建任务</span>
+        <button class="modal-close" id="modalCloseBtn" aria-label="Close dialog">&times;</button>
       </div>
       <div class="modal-content">
         <div class="modal-section" id="modalInputs">
@@ -1790,11 +1801,11 @@
             <input type="text" class="input-field" id="modalUrlInput" placeholder="https://www.youtube.com/watch?v=..." />
           </div>
           <div class="input-group">
-            <label>Focus</label>
+            <label>关注点</label>
             <input type="text" class="input-field focus" id="modalFocusInput" placeholder="技术细节、主要论点、行动项..." />
           </div>
           <div class="input-group">
-            <label>Resource</label>
+            <label>资源类型</label>
             <div class="radio-group" id="modalDownloadMode">
             <label class="radio-label">
               <input type="radio" name="downloadMode" value="video" checked />
@@ -1815,7 +1826,7 @@
         </div>
         <div class="modal-actions">
           <button class="btn danger hidden" id="modalStopBtn">■ 停止任务</button>
-          <button class="btn primary" id="modalRunBtn">Run</button>
+          <button class="btn primary" id="modalRunBtn">运行</button>
           <button class="btn hidden" id="modalSaveBtn">Save</button>
         </div>
         <div class="modal-status" id="modalStatus">
@@ -1853,24 +1864,6 @@
           </span>
         </div>
 
-<!-- 重置确认弹窗 -->
-<div class="reset-popup hidden" id="resetPopup">
-    <div class="reset-popup-content">
-        <div class="reset-popup-header">
-            <span class="reset-popup-title">重置步骤</span>
-            <button class="reset-popup-close" id="resetPopupClose">&times;</button>
-        </div>
-        <div class="reset-popup-body">
-            <p>确定要重置 <strong id="resetStepName"></strong> 吗？</p>
-            <p class="reset-popup-hint">重置后将可以重新执行此步骤</p>
-        </div>
-        <div class="reset-popup-actions">
-            <button class="btn" id="resetPopupCancel">取消</button>
-            <button class="btn danger" id="resetPopupConfirm">重置</button>
-        </div>
-    </div>
-</div>
-
         <div class="modal-logs" id="modalLogs"></div>
       </div>
     </div>
@@ -1881,7 +1874,7 @@
     <div class="modal retry-modal">
       <div class="modal-header">
         <span class="modal-title" id="retryModalTitle">是否重试？</span>
-        <button class="modal-close" id="retryModalClose" type="button">&times;</button>
+        <button class="modal-close" id="retryModalClose" type="button" aria-label="关闭">&times;</button>
       </div>
       <div class="modal-content">
         <div id="retryModalPhaseConfirm">
@@ -1901,6 +1894,24 @@
           <div class="retry-modal-loading" id="retryModalLoading">重试中…</div>
           <div class="modal-logs retry-modal-logs" id="retryModalLog"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 重置确认弹窗（body 末尾 — position:fixed 保证全屏覆盖） -->
+  <div class="reset-popup hidden" id="resetPopup">
+    <div class="reset-popup-content">
+      <div class="reset-popup-header">
+        <span class="reset-popup-title">重置步骤</span>
+        <button class="reset-popup-close" id="resetPopupClose" aria-label="关闭">&times;</button>
+      </div>
+      <div class="reset-popup-body">
+        <p>确定要重置 <strong id="resetStepName"></strong> 吗？</p>
+        <p class="reset-popup-hint">重置后将可以重新执行此步骤</p>
+      </div>
+      <div class="reset-popup-actions">
+        <button class="btn" id="resetPopupCancel">取消</button>
+        <button class="btn danger" id="resetPopupConfirm">重置</button>
       </div>
     </div>
   </div>
@@ -2641,10 +2652,10 @@
 
     function openNewTaskModal() {
       newTaskModal.setAttribute('data-mode', 'new');
-      modalTitle.textContent = 'New Task';
+      modalTitle.textContent = '新建任务';
       modalRunBtn.classList.remove('hidden');
       modalRunBtn.disabled = false;
-      modalRunBtn.textContent = 'Run';
+      modalRunBtn.textContent = '运行';
       modalSaveBtn.classList.add('hidden');
       modalStopBtn.classList.add('hidden');
       // Reset URL/Focus 输入与只读状态
@@ -2677,7 +2688,7 @@
         }
       }
       newTaskModal.setAttribute('data-mode', 'edit');
-      modalTitle.textContent = 'Manage Task';
+      modalTitle.textContent = '管理任务';
       modalRunBtn.classList.add('hidden');
       modalSaveBtn.classList.add('hidden');
       modalStopBtn.classList.add('hidden');
@@ -2725,7 +2736,11 @@
     }
 
     function switchTab(name) {
-      tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+      tabs.forEach((t) => {
+        const isActive = t.dataset.tab === name;
+        t.classList.toggle('active', isActive);
+        t.setAttribute('aria-selected', String(isActive));
+      });
       const articlePaneEl = document.getElementById('articlePane');
       const summaryPaneEl = document.getElementById('summaryPane');
       const bodyEl = document.querySelector('.content-card-body');
@@ -2789,17 +2804,20 @@
       videoPlayer.addEventListener('play', () => {
         if (playPauseBtn) {
           playPauseBtn.textContent = '⏸';
+          playPauseBtn.setAttribute('aria-label', '暂停');
         }
       });
       videoPlayer.addEventListener('pause', () => {
         if (playPauseBtn) {
           playPauseBtn.textContent = '▶';
+          playPauseBtn.setAttribute('aria-label', '播放');
         }
       });
       videoPlayer.addEventListener('ended', () => {
         updateVideoTimeUi();
         if (playPauseBtn) {
           playPauseBtn.textContent = '▶';
+          playPauseBtn.setAttribute('aria-label', '播放');
         }
       });
     }
@@ -3240,8 +3258,12 @@
       panelTabs.addEventListener('click', (e) => {
         const btn = e.target.closest('.panel-tab');
         if (!btn) return;
-        panelTabs.querySelectorAll('.panel-tab').forEach((t) => t.classList.remove('active'));
+        panelTabs.querySelectorAll('.panel-tab').forEach((t) => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
         btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
         const panel = btn.dataset.panel;
         document.querySelectorAll('.panel-pane').forEach((p) => p.classList.remove('active'));
         const target = document.getElementById(panel === 'player' ? 'playerPane' : 'infoPane');
