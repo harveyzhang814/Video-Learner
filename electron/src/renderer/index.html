@@ -1954,6 +1954,11 @@
     const infoLang = document.getElementById('infoLang');
     const infoDuration = document.getElementById('infoDuration');
     const infoFocus = document.getElementById('infoFocus');
+    const sidebarSearch = document.getElementById('sidebarSearch');
+    const panelTabs = document.getElementById('panelTabs');
+    const infoUploader = document.getElementById('infoUploader');
+    const infoCreatedAt = document.getElementById('infoCreatedAt');
+    const infoUpdatedAt = document.getElementById('infoUpdatedAt');
 
     const tabs = document.querySelectorAll('.tab');
     const articleOutput = document.getElementById('articleOutput');
@@ -2139,13 +2144,25 @@
       }
     }
 
+    function formatDuration(seconds) {
+      if (!seconds || !Number.isFinite(seconds)) return '-';
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = Math.floor(seconds % 60);
+      if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
     function applyTaskToInfo(task) {
       const meta = (task && task.meta) || {};
       infoTitle.textContent = meta.title || '-';
-      infoUrl.textContent = meta.url || '-';
-      infoLang.textContent = meta.lang || '-';
-      infoDuration.textContent = meta.duration || '-';
+      if (infoUploader) infoUploader.textContent = meta.uploader || '-';
+      infoUrl.textContent = meta.url || meta.url || '-';
+      infoLang.textContent = meta.output_lang || meta.lang || '-';
+      infoDuration.textContent = meta.duration ? formatDuration(Number(meta.duration)) : '-';
       infoFocus.textContent = meta.focus || '-';
+      if (infoCreatedAt) infoCreatedAt.textContent = task && task.created_at ? new Date(task.created_at).toLocaleString() : '-';
+      if (infoUpdatedAt) infoUpdatedAt.textContent = task && task.updated_at ? new Date(task.updated_at).toLocaleString() : '-';
 
       const steps = task && task.steps ? task.steps : {};
       for (const step of STEPS) {
@@ -2230,11 +2247,16 @@
           const id = t.id || t.task_id || t.taskId;
           const title = t.title || (t.url ? t.url.slice(0, 60) : 'Untitled');
           const ts = t.created_at || t.ts || t.updated_at || '';
+          const dateStr = ts ? new Date(ts).toLocaleDateString() : '';
+          const status = t.status || 'unknown';
+          const dotClass = ['running', 'completed', 'failed', 'aborted'].includes(status) ? status : 'unknown';
           return `
             <div class="history-item ${id === currentTaskId ? 'active' : ''}" data-id="${id}">
-              <span class="status-dot unknown"></span>
-              <div class="title">${escapeHtml(title)}</div>
-              <div class="meta">${ts ? escapeHtml(new Date(ts).toLocaleDateString()) : ''}</div>
+              <div class="item-title">${escapeHtml(title)}</div>
+              <div class="item-meta">
+                <span class="item-time">${escapeHtml(dateStr)}</span>
+                <span class="status-dot ${dotClass}"></span>
+              </div>
             </div>
           `;
         })
@@ -3200,6 +3222,31 @@
         await selectTask(last.id);
       }
     });
+
+    // 右侧面板 tab 切换（播放 / 信息）
+    if (panelTabs) {
+      panelTabs.addEventListener('click', (e) => {
+        const btn = e.target.closest('.panel-tab');
+        if (!btn) return;
+        panelTabs.querySelectorAll('.panel-tab').forEach((t) => t.classList.remove('active'));
+        btn.classList.add('active');
+        const panel = btn.dataset.panel;
+        document.querySelectorAll('.panel-pane').forEach((p) => p.classList.remove('active'));
+        const target = document.getElementById(panel === 'player' ? 'playerPane' : 'infoPane');
+        if (target) target.classList.add('active');
+      });
+    }
+
+    // 左侧搜索过滤
+    if (sidebarSearch) {
+      sidebarSearch.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('#historyList .history-item').forEach((item) => {
+          const title = (item.querySelector('.item-title') || item).textContent.toLowerCase();
+          item.style.display = q === '' || title.includes(q) ? '' : 'none';
+        });
+      });
+    }
 
     // === init ===
     toolbar.classList.add('hidden');
