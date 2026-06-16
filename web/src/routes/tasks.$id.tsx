@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router';
 import { useState, useMemo } from 'react';
-import { useTask, useContent } from '@/hooks/use-tasks';
+import { useTask, useContent, useReveal } from '@/hooks/use-tasks';
 import { Reader } from '@/components/reader';
 import { Toc, extractToc } from '@/components/toc';
 import { SubtitleList } from '@/components/subtitle-list';
@@ -12,6 +12,14 @@ export default function TaskDetail() {
   const [tab, setTab] = useState<'summary' | 'article'>('summary');
   const { data: content = '' } = useContent(id, tab);
   const toc = useMemo(() => extractToc(content), [content]);
+  const reveal = useReveal();
+
+  const onCopy = async () => {
+    if (!content) return;
+    await navigator.clipboard.writeText(content);
+  };
+
+  const onReveal = () => reveal.mutate(id);
 
   if (isLoading) return <div className="p-8 text-sm" style={{ color: 'var(--text-tertiary)' }}>加载中…</div>;
   if (!task) return <div className="p-8 text-sm" style={{ color: 'var(--status-err)' }}>未找到任务</div>;
@@ -52,7 +60,12 @@ export default function TaskDetail() {
                 </button>
               ))}
             </div>
-            <button className="text-xs py-3" style={{ color: 'var(--text-tertiary)' }}>复制</button>
+            <div className="flex items-center gap-3 py-3 text-xs">
+              <button onClick={onCopy} style={{ color: 'var(--text-tertiary)' }}
+                      className="hover:text-[var(--text-secondary)] cursor-pointer">复制</button>
+              <button onClick={onReveal} style={{ color: 'var(--text-tertiary)' }}
+                      className="hover:text-[var(--text-secondary)] cursor-pointer">显示文件</button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             <div className="flex max-w-5xl mx-auto">
