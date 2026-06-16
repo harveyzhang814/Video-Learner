@@ -1,11 +1,15 @@
 import { useParams, Link } from 'react-router';
-import { useState } from 'react';
-import { useTask } from '@/hooks/use-tasks';
+import { useState, useMemo } from 'react';
+import { useTask, useContent } from '@/hooks/use-tasks';
+import { Reader } from '@/components/reader';
+import { Toc, extractToc } from '@/components/toc';
 
 export default function TaskDetail() {
   const { id = '' } = useParams();
   const { data: task, isLoading } = useTask(id);
   const [tab, setTab] = useState<'summary' | 'article'>('summary');
+  const { data: content = '' } = useContent(id, tab);
+  const toc = useMemo(() => extractToc(content), [content]);
 
   if (isLoading) return <div className="p-8 text-sm" style={{ color: 'var(--text-tertiary)' }}>加载中…</div>;
   if (!task) return <div className="p-8 text-sm" style={{ color: 'var(--status-err)' }}>未找到任务</div>;
@@ -52,8 +56,13 @@ export default function TaskDetail() {
             </div>
             <button className="text-xs py-3" style={{ color: 'var(--text-tertiary)' }}>复制</button>
           </div>
-          <div className="flex-1 overflow-y-auto px-12 py-14 text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            reading placeholder (tab = {tab})
+          <div className="flex-1 overflow-y-auto">
+            <div className="flex max-w-5xl mx-auto">
+              <div className="flex-1 px-12 py-14">
+                <Reader content={content} />
+              </div>
+              <Toc items={toc} />
+            </div>
           </div>
         </section>
       </div>
