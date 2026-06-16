@@ -11,6 +11,7 @@ const orchestrator = require('../../core/orchestrator');
 const { getTaskDirs } = require('../../core/paths');
 const { EventStream } = require('./event-stream');
 const { migrateModeName } = require('../../scripts/migrate-mode-names');
+const { createStaticServe } = require('./static-serve');
 
 function createApp(options = {}) {
   const app = new Koa();
@@ -604,6 +605,9 @@ function createApp(options = {}) {
     heartbeatRegistry.delete(ctx.params.clientId);
     ctx.body = { ok: true };
   });
+
+  // SPA static serve (must come before /api routes to claim "/")
+  app.use(createStaticServe({ rootDir: ROOT_DIR, token }));
 
   app.use(bodyParser());
   app.use(rootRouter.routes());

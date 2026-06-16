@@ -30,7 +30,8 @@
     "test:gui:state": "node tests/gui-logic-state.test.js",
     "test:gui": "npm run test:gui:main && npm run test:gui:preload && npm run test:gui:client:http && npm run test:gui:client:sse && npm run test:gui:client:reset-scope && npm run test:gui:state",
     "test:gui:client:reset-scope": "node tests/service-client-reset-scope-all-steps.test.js",
-    "test:cli": "node tests/cli-server-token.test.js && node tests/cli-server.test.js && node tests/cli-server-spawn.test.js && node tests/cli-client.test.js && node tests/cli-format.test.js && node tests/cli-commands.test.js && node tests/cli-run.test.js && node tests/cli-subcommands.test.js && node tests/cli-e2e.test.js"
+    "test:cli": "node tests/cli-server-token.test.js && node tests/cli-server.test.js && node tests/cli-server-spawn.test.js && node tests/cli-client.test.js && node tests/cli-format.test.js && node tests/cli-commands.test.js && node tests/cli-run.test.js && node tests/cli-subcommands.test.js && node tests/cli-e2e.test.js",
+    "test:http-static-serve": "node tests/http-static-serve.test.js"
   },
   "keywords": [
     "youtube",
