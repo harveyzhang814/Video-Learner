@@ -4,6 +4,7 @@ import { useTask, useContent } from '@/hooks/use-tasks';
 import { Reader } from '@/components/reader';
 import { Toc, extractToc } from '@/components/toc';
 import { SubtitleList } from '@/components/subtitle-list';
+import { Player } from '@/components/player';
 
 export default function TaskDetail() {
   const { id = '' } = useParams();
@@ -32,9 +33,7 @@ export default function TaskDetail() {
 
       <div className="flex-1 flex min-h-0">
         <section className="w-[42%] flex flex-col border-r" style={{ borderColor: 'var(--border-subtle)' }}>
-          <div className="aspect-video bg-black flex items-center justify-center text-white/30 text-xs">
-            player placeholder
-          </div>
+          <Player taskId={id} kind={task.mode === 'audio' ? 'audio' : 'video'} />
           <SubtitleList taskId={id} />
         </section>
 
