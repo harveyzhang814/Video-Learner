@@ -12,6 +12,7 @@ const { getTaskDirs } = require('../../core/paths');
 const { EventStream } = require('./event-stream');
 const { migrateModeName } = require('../../scripts/migrate-mode-names');
 const { createStaticServe } = require('./static-serve');
+const { registerRevealRoute } = require('./reveal');
 
 function createApp(options = {}) {
   const app = new Koa();
@@ -22,6 +23,7 @@ function createApp(options = {}) {
 
   // Allow tests to inject rootDir (e.g. temp dir); default is worktree root
   const ROOT_DIR = options.rootDir ?? path.resolve(__dirname, '../..');
+  const HOST = options.host ?? '127.0.0.1';
   // Run once on startup — idempotent, no-op if DB doesn't exist yet.
   migrateModeName(path.join(ROOT_DIR, 'work'));
   const PKG_PATH = path.join(ROOT_DIR, 'package.json');
@@ -605,6 +607,8 @@ function createApp(options = {}) {
     heartbeatRegistry.delete(ctx.params.clientId);
     ctx.body = { ok: true };
   });
+
+  registerRevealRoute(router, { rootDir: ROOT_DIR, host: HOST, spawn: options.spawn });
 
   // SPA static serve (must come before /api routes to claim "/")
   app.use(createStaticServe({ rootDir: ROOT_DIR, token }));
