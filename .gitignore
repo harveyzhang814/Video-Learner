@@ -18,6 +18,8 @@ Thumbs.db
 # Node
 node_modules/
 electron/node_modules/
+web/node_modules
+web/dist
 
 # Temp
 *.tmp
