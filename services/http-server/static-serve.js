@@ -51,9 +51,12 @@ function createStaticServe({ rootDir, token }) {
       }
       const html = fs.readFileSync(indexPath, 'utf8');
       const meta = `<meta name="vdl-token" content="${escapeHtml(token)}">`;
-      const injected = html.includes('</head>')
-        ? html.replace('</head>', `  ${meta}\n</head>`)
-        : html.replace(/<head[^>]*>/i, (m) => `${m}\n  ${meta}`);
+      // Replace existing placeholder tag if present; otherwise inject before </head>
+      const injected = html.includes('name="vdl-token"')
+        ? html.replace(/<meta\s+name="vdl-token"[^>]*>/i, meta)
+        : html.includes('</head>')
+          ? html.replace('</head>', `  ${meta}\n</head>`)
+          : html.replace(/<head[^>]*>/i, (m) => `${m}\n  ${meta}`);
       ctx.type = 'text/html; charset=utf-8';
       ctx.set('Cache-Control', 'no-store');
       ctx.body = injected;
