@@ -1,2 +1,83 @@
 @import "tailwindcss";
-body { font-family: system-ui, sans-serif; }
+
+@theme inline {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+:root {
+  --bg-canvas:     #F9F8F4;
+  --bg-surface:    #FFFFFF;
+  --bg-elevated:   #F1EFE9;
+  --border-subtle: #E5E2DA;
+  --border-strong: #CFCBC0;
+  --text-primary:   #2C2A24;
+  --text-secondary: #67645E;
+  --text-tertiary:  #9C9890;
+  --accent-3:  #EBF1E8;
+  --accent-9:  #5A8A5A;
+  --accent-10: #466F46;
+  --accent-11: #3D5E3D;
+  --accent-12: #243B24;
+  --status-ok:   #4A8A5A;
+  --status-err:  #B05050;
+  --status-busy: #C28A3D;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-canvas:     #1A1A18;
+    --bg-surface:    #232322;
+    --bg-elevated:   #2A2A28;
+    --border-subtle: #2E2E2B;
+    --border-strong: #3D3E3B;
+    --text-primary:   #E8E8E6;
+    --text-secondary: #9A9B98;
+    --text-tertiary:  #6B6C69;
+    --accent-3:  #2A3A2A;
+    --accent-9:  #7DAE7D;
+    --accent-10: #6FA06F;
+    --accent-11: #9BC79B;
+    --accent-12: #C8E0C8;
+  }
+}
+
+html, body {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:lang(zh), .chinese { line-height: 1.75; }
+.prose-cn {
+  line-height: 1.85;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.prose-cn h2 {
+  font-size: 18px; font-weight: 600;
+  margin: 32px 0 12px; letter-spacing: -0.005em;
+}
+.prose-cn h3 {
+  font-size: 14.5px; font-weight: 600;
+  margin: 22px 0 8px;
+}
+.prose-cn p { margin: 14px 0; }
+.prose-cn blockquote {
+  border-left: 2px solid var(--accent-9);
+  padding: 4px 0 4px 14px;
+  margin: 18px 0;
+  color: var(--text-secondary);
+}
+.prose-cn code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--accent-11);
+  background: var(--accent-3);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.prose-cn ul { padding-left: 20px; margin: 12px 0; }
+.prose-cn li { margin: 8px 0; }
+.prose-cn strong { color: var(--text-primary); font-weight: 600; }
