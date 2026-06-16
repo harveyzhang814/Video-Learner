@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { useTask, useContent } from '@/hooks/use-tasks';
 import { Reader } from '@/components/reader';
 import { Toc, extractToc } from '@/components/toc';
+import { SubtitleList } from '@/components/subtitle-list';
 
 export default function TaskDetail() {
   const { id = '' } = useParams();
@@ -34,9 +35,7 @@ export default function TaskDetail() {
           <div className="aspect-video bg-black flex items-center justify-center text-white/30 text-xs">
             player placeholder
           </div>
-          <div className="flex-1 overflow-y-auto p-4 text-sm" style={{ color: 'var(--text-tertiary)' }}>
-            transcript placeholder
-          </div>
+          <SubtitleList taskId={id} />
         </section>
 
         <section className="flex-1 flex flex-col min-w-0 overflow-hidden">
