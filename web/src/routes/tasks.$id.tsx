@@ -147,8 +147,8 @@ export default function TaskDetail() {
                       content={content}
                       onAnchorSelect={(anchor) => setPendingAnchor(anchor)}
                     />
-                    <Toc items={toc} />
                   </div>
+                  <Toc items={toc} />
                   <aside className="notes-col">
                     <NotesPanel
                       taskId={id}

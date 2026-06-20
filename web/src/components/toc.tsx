@@ -37,7 +37,7 @@ export function Toc({ items, containerSelector = 'article.prose-cn' }: { items: 
   }, [items, containerSelector]);
 
   return (
-    <aside className="w-44 px-6 py-14 flex-shrink-0">
+    <aside className="w-44 px-6 py-14 flex-shrink-0" style={{ alignSelf: 'flex-start' }}>
       <nav className="sticky top-14">
         {items.map((it) => (
           <a key={it.id} href={`#${it.id}`}
