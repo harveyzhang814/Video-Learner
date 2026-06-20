@@ -130,6 +130,15 @@ function normalizeTask(raw: BackendTask): Task {
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
+export interface Note {
+  id: string;
+  anchor: string;
+  mediaTimestamp?: number;
+  body: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface MediaInfo {
   video: { exists: boolean };
   audio: { exists: boolean };
@@ -159,5 +168,23 @@ export const api = {
     request<{ ok: true }>(`/api/tasks/${id}/steps/${step}/run`, { method: 'POST' }),
   cancelStep: (id: string, step: string) =>
     request<{ ok: true }>(`/api/tasks/${id}/steps/${step}/cancel`, { method: 'POST' }),
+  listNotes: (taskId: string) =>
+    request<Note[]>(`/api/tasks/${taskId}/notes`),
+
+  addNote: (taskId: string, data: { anchor?: string; mediaTimestamp?: number; body: string }) =>
+    request<Note>(`/api/tasks/${taskId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateNote: (taskId: string, noteId: string, data: { body: string }) =>
+    request<Note>(`/api/tasks/${taskId}/notes/${noteId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  deleteNote: (taskId: string, noteId: string) =>
+    request<void>(`/api/tasks/${taskId}/notes/${noteId}`, { method: 'DELETE' }),
+
   token: () => TOKEN
 };
