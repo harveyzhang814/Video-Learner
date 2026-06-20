@@ -48,10 +48,11 @@ function NoteItem({
 
   useEffect(() => {
     if (!liRef.current) return;
-    const ro = new ResizeObserver(([entry]) => {
-      onHeightChange(note.id, entry.contentRect.height);
+    const li = liRef.current;
+    const ro = new ResizeObserver(() => {
+      onHeightChange(note.id, li.offsetHeight);
     });
-    ro.observe(liRef.current);
+    ro.observe(li);
     return () => ro.disconnect();
   }, [note.id, onHeightChange]);
 
