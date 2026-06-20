@@ -84,6 +84,9 @@ init_db() {
             FOREIGN KEY (task_id) REFERENCES tasks(id)
         );
     "
+    # Migrations: add columns that may be missing from older databases
+    sqlite3 "$DB_PATH" "ALTER TABLE tasks ADD COLUMN uploader TEXT;" 2>/dev/null || true
+    sqlite3 "$DB_PATH" "ALTER TABLE tasks ADD COLUMN upload_date TEXT;" 2>/dev/null || true
 }
 
 # Escape a string for safe SQLite single-quoted interpolation (doubles all ' chars)

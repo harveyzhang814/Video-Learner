@@ -62,6 +62,15 @@ async function run() {
     } else {
       console.log('[fetch-step.test] DB title:', titleRow);
     }
+
+    const uploadDateRow = execSync(`sqlite3 "${dbPath}" "SELECT upload_date FROM tasks WHERE id='${id}';"`, { encoding: 'utf8' }).trim();
+    if (!uploadDateRow) {
+      throw new Error('upload_date not stored in DB (empty)');
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(uploadDateRow)) {
+      throw new Error(`upload_date format unexpected: "${uploadDateRow}" (expected YYYY-MM-DD)`);
+    }
+    console.log('[fetch-step.test] DB upload_date:', uploadDateRow);
   }
 
   console.log('[fetch-step.test] PASS');

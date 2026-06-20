@@ -99,6 +99,16 @@ function initTables(db) {
     // ignore
   }
 
+  // Migration: video publish date (YYYY-MM-DD, from yt-dlp upload_date)
+  try {
+    const cols = db.prepare('PRAGMA table_info(tasks)').all();
+    if (!cols.some((c) => c.name === 'upload_date')) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN upload_date TEXT`);
+    }
+  } catch (_) {
+    // ignore
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS steps (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -125,7 +135,7 @@ function createDbManager(dbPath) {
       const rows = db
         .prepare(
           `
-          SELECT id, url, ts, title, lang, duration, output_lang, focus, mode, transcripts, uploader, created_at, updated_at, width, height, file_size, bit_rate
+          SELECT id, url, ts, title, lang, duration, output_lang, focus, mode, transcripts, uploader, upload_date, created_at, updated_at, width, height, file_size, bit_rate
           FROM tasks WHERE deleted_at IS NULL
           ORDER BY datetime(created_at) DESC, datetime(ts) DESC
           LIMIT ?

@@ -222,6 +222,7 @@ function loadTaskFromDb(taskId, rootDir) {
       output_lang: row.output_lang || 'zh-CN',
       focus: row.focus || '',
       mode: normalizeMode(row.mode),
+      upload_date: row.upload_date || '',
       download_status: 'pending',
       transcript_done: false,
       article_done: false,
@@ -1182,6 +1183,7 @@ async function getTask(taskId, options = {}) {
       if (row.duration != null && row.duration !== '') task.meta.duration = row.duration;
       if (row.lang != null && row.lang !== '') task.meta.lang = row.lang;
       if (row.uploader != null && row.uploader !== '') task.meta.uploader = row.uploader;
+      if (row.upload_date != null && row.upload_date !== '') task.meta.upload_date = row.upload_date;
     }
   }
   if (task.status === 'completed' || task.status === 'failed') {
