@@ -26,6 +26,8 @@ export default function TaskDetail() {
   const setLayoutMode = useUiStore((s) => s.setLayoutMode);
   const [ccEnabled, setCcEnabled] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
+  const [pendingAnchor, setPendingAnchor] = useState<string>('');
+  const articleRef = useRef<HTMLDivElement>(null);
 
   // Auto-set default mode based on mediaKind (once per task load)
   useEffect(() => {
@@ -140,12 +142,21 @@ export default function TaskDetail() {
               {/* Article + Notes row (B/C/E/F modes) */}
               <div className="flex-1 overflow-y-auto">
                 <div className="article-notes-row">
-                  <div className="article-col">
-                    <Reader content={content} />
+                  <div className="article-col" ref={articleRef}>
+                    <Reader
+                      content={content}
+                      onAnchorSelect={(anchor) => setPendingAnchor(anchor)}
+                    />
                     <Toc items={toc} />
                   </div>
                   <aside className="notes-col">
-                    <NotesPanel taskId={id} hasMedia={!!mediaKind} />
+                    <NotesPanel
+                      taskId={id}
+                      hasMedia={!!mediaKind}
+                      pendingAnchor={pendingAnchor}
+                      onAnchorConsumed={() => setPendingAnchor('')}
+                      articleRef={articleRef}
+                    />
                   </aside>
                 </div>
               </div>
