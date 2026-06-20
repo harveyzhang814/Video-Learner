@@ -9,6 +9,7 @@ import { NotesPanel } from '@/components/notes-panel';
 import { ModeSwitcher } from '@/components/mode-switcher';
 import { useUiStore } from '@/stores/ui-store';
 import type { LayoutMode } from '@/stores/ui-store';
+import { usePlayerStore } from '@/stores/player-store';
 
 export default function TaskDetail() {
   const { id = '' } = useParams();
@@ -28,6 +29,10 @@ export default function TaskDetail() {
   const shellRef = useRef<HTMLDivElement>(null);
   const [pendingAnchor, setPendingAnchor] = useState<string>('');
   const articleRef = useRef<HTMLDivElement>(null);
+  const resetPlayer = usePlayerStore((s) => s.reset);
+
+  // Reset player state when switching tasks so stale playing/time don't bleed over
+  useEffect(() => { resetPlayer(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-set default mode based on mediaKind (once per task load)
   useEffect(() => {
@@ -81,7 +86,7 @@ export default function TaskDetail() {
       >
         {/* MODE C: top audio bar — works for both audio and video tasks */}
         <div className="audio-bar" style={{ display: layoutMode === 'C' ? undefined : 'none' }}>
-          {mediaKind && (
+          {layoutMode === 'C' && mediaKind && (
             <Player taskId={id} kind={mediaKind} audioOnly={true} />
           )}
         </div>
@@ -94,7 +99,7 @@ export default function TaskDetail() {
 
             {/* LEFT PANEL — Mode A: video + notes below */}
             <section className="panel-left">
-              {mediaKind && (
+              {layoutMode === 'A' && mediaKind && (
                 <Player
                   taskId={id}
                   kind={mediaKind}
@@ -164,7 +169,7 @@ export default function TaskDetail() {
 
             {/* MODE B: right sidebar (video + subtitles) */}
             <aside className="panel-sidebar">
-              {mediaKind && (
+              {layoutMode === 'B' && mediaKind && (
                 <Player taskId={id} kind={mediaKind} />
               )}
               <div className="flex-1 overflow-hidden">
@@ -176,7 +181,7 @@ export default function TaskDetail() {
 
           {/* MODE F: theater — full-width video above */}
           <div className="theater-section">
-            {mediaKind === 'video' && (
+            {layoutMode === 'F' && mediaKind === 'video' && (
               <div className="relative bg-black w-full" style={{ maxHeight: '58vh', aspectRatio: '16/9' }}>
                 <Player
                   taskId={id}

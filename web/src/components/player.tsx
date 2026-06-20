@@ -31,6 +31,15 @@ export function Player({
   const setPlaying = usePlayerStore((s) => s.setPlaying);
   const duration = usePlayerStore((s) => s.duration);
 
+  // On mount: restore position + resume if was playing before a mode switch
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const { currentTime: t, playing: wasPlaying } = usePlayerStore.getState();
+    if (t > 0.5) el.currentTime = t;
+    if (wasPlaying) el.play().catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // External time changes (e.g. subtitle click) → seek
   useEffect(() => {
     const el = ref.current;
