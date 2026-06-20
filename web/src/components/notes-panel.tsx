@@ -170,7 +170,16 @@ export function NotesPanel({ taskId, hasMedia, pendingAnchor, onAnchorConsumed, 
     const computed = computePositions(layouts, GAP);
     const next: Record<string, number> = {};
     computed.forEach((p) => { next[p.id] = p.top; });
-    setPositions(next);
+    // Only update state if positions actually changed to avoid infinite re-render loop
+    setPositions((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (prevKeys.length !== nextKeys.length) return next;
+      for (const k of nextKeys) {
+        if (prev[k] !== next[k]) return next;
+      }
+      return prev;
+    });
   }, [notes, heights, articleRef, articleHeight]);
 
   const submit = () => {
