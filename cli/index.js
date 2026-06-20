@@ -10,6 +10,7 @@ const commands = {
   rerun:  () => require('./commands/rerun').run(args.slice(1)),
   list:   () => require('./commands/list').run(args.slice(1)),
   gui:    () => require('./commands/gui').run(),
+  web:    () => require('./commands/web').run(args.slice(1)),
 };
 
 function printUsage() {
@@ -28,6 +29,8 @@ Usage:
   vdl rerun  <task_id> <step> [--reset downstream|step|off]
   vdl list
   vdl gui
+  vdl web [--no-browser] [--port <n>]
+                     启动后端并打开 Web 端（关闭浏览器后自动停止后端）
 \n`);
 }
 
