@@ -5,12 +5,35 @@ import { api } from '@/lib/api';
 
 interface Segment { start: number; end?: number; text: string; }
 
-interface SubtitlesPayload {
-  tracks: { lang: string; segments: Segment[] }[];
+interface Track { lang: string; label?: string; segments: Segment[] }
+
+// Parse WebVTT text into segments
+function parseVtt(vtt: string): Segment[] {
+  const segments: Segment[] = [];
+  const blocks = vtt.replace(/\r\n/g, '\n').split(/\n{2,}/);
+  const timeRe = /(\d+):(\d+):(\d+)[.,](\d+)\s*-->\s*(\d+):(\d+):(\d+)[.,](\d+)/;
+  for (const block of blocks) {
+    const lines = block.trim().split('\n');
+    const timeLine = lines.find((l) => timeRe.test(l));
+    if (!timeLine) continue;
+    const m = timeLine.match(timeRe);
+    if (!m) continue;
+    const start = parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseInt(m[3]) + parseInt(m[4]) / 1000;
+    const end   = parseInt(m[5]) * 3600 + parseInt(m[6]) * 60 + parseInt(m[7]) + parseInt(m[8]) / 1000;
+    const text = lines.filter((l) => !timeRe.test(l) && !/^\d+$/.test(l.trim()) && l.trim() !== 'WEBVTT').join(' ').trim();
+    if (text) segments.push({ start, end, text });
+  }
+  return segments;
+}
+
+// Backend returns lang "zh" or "en"; normalize for display
+function normLang(lang: string) {
+  if (lang === 'zh' || lang === 'zh-CN') return 'zh-CN';
+  return lang;
 }
 
 export function SubtitleList({ taskId }: { taskId: string }) {
-  const [tracks, setTracks] = useState<SubtitlesPayload['tracks']>([]);
+  const [tracks, setTracks] = useState<Track[]>([]);
   const [lang, setLang] = useState<string>('zh-CN');
   const setSubtitles = usePlayerStore((s) => s.setSubtitles);
   const setCurrentTime = usePlayerStore((s) => s.setCurrentTime);
@@ -23,10 +46,15 @@ export function SubtitleList({ taskId }: { taskId: string }) {
       headers: { Authorization: `Bearer ${api.token()}` }
     })
       .then((r) => r.ok ? r.json() : { tracks: [] })
-      .then((data: SubtitlesPayload) => {
+      .then((data: { tracks: { lang: string; label?: string; vtt?: string; segments?: Segment[] }[] }) => {
         if (cancelled) return;
-        setTracks(data.tracks ?? []);
-        const first = data.tracks?.[0];
+        const normalized: Track[] = (data.tracks ?? []).map((t) => ({
+          lang: normLang(t.lang),
+          label: t.label,
+          segments: t.segments ?? (t.vtt ? parseVtt(t.vtt) : []),
+        }));
+        setTracks(normalized);
+        const first = normalized[0];
         if (first) {
           setLang(first.lang);
           setSubtitles(first.segments);
@@ -48,7 +76,7 @@ export function SubtitleList({ taskId }: { taskId: string }) {
     <div className="flex-1 overflow-y-auto flex flex-col">
       <div className="px-4 py-2.5 flex items-center gap-4 text-xs border-b" style={{ borderColor: 'var(--border-subtle)' }}>
         {tracks.map((t) => (
-          <button key={t.lang} onClick={() => { setLang(t.lang); setSubtitles(t.segments); }}
+          <button key={t.lang} onClick={() => { setLang(t.lang); setSubtitles(t.segments ?? []); }}
                   className="cursor-pointer"
                   style={{
                     color: lang === t.lang ? 'var(--text-primary)' : 'var(--text-tertiary)',

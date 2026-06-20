@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router';
 import { useState, useMemo } from 'react';
-import { useTask, useContent, useReveal } from '@/hooks/use-tasks';
+import { useTask, useContent, useReveal, useMediaInfo } from '@/hooks/use-tasks';
 import { Reader } from '@/components/reader';
 import { Toc, extractToc } from '@/components/toc';
 import { SubtitleList } from '@/components/subtitle-list';
@@ -9,6 +9,10 @@ import { Player } from '@/components/player';
 export default function TaskDetail() {
   const { id = '' } = useParams();
   const { data: task, isLoading } = useTask(id);
+  const { data: mediaInfo } = useMediaInfo(id);
+  const mediaKind: 'video' | 'audio' | null =
+    mediaInfo?.video?.exists ? 'video' :
+    mediaInfo?.audio?.exists ? 'audio' : null;
   const [tab, setTab] = useState<'summary' | 'article'>('summary');
   const { data: content = '' } = useContent(id, tab);
   const toc = useMemo(() => extractToc(content), [content]);
@@ -41,7 +45,15 @@ export default function TaskDetail() {
 
       <div className="flex-1 flex min-h-0">
         <section className="w-[42%] flex flex-col border-r" style={{ borderColor: 'var(--border-subtle)' }}>
-          <Player taskId={id} kind={task.mode === 'audio' ? 'audio' : 'video'} />
+          {mediaKind ? (
+            <Player taskId={id} kind={mediaKind} />
+          ) : mediaInfo ? (
+            <div className="aspect-video bg-black flex items-center justify-center text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              无媒体文件
+            </div>
+          ) : (
+            <div className="aspect-video bg-black" />
+          )}
           <SubtitleList taskId={id} />
         </section>
 

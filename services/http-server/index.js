@@ -57,9 +57,10 @@ function createApp(options = {}) {
     ctx.body = { version: pkg.version || 'unknown' };
   });
 
-  // Bearer token auth for all /api/* routes except /api/events (SSE uses ?token= query param).
+  // Bearer token auth for all /api/* routes except /api/events and media streams (those handle auth internally).
   router.use(async (ctx, next) => {
     if (ctx.path === '/api/events') return next();
+    if (/\/tasks\/[^/]+\/media\//.test(ctx.path)) return next();
     const authHeader = ctx.get('Authorization') || '';
     const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
     if (!bearer || bearer !== token) {
@@ -382,6 +383,55 @@ function createApp(options = {}) {
     ctx.type = 'json';
     ctx.body = { error: (err && err.message) || 'failed to get task media' };
   }
+  });
+
+  // Stream the actual video/audio file with HTTP Range support
+  router.get('/tasks/:taskId/media/:kind', async (ctx) => {
+    const { taskId, kind } = ctx.params;
+    if (kind !== 'video' && kind !== 'audio') { ctx.status = 400; return; }
+    // Accept token via query param (browser <video src> cannot set headers)
+    const authHeader = ctx.get('Authorization') || '';
+    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const qToken = String((ctx.query && ctx.query.token) || '');
+    if (bearer !== token && qToken !== token) {
+      ctx.status = 401;
+      ctx.body = { error: { code: 'UNAUTHORIZED', message: 'Missing or invalid token' } };
+      return;
+    }
+    try {
+      const result = await orchestrator.getTaskResult(taskId, { rootDir: ROOT_DIR });
+      const taskIdInMeta = result && result.meta ? result.meta.id : undefined;
+      if (!taskIdInMeta) { ctx.status = 404; ctx.body = { error: 'task not found' }; return; }
+
+      const filename = kind === 'video' ? 'video.mp4' : 'audio.m4a';
+      const filePath = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'media', filename);
+      if (!fs.existsSync(filePath)) { ctx.status = 404; ctx.body = { error: 'file not found' }; return; }
+
+      const stat = fs.statSync(filePath);
+      const total = stat.size;
+      const mimeType = kind === 'video' ? 'video/mp4' : 'audio/mp4';
+      const rangeHeader = ctx.get('Range');
+
+      if (rangeHeader) {
+        const [startStr, endStr] = rangeHeader.replace(/bytes=/, '').split('-');
+        const start = parseInt(startStr, 10);
+        const end = endStr ? parseInt(endStr, 10) : Math.min(start + 1024 * 1024, total - 1);
+        ctx.status = 206;
+        ctx.set('Content-Range', `bytes ${start}-${end}/${total}`);
+        ctx.set('Accept-Ranges', 'bytes');
+        ctx.set('Content-Length', String(end - start + 1));
+        ctx.type = mimeType;
+        ctx.body = fs.createReadStream(filePath, { start, end });
+      } else {
+        ctx.set('Accept-Ranges', 'bytes');
+        ctx.set('Content-Length', String(total));
+        ctx.type = mimeType;
+        ctx.body = fs.createReadStream(filePath);
+      }
+    } catch (err) {
+      ctx.status = 500;
+      ctx.body = { error: (err && err.message) || 'stream error' };
+    }
   });
 
   router.get('/tasks/:taskId/subtitles', async (ctx) => {

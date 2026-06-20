@@ -1,6 +1,6 @@
 'use strict';
 
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { EventEmitter } = require('events');
@@ -352,8 +352,37 @@ function updateTaskMetaFromFilesystem(task) {
 
   if (fs.existsSync(mediaDir)) {
     const videoPath = path.join(mediaDir, 'video.mp4');
+    const audioPath = path.join(mediaDir, 'audio.m4a');
     if (fs.existsSync(videoPath)) {
       meta.download_status = 'success';
+    }
+
+    // Probe media file for width/height/file_size/bit_rate if not yet stored
+    if (!task.meta.file_size) {
+      const probePath = fs.existsSync(videoPath) ? videoPath
+        : fs.existsSync(audioPath) ? audioPath
+        : null;
+      if (probePath) {
+        try {
+          const raw = execFileSync('ffprobe', [
+            '-v', 'quiet', '-print_format', 'json',
+            '-show_streams', '-show_format', probePath,
+          ], { encoding: 'utf8', timeout: 10000 });
+          const data = JSON.parse(raw);
+          const vStream = (data.streams || []).find((s) => s.codec_type === 'video');
+          const fmt = data.format || {};
+          const probeFields = {
+            width:     vStream ? (vStream.width || null) : null,
+            height:    vStream ? (vStream.height || null) : null,
+            file_size: fmt.size ? parseInt(fmt.size, 10) : null,
+            bit_rate:  fmt.bit_rate ? parseInt(fmt.bit_rate, 10) : null,
+          };
+          Object.assign(task.meta, probeFields);
+          ensureDb(rootDir).updateTask(id, probeFields);
+        } catch (_) {
+          // ffprobe failure is non-fatal
+        }
+      }
     }
   }
 

@@ -1,6 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, type Task } from '@/lib/api';
 
+export function useMediaInfo(id: string | undefined) {
+  return useQuery({
+    queryKey: ['task', id, 'media-info'],
+    queryFn: () => api.getMediaInfo(id!),
+    enabled: Boolean(id),
+    staleTime: Infinity,
+  });
+}
+
 export function useTasks() {
   return useQuery({
     queryKey: ['tasks'],
