@@ -43,3 +43,4 @@ work/*
 # Cursor（本地技能，不上传）
 .cursor/skills/ui-ux-pro-max/
 .gstack/
+.superpowers/
