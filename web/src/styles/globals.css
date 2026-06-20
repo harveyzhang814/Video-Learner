@@ -228,9 +228,10 @@ html, body {
   flex-direction: column;
   flex-shrink: 0;
   background: #000;
+  order: -1;
 }
 [data-mode="F"] .panel-left { display: none !important; }
-[data-mode="F"] .panel-right { flex-shrink: 0; display: flex !important; flex-direction: column; }
+[data-mode="F"] .panel-right { flex: 1 !important; min-height: 0; display: flex !important; flex-direction: column; }
 [data-mode="F"] .panel-sidebar { display: none !important; }
 [data-mode="F"] .audio-bar { display: none !important; }
 [data-mode="F"] .subtitle-col { display: none !important; }
@@ -280,3 +281,12 @@ html, body {
   background: var(--accent-9);
   display: inline-block;
 }
+
+/* ===== LAYOUT FIXES =====
+   mode-content must be a flex column so audio-bar / theater-section
+   stack above the panel body. mode-content-body is the horizontal
+   row that holds panel-left / panel-right / panel-sidebar.
+   These base rules (lower specificity) fill in what mode-specific
+   rules above omit. ===== */
+.mode-content { flex-direction: column; }
+.mode-content-body { display: flex; flex: 1; min-height: 0; }
