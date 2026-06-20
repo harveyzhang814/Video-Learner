@@ -2,8 +2,23 @@ import { useEffect, useRef, useCallback } from 'react';
 import { usePlayerStore } from '@/stores/player-store';
 import { formatDuration } from '@/lib/time';
 import { api } from '@/lib/api';
+import { CcOverlay } from './cc-overlay';
 
-export function Player({ taskId, kind }: { taskId: string; kind: 'video' | 'audio' }) {
+export function Player({
+  taskId,
+  kind,
+  showCc = false,
+  onToggleCc,
+  ccEnabled = false,
+  className,
+}: {
+  taskId: string;
+  kind: 'video' | 'audio';
+  showCc?: boolean;
+  onToggleCc?: () => void;
+  ccEnabled?: boolean;
+  className?: string;
+}) {
   const ref = useRef<HTMLVideoElement | HTMLAudioElement>(null);
   const seekBarRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -54,7 +69,7 @@ export function Player({ taskId, kind }: { taskId: string; kind: 'video' | 'audi
   const MediaTag = kind === 'video' ? 'video' : 'audio';
 
   return (
-    <div className="relative bg-black flex-shrink-0"
+    <div className={`relative bg-black flex-shrink-0${className ? ` ${className}` : ''}`}
          style={{ aspectRatio: kind === 'video' ? '16/9' : 'auto', height: kind === 'audio' ? 120 : undefined }}>
       <MediaTag
         ref={ref as React.RefObject<HTMLVideoElement & HTMLAudioElement>}
@@ -66,6 +81,9 @@ export function Player({ taskId, kind }: { taskId: string; kind: 'video' | 'audi
         onPause={() => setPlaying(false)}
         controls={kind === 'audio'}
       />
+      {kind === 'video' && ccEnabled && (
+        <CcOverlay enabled={ccEnabled} />
+      )}
       {kind === 'video' && (
         <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-8 bg-gradient-to-t from-black/80 to-transparent">
           {/* 进度条 — 宽点击区 */}
@@ -97,6 +115,14 @@ export function Player({ taskId, kind }: { taskId: string; kind: 'video' | 'audi
               {formatDuration(currentTime)}
               <span style={{ color: 'rgba(255,255,255,0.35)' }}> / {formatDuration(duration || 0)}</span>
             </span>
+            {showCc && (
+              <button
+                className={`cc-btn ml-auto${ccEnabled ? ' on' : ''}`}
+                onClick={onToggleCc}
+              >
+                CC
+              </button>
+            )}
           </div>
         </div>
       )}
