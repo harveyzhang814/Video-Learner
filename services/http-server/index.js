@@ -849,7 +849,8 @@ if (require.main === module) {
         if (now - lastSeen > EVICT_MS) registry.delete(id);
       }
 
-      const hasClients = registry.size > 0;
+      const sseReg = app.context.sseRegistry;
+      const hasClients = registry.size > 0 || (sseReg && sseReg.size > 0);
 
       // Check for running tasks via in-memory counter (listTasks queries the DB
       // which does not include a live status field — activeRunTasks is authoritative).
