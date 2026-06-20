@@ -65,7 +65,7 @@ export default function Home() {
           无匹配结果
         </div>
       ) : (
-        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 360px))' }}>
+        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
           {filtered.map((t) => <TaskCard key={t.id} task={t} />)}
         </div>
       )}
