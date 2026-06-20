@@ -42,9 +42,10 @@ function getTaskDirs(rootDir, taskId) {
   const base = path.join(workRoot, taskId);
   return {
     base,
-    media: path.join(base, 'media'),
+    media:      path.join(base, 'media'),
     transcript: path.join(base, 'transcript'),
-    writing: path.join(base, 'writing'),
+    writing:    path.join(base, 'writing'),
+    notes:      path.join(base, 'notes.json'),
   };
 }
 
