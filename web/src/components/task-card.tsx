@@ -21,7 +21,7 @@ export function TaskCard({ task }: { task: Task }) {
   return (
     <Link
       to={`/tasks/${task.id}`}
-      className="block rounded-xl border p-4 transition-colors"
+      className="flex flex-col rounded-xl border p-4 transition-colors"
       style={{
         background: 'var(--bg-surface)',
         borderColor: 'var(--border-subtle)',
@@ -42,16 +42,16 @@ export function TaskCard({ task }: { task: Task }) {
         {task.url}
       </p>
 
-      {/* Meta row */}
+      {/* Meta row — pinned to bottom */}
       {isFailed ? (
-        <div className="text-xs truncate" style={{ color: 'var(--status-err)' }}>
+        <div className="mt-auto text-xs truncate" style={{ color: 'var(--status-err)' }}>
           {task.error_message || '处理失败'}
         </div>
       ) : (
-        <div className="flex items-center justify-between text-xs"
+        <div className="mt-auto flex items-center justify-between text-xs"
              style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
           <span>{meta}</span>
-          <span>{formatRelativeTime(task.updated_at)}</span>
+          <span>{task.upload_date ?? formatRelativeTime(task.updated_at)}</span>
         </div>
       )}
     </Link>
