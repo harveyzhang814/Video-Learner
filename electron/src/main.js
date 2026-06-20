@@ -46,7 +46,7 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  mainWindow.loadURL('http://127.0.0.1:3000/');
 
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
     const levelMap = { 0: 'debug', 1: 'info', 2: 'warn', 3: 'error' };

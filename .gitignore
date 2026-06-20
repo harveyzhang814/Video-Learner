@@ -18,6 +18,8 @@ Thumbs.db
 # Node
 node_modules/
 electron/node_modules/
+web/node_modules
+web/dist
 
 # Temp
 *.tmp
@@ -41,3 +43,4 @@ work/*
 # Cursor（本地技能，不上传）
 .cursor/skills/ui-ux-pro-max/
 .gstack/
+.superpowers/

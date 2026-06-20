@@ -11,6 +11,8 @@ const orchestrator = require('../../core/orchestrator');
 const { getTaskDirs } = require('../../core/paths');
 const { EventStream } = require('./event-stream');
 const { migrateModeName } = require('../../scripts/migrate-mode-names');
+const { createStaticServe } = require('./static-serve');
+const { registerRevealRoute } = require('./reveal');
 
 function createApp(options = {}) {
   const app = new Koa();
@@ -21,6 +23,7 @@ function createApp(options = {}) {
 
   // Allow tests to inject rootDir (e.g. temp dir); default is worktree root
   const ROOT_DIR = options.rootDir ?? path.resolve(__dirname, '../..');
+  const HOST = options.host ?? '127.0.0.1';
   // Run once on startup — idempotent, no-op if DB doesn't exist yet.
   migrateModeName(path.join(ROOT_DIR, 'work'));
   const PKG_PATH = path.join(ROOT_DIR, 'package.json');
@@ -32,6 +35,11 @@ function createApp(options = {}) {
   // --- Heartbeat registry ---
   // clientId → lastSeen timestamp (ms). Used for auto-shutdown.
   const heartbeatRegistry = new Map();
+
+  // --- SSE connection registry ---
+  // Active SSE connection ids. Browser tabs are tracked via this set;
+  // the existing heartbeatRegistry continues to track CLI/API clients.
+  const sseRegistry = new Set();
 
   /** Optional test hook: replace fire-and-forget runTask after reset_scope downstream (default: real orchestrator.runTask). */
   const runTaskForDownstream =
@@ -54,9 +62,10 @@ function createApp(options = {}) {
     ctx.body = { version: pkg.version || 'unknown' };
   });
 
-  // Bearer token auth for all /api/* routes except /api/events (SSE uses ?token= query param).
+  // Bearer token auth for all /api/* routes except /api/events and media streams (those handle auth internally).
   router.use(async (ctx, next) => {
     if (ctx.path === '/api/events') return next();
+    if (/\/tasks\/[^/]+\/media\//.test(ctx.path)) return next();
     const authHeader = ctx.get('Authorization') || '';
     const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
     if (!bearer || bearer !== token) {
@@ -131,6 +140,9 @@ function createApp(options = {}) {
       write(EventStream.formatSseFrame(ev));
     });
 
+    const sseId = crypto.randomUUID();
+    sseRegistry.add(sseId);
+
     // Heartbeat every 15s (within 10-20s requirement)
     const heartbeat = setInterval(() => {
       write(': ping\n\n');
@@ -143,6 +155,7 @@ function createApp(options = {}) {
       } catch (_) {
         // ignore
       }
+      sseRegistry.delete(sseId);
     };
 
     ctx.req.on('close', cleanup);
@@ -381,6 +394,55 @@ function createApp(options = {}) {
   }
   });
 
+  // Stream the actual video/audio file with HTTP Range support
+  router.get('/tasks/:taskId/media/:kind', async (ctx) => {
+    const { taskId, kind } = ctx.params;
+    if (kind !== 'video' && kind !== 'audio') { ctx.status = 400; return; }
+    // Accept token via query param (browser <video src> cannot set headers)
+    const authHeader = ctx.get('Authorization') || '';
+    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    const qToken = String((ctx.query && ctx.query.token) || '');
+    if (bearer !== token && qToken !== token) {
+      ctx.status = 401;
+      ctx.body = { error: { code: 'UNAUTHORIZED', message: 'Missing or invalid token' } };
+      return;
+    }
+    try {
+      const result = await orchestrator.getTaskResult(taskId, { rootDir: ROOT_DIR });
+      const taskIdInMeta = result && result.meta ? result.meta.id : undefined;
+      if (!taskIdInMeta) { ctx.status = 404; ctx.body = { error: 'task not found' }; return; }
+
+      const filename = kind === 'video' ? 'video.mp4' : 'audio.m4a';
+      const filePath = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'media', filename);
+      if (!fs.existsSync(filePath)) { ctx.status = 404; ctx.body = { error: 'file not found' }; return; }
+
+      const stat = fs.statSync(filePath);
+      const total = stat.size;
+      const mimeType = kind === 'video' ? 'video/mp4' : 'audio/mp4';
+      const rangeHeader = ctx.get('Range');
+
+      if (rangeHeader) {
+        const [startStr, endStr] = rangeHeader.replace(/bytes=/, '').split('-');
+        const start = parseInt(startStr, 10);
+        const end = endStr ? parseInt(endStr, 10) : Math.min(start + 1024 * 1024, total - 1);
+        ctx.status = 206;
+        ctx.set('Content-Range', `bytes ${start}-${end}/${total}`);
+        ctx.set('Accept-Ranges', 'bytes');
+        ctx.set('Content-Length', String(end - start + 1));
+        ctx.type = mimeType;
+        ctx.body = fs.createReadStream(filePath, { start, end });
+      } else {
+        ctx.set('Accept-Ranges', 'bytes');
+        ctx.set('Content-Length', String(total));
+        ctx.type = mimeType;
+        ctx.body = fs.createReadStream(filePath);
+      }
+    } catch (err) {
+      ctx.status = 500;
+      ctx.body = { error: (err && err.message) || 'stream error' };
+    }
+  });
+
   router.get('/tasks/:taskId/subtitles', async (ctx) => {
   const { taskId } = ctx.params;
   try {
@@ -430,6 +492,116 @@ function createApp(options = {}) {
     ctx.type = 'json';
     ctx.body = { error: (err && err.message) || 'failed to get task subtitles' };
   }
+  });
+
+  // ── Notes helpers ──────────────────────────────────────────────────────────
+  async function readNotes(notesPath) {
+    try {
+      const raw = await fs.promises.readFile(notesPath, 'utf8');
+      return JSON.parse(raw);
+    } catch (e) {
+      if (e.code === 'ENOENT') return [];
+      throw e;
+    }
+  }
+
+  async function writeNotes(notesPath, notes) {
+    const tmp = notesPath + '.tmp';
+    await fs.promises.writeFile(tmp, JSON.stringify(notes, null, 2), 'utf8');
+    await fs.promises.rename(tmp, notesPath);
+  }
+
+  router.get('/tasks/:taskId/notes', async (ctx) => {
+    const { taskId } = ctx.params;
+    try {
+      const task = await orchestrator.getTask(taskId, { rootDir: ROOT_DIR });
+      const metaId = task?.meta?.id ?? taskId;
+      const { notes: notesPath } = getTaskDirs(ROOT_DIR, metaId);
+      const notes = await readNotes(notesPath);
+      ctx.body = notes;
+    } catch (err) {
+      if (/task not found/.test(err.message || '')) { ctx.status = 404; }
+      else { ctx.status = 500; }
+      ctx.body = { error: err.message || 'failed to get notes' };
+    }
+  });
+
+  router.post('/tasks/:taskId/notes', async (ctx) => {
+    const { taskId } = ctx.params;
+    const { anchor = '', mediaTimestamp, body } = ctx.request.body || {};
+    if (!body || typeof body !== 'string' || !body.trim()) {
+      ctx.status = 400;
+      ctx.body = { error: 'body is required' };
+      return;
+    }
+    try {
+      const task = await orchestrator.getTask(taskId, { rootDir: ROOT_DIR });
+      const metaId = task?.meta?.id ?? taskId;
+      const { notes: notesPath } = getTaskDirs(ROOT_DIR, metaId);
+      const notes = await readNotes(notesPath);
+      const now = Date.now();
+      const note = {
+        id: crypto.randomUUID(),
+        anchor: anchor || '',
+        ...(mediaTimestamp != null ? { mediaTimestamp: Number(mediaTimestamp) } : {}),
+        body: body.trim(),
+        createdAt: now,
+        updatedAt: now,
+      };
+      notes.unshift(note);
+      await writeNotes(notesPath, notes);
+      ctx.status = 201;
+      ctx.body = note;
+    } catch (err) {
+      if (/task not found/.test(err.message || '')) { ctx.status = 404; }
+      else { ctx.status = 500; }
+      ctx.body = { error: err.message || 'failed to create note' };
+    }
+  });
+
+  router.patch('/tasks/:taskId/notes/:noteId', async (ctx) => {
+    const { taskId, noteId } = ctx.params;
+    const { body } = ctx.request.body || {};
+    if (!body || typeof body !== 'string' || !body.trim()) {
+      ctx.status = 400;
+      ctx.body = { error: 'body is required' };
+      return;
+    }
+    try {
+      const task = await orchestrator.getTask(taskId, { rootDir: ROOT_DIR });
+      const metaId = task?.meta?.id ?? taskId;
+      const { notes: notesPath } = getTaskDirs(ROOT_DIR, metaId);
+      const notes = await readNotes(notesPath);
+      const idx = notes.findIndex((n) => n.id === noteId);
+      if (idx === -1) { ctx.status = 404; ctx.body = { error: 'note not found' }; return; }
+      notes[idx] = { ...notes[idx], body: body.trim(), updatedAt: Date.now() };
+      await writeNotes(notesPath, notes);
+      ctx.body = notes[idx];
+    } catch (err) {
+      if (/task not found/.test(err.message || '')) { ctx.status = 404; }
+      else { ctx.status = 500; }
+      ctx.body = { error: err.message || 'failed to update note' };
+    }
+  });
+
+  router.delete('/tasks/:taskId/notes/:noteId', async (ctx) => {
+    const { taskId, noteId } = ctx.params;
+    try {
+      const task = await orchestrator.getTask(taskId, { rootDir: ROOT_DIR });
+      const metaId = task?.meta?.id ?? taskId;
+      const { notes: notesPath } = getTaskDirs(ROOT_DIR, metaId);
+      const notes = await readNotes(notesPath);
+      const filtered = notes.filter((n) => n.id !== noteId);
+      if (filtered.length === notes.length) {
+        ctx.status = 404; ctx.body = { error: 'note not found' }; return;
+      }
+      await writeNotes(notesPath, filtered);
+      ctx.status = 204;
+    } catch (err) {
+      if (/task not found/.test(err.message || '')) { ctx.status = 404; }
+      else { ctx.status = 500; }
+      ctx.body = { error: err.message || 'failed to delete note' };
+    }
   });
 
   router.get('/tasks/:taskId/result/content', async (ctx) => {
@@ -605,6 +777,11 @@ function createApp(options = {}) {
     ctx.body = { ok: true };
   });
 
+  registerRevealRoute(router, { rootDir: ROOT_DIR, host: HOST, spawn: options.spawn });
+
+  // SPA static serve (must come before /api routes to claim "/")
+  app.use(createStaticServe({ rootDir: ROOT_DIR, token }));
+
   app.use(bodyParser());
   app.use(rootRouter.routes());
   app.use(rootRouter.allowedMethods());
@@ -614,6 +791,7 @@ function createApp(options = {}) {
   // Expose token for callers/tests (do not include in logs elsewhere).
   app.context.eventsToken = token;
   app.context.heartbeatRegistry = heartbeatRegistry;
+  app.context.sseRegistry = sseRegistry;
 
   return app;
 }
@@ -671,7 +849,8 @@ if (require.main === module) {
         if (now - lastSeen > EVICT_MS) registry.delete(id);
       }
 
-      const hasClients = registry.size > 0;
+      const sseReg = app.context.sseRegistry;
+      const hasClients = registry.size > 0 || (sseReg && sseReg.size > 0);
 
       // Check for running tasks via in-memory counter (listTasks queries the DB
       // which does not include a live status field — activeRunTasks is authoritative).

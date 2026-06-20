@@ -1,0 +1,292 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+:root {
+  --bg-canvas:     #F9F8F4;
+  --bg-surface:    #FFFFFF;
+  --bg-elevated:   #F1EFE9;
+  --border-subtle: #E5E2DA;
+  --border-strong: #CFCBC0;
+  --text-primary:   #2C2A24;
+  --text-secondary: #67645E;
+  --text-tertiary:  #9C9890;
+  --accent-3:  #EBF1E8;
+  --accent-9:  #5A8A5A;
+  --accent-10: #466F46;
+  --accent-11: #3D5E3D;
+  --accent-12: #243B24;
+  --status-ok:   #4A8A5A;
+  --status-err:  #B05050;
+  --status-busy: #C28A3D;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-canvas:     #1A1A18;
+    --bg-surface:    #232322;
+    --bg-elevated:   #2A2A28;
+    --border-subtle: #2E2E2B;
+    --border-strong: #3D3E3B;
+    --text-primary:   #E8E8E6;
+    --text-secondary: #9A9B98;
+    --text-tertiary:  #6B6C69;
+    --accent-3:  #2A3A2A;
+    --accent-9:  #7DAE7D;
+    --accent-10: #6FA06F;
+    --accent-11: #9BC79B;
+    --accent-12: #C8E0C8;
+  }
+}
+
+html, body {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:lang(zh), .chinese { line-height: 1.75; }
+.prose-cn {
+  line-height: 1.85;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.prose-cn h2 {
+  font-size: 18px; font-weight: 600;
+  margin: 32px 0 12px; letter-spacing: -0.005em;
+}
+.prose-cn h3 {
+  font-size: 14.5px; font-weight: 600;
+  margin: 22px 0 8px;
+}
+.prose-cn p { margin: 14px 0; }
+.prose-cn blockquote {
+  border-left: 2px solid var(--accent-9);
+  padding: 4px 0 4px 14px;
+  margin: 18px 0;
+  color: var(--text-secondary);
+}
+.prose-cn code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--accent-11);
+  background: var(--accent-3);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.prose-cn ul { padding-left: 20px; margin: 12px 0; }
+.prose-cn li { margin: 8px 0; }
+.prose-cn strong { color: var(--text-primary); font-weight: 600; }
+
+/* Tables: borderless body, header-only bottom rule */
+.prose-cn table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 13.5px;
+}
+.prose-cn th,
+.prose-cn td {
+  padding: 5px 12px;
+  vertical-align: top;
+  border: 0;
+}
+.prose-cn th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  border-bottom: 2px solid var(--text-tertiary);
+}
+.prose-cn td { color: var(--text-primary); }
+.prose-cn th[align="center"], .prose-cn td[align="center"] { text-align: center; }
+.prose-cn th[align="right"],  .prose-cn td[align="right"]  { text-align: right; }
+
+/* ==============================
+   Reading Modes — layout shell
+   data-mode on outer wrapper div
+   ============================== */
+
+/* --- Transition --- */
+.layout-shell[data-switching="1"] { opacity: 0.6; transition: opacity 80ms ease; }
+.layout-shell { transition: opacity 80ms ease; }
+
+/* --- Shared: article + notes row --- */
+.article-notes-row {
+  display: flex;
+  max-width: 1040px;
+  margin: 0 auto;
+  width: 100%;
+}
+.article-col { flex: 1; min-width: 0; padding: 56px 48px; }
+.notes-col {
+  width: 260px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border-subtle);
+  padding: 0;
+  position: relative;
+}
+
+/* ===== MODE A — 视频优先 (55% / 45%) ===== */
+[data-mode="A"] .mode-content { display: flex; flex: 1; min-height: 0; }
+[data-mode="A"] .panel-left {
+  width: 55%;
+  flex-shrink: 0;
+  display: flex !important;
+  flex-direction: column;
+  border-right: 1px solid var(--border-subtle);
+}
+[data-mode="A"] .panel-right { flex: 1; display: flex !important; flex-direction: column; min-width: 0; }
+[data-mode="A"] .panel-sidebar { display: none !important; }
+[data-mode="A"] .audio-bar { display: none !important; }
+[data-mode="A"] .subtitle-col { display: none !important; }
+[data-mode="A"] .theater-section { display: none !important; }
+[data-mode="A"] .notes-col { display: none !important; }
+[data-mode="A"] .left-notes { display: flex !important; flex-direction: column; }
+
+/* ===== MODE B — 阅读优先 ===== */
+[data-mode="B"] .mode-content { display: flex; flex: 1; min-height: 0; }
+[data-mode="B"] .panel-left { display: none !important; }
+[data-mode="B"] .panel-right { flex: 1; min-width: 0; display: flex !important; flex-direction: column; }
+[data-mode="B"] .panel-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex !important;
+  flex-direction: column;
+  border-left: 1px solid var(--border-subtle);
+}
+[data-mode="B"] .audio-bar { display: none !important; }
+[data-mode="B"] .subtitle-col { display: none !important; }
+[data-mode="B"] .theater-section { display: none !important; }
+[data-mode="B"] .left-notes { display: none !important; }
+[data-mode="B"] .notes-col { display: flex !important; flex-direction: column; }
+[data-mode="B"] .article-col { max-width: 720px; }
+
+/* ===== MODE C — 音频+文章 ===== */
+[data-mode="C"] .mode-content {
+  display: flex !important;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+[data-mode="C"] .audio-bar {
+  height: 72px;
+  flex-shrink: 0;
+  display: flex !important;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 20px;
+}
+[data-mode="C"] .mode-content-body {
+  display: flex !important;
+  flex: 1;
+  min-height: 0;
+}
+[data-mode="C"] .panel-left { display: none !important; }
+[data-mode="C"] .panel-right { flex: 1; min-width: 0; display: flex !important; flex-direction: column; }
+[data-mode="C"] .subtitle-col {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex !important;
+  flex-direction: column;
+  border-right: 1px solid var(--border-subtle);
+}
+[data-mode="C"] .panel-sidebar { display: none !important; }
+[data-mode="C"] .theater-section { display: none !important; }
+[data-mode="C"] .left-notes { display: none !important; }
+[data-mode="C"] .notes-col { display: flex !important; flex-direction: column; }
+[data-mode="C"] .article-col { max-width: 720px; }
+
+/* ===== MODE E — 沉浸阅读 ===== */
+[data-mode="E"] .mode-content { display: flex; flex: 1; min-height: 0; }
+[data-mode="E"] .panel-left { display: none !important; }
+[data-mode="E"] .panel-right { flex: 1; display: flex !important; flex-direction: column; min-width: 0; }
+[data-mode="E"] .panel-sidebar { display: none !important; }
+[data-mode="E"] .audio-bar { display: none !important; }
+[data-mode="E"] .subtitle-col { display: none !important; }
+[data-mode="E"] .theater-section { display: none !important; }
+[data-mode="E"] .left-notes { display: none !important; }
+[data-mode="E"] .notes-col { display: flex !important; flex-direction: column; }
+[data-mode="E"] .article-notes-row { max-width: 1000px; }
+[data-mode="E"] .article-col { max-width: 680px; }
+
+/* ===== MODE F — 剧场模式 ===== */
+[data-mode="F"] .mode-content {
+  display: flex !important;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+[data-mode="F"] .theater-section {
+  display: flex !important;
+  flex-direction: column;
+  flex-shrink: 0;
+  background: #000;
+  order: -1;
+}
+[data-mode="F"] .panel-left { display: none !important; }
+[data-mode="F"] .panel-right { flex: 1 !important; min-height: 0; display: flex !important; flex-direction: column; }
+[data-mode="F"] .panel-sidebar { display: none !important; }
+[data-mode="F"] .audio-bar { display: none !important; }
+[data-mode="F"] .subtitle-col { display: none !important; }
+[data-mode="F"] .left-notes { display: none !important; }
+[data-mode="F"] .notes-col { display: flex !important; flex-direction: column; }
+[data-mode="F"] .article-col { max-width: 720px; }
+
+/* CC overlay */
+.cc-overlay-text {
+  position: absolute;
+  bottom: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80%;
+  text-align: center;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.5;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+  pointer-events: none;
+  padding: 3px 10px;
+  background: rgba(0,0,0,0.45);
+  border-radius: 3px;
+}
+
+/* CC button */
+.cc-btn {
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 120ms;
+}
+.cc-btn:hover { background: rgba(255,255,255,0.12); }
+.cc-btn.on { background: rgba(255,255,255,0.18); color: #fff; }
+.cc-btn.on::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-9);
+  display: inline-block;
+}
+
+/* ===== LAYOUT FIXES =====
+   mode-content must be a flex column so audio-bar / theater-section
+   stack above the panel body. mode-content-body is the horizontal
+   row that holds panel-left / panel-right / panel-sidebar.
+   These base rules (lower specificity) fill in what mode-specific
+   rules above omit. ===== */
+.mode-content { flex-direction: column; }
+.mode-content-body { display: flex; flex: 1; min-height: 0; }

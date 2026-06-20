@@ -196,8 +196,7 @@ transcript = open("$ORIGINAL_PATH").read()
 
 result = (template
     .replace("{{TRANSCRIPT_CONTENT}}", transcript)
-    .replace("{{SOURCE_LANG}}", "$SOURCE_LANG")
-    .replace("OUTPUT_LANG=zh-CN", "OUTPUT_LANG=$OUTPUT_LANG"))
+    .replace("{{SOURCE_LANG}}", "$SOURCE_LANG"))
 
 open(output_path, "w").write(result)
 PYEOF

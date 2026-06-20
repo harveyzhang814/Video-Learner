@@ -41,8 +41,7 @@ def main():
 
     result = (chunk_header + template
               .replace("{{TRANSCRIPT_CONTENT}}", transcript)
-              .replace("{{SOURCE_LANG}}", source_lang)
-              .replace("OUTPUT_LANG=zh-CN", f"OUTPUT_LANG={output_lang}"))
+              .replace("{{SOURCE_LANG}}", source_lang))
 
     open(output_path, 'w', encoding='utf-8').write(result)
 
