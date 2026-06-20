@@ -65,7 +65,28 @@ function createStaticServe({ rootDir, token }) {
 
     // assets — only paths under /assets/
     const isAsset = urlPath.startsWith('/assets/');
-    if (!isAsset) return next();
+    if (!isAsset) {
+      // SPA catch-all: serve index.html for any client-side route so React Router
+      // can handle paths like /tasks/:id. Skip API/event paths — those fall through
+      // to the downstream Koa router.
+      const isApiOrEvent = urlPath.startsWith('/api/') || urlPath === '/api'
+        || urlPath.startsWith('/events') || urlPath.startsWith('/healthz');
+      if (isApiOrEvent) return next();
+
+      const indexPath = path.join(distDir, 'index.html');
+      if (!fs.existsSync(indexPath)) return next();
+      const html = fs.readFileSync(indexPath, 'utf8');
+      const meta = `<meta name="vdl-token" content="${escapeHtml(token)}">`;
+      const injected = html.includes('name="vdl-token"')
+        ? html.replace(/<meta\s+name="vdl-token"[^>]*>/i, meta)
+        : html.includes('</head>')
+          ? html.replace('</head>', `  ${meta}\n</head>`)
+          : html.replace(/<head[^>]*>/i, (m) => `${m}\n  ${meta}`);
+      ctx.type = 'text/html; charset=utf-8';
+      ctx.set('Cache-Control', 'no-store');
+      ctx.body = injected;
+      return;
+    }
 
     // Prevent path traversal
     const rel = urlPath.replace(/^\/assets\//, '');
