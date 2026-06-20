@@ -38,6 +38,10 @@ export interface Task {
   error_message?: string;
   created_at: number;
   updated_at: number;
+  width?: number;
+  height?: number;
+  file_size?: number;
+  bit_rate?: number;
 }
 
 export interface Step {
@@ -54,6 +58,7 @@ interface BackendListTask {
   id: string; url: string; title?: string; uploader?: string;
   duration?: string; mode?: string; output_lang?: string; focus?: string;
   created_at?: string; updated_at?: string;
+  width?: number; height?: number; file_size?: number; bit_rate?: number;
 }
 
 interface BackendTask {
@@ -99,6 +104,10 @@ function normalizeListTask(t: BackendListTask): Task {
     status: 'done',
     created_at: parseDateStr(t.created_at),
     updated_at: parseDateStr(t.updated_at),
+    width: t.width,
+    height: t.height,
+    file_size: t.file_size,
+    bit_rate: t.bit_rate,
   };
 }
 

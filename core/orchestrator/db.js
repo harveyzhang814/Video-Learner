@@ -125,7 +125,7 @@ function createDbManager(dbPath) {
       const rows = db
         .prepare(
           `
-          SELECT id, url, ts, title, lang, duration, output_lang, focus, mode, transcripts, uploader, created_at, updated_at
+          SELECT id, url, ts, title, lang, duration, output_lang, focus, mode, transcripts, uploader, created_at, updated_at, width, height, file_size, bit_rate
           FROM tasks WHERE deleted_at IS NULL
           ORDER BY datetime(created_at) DESC, datetime(ts) DESC
           LIMIT ?
