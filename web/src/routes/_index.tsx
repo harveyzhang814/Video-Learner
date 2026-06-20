@@ -28,7 +28,7 @@ export default function Home() {
   }, [handleKeyDown]);
 
   return (
-    <div className="px-8 pt-16 pb-24 max-w-screen-2xl mx-auto">
+    <div className="px-8 pt-16 pb-24">
       {/* Header */}
       <header className="flex items-center justify-between mb-10">
         <h1 className="text-lg font-semibold tracking-tight">Video Learner</h1>
@@ -65,7 +65,7 @@ export default function Home() {
           无匹配结果
         </div>
       ) : (
-        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 480px))' }}>
           {filtered.map((t) => <TaskCard key={t.id} task={t} />)}
         </div>
       )}
