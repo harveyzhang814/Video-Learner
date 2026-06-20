@@ -10,11 +10,8 @@ const stubs = {
   exitCode: null,
 };
 
-const realResolve = Module._resolveFilename;
 const realRequire = Module.prototype.require;
-
 const agentConnectPath = require.resolve('../core/agent-connect');
-const cpPath = 'child_process';
 
 Module.prototype.require = function (id) {
   if (id === '../../core/agent-connect' || id === path.relative(path.join(__dirname, '../cli/commands'), agentConnectPath).replace(/\\/g, '/')) {
@@ -75,5 +72,6 @@ process.exit = (code) => { stubs.exitCode = code; throw new Error(`__exit:${code
   assert.ok(stubs.spawnCalls[0].args.join(' ').includes('http://127.0.0.1:4000'));
 
   process.exit = realExit;
+  Module.prototype.require = realRequire;
   console.log('cli-web-command: PASS');
-})().catch(err => { process.exit = realExit; console.error(err); process.exit(1); });
+})().catch(err => { process.exit = realExit; Module.prototype.require = realRequire; console.error(err); process.exit(1); });

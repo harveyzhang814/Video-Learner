@@ -2,7 +2,6 @@
 const assert = require('assert');
 const http = require('http');
 const path = require('path');
-const fs = require('fs');
 const os = require('os');
 const { spawn } = require('child_process');
 
@@ -48,10 +47,16 @@ async function waitAlive(baseUrl, timeoutMs) {
 
 function pickPort() { return 33000 + Math.floor(Math.random() * 1000); }
 
+const tmpFiles = [];
+function cleanupTmpFiles() {
+  for (const f of tmpFiles) { try { require('fs').unlinkSync(f); } catch (_) {} }
+}
+
 async function spawnServer(extraEnv) {
   const port = pickPort();
   const tokenFile = path.join(os.tmpdir(), `vl-token-${port}`);
   const pidFile = path.join(os.tmpdir(), `vl-pid-${port}`);
+  tmpFiles.push(tokenFile, pidFile);
   const env = {
     ...process.env,
     PORT: String(port),
@@ -89,7 +94,8 @@ async function spawnServer(extraEnv) {
   {
     const { child, baseUrl } = await spawnServer({});
     const sse = await openSse(baseUrl, TOKEN);
-    await new Promise(r => setTimeout(r, 1500)); // > evict+grace
+    // EVICT_MS(300) + GRACE_MS(300) + INTERVAL_MS(100) = 700ms worst-case; 1500ms gives ~2x margin for CI jitter
+    await new Promise(r => setTimeout(r, 1500));
     const code = await get(baseUrl, '/healthz');
     assert.strictEqual(code, 200, 'SSE client should keep server alive');
     sse.req.destroy();
@@ -122,5 +128,6 @@ async function spawnServer(extraEnv) {
     console.log('case C (heartbeat keeps alive, then shutdown): ok');
   }
 
+  cleanupTmpFiles();
   console.log('auto-shutdown-mixed: PASS');
-})().catch(err => { console.error(err); process.exit(1); });
+})().catch(err => { cleanupTmpFiles(); console.error(err); process.exit(1); });
