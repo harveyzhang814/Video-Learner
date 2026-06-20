@@ -485,6 +485,116 @@ function createApp(options = {}) {
   }
   });
 
+  // ── Notes helpers ──────────────────────────────────────────────────────────
+  async function readNotes(notesPath) {
+    try {
+      const raw = await fs.promises.readFile(notesPath, 'utf8');
+      return JSON.parse(raw);
+    } catch (e) {
+      if (e.code === 'ENOENT') return [];
+      throw e;
+    }
+  }
+
+  async function writeNotes(notesPath, notes) {
+    const tmp = notesPath + '.tmp';
+    await fs.promises.writeFile(tmp, JSON.stringify(notes, null, 2), 'utf8');
+    await fs.promises.rename(tmp, notesPath);
+  }
+
+  router.get('/tasks/:taskId/notes', async (ctx) => {
+    const { taskId } = ctx.params;
+    try {
+      const task = await orchestrator.getTask(taskId, { rootDir: ROOT_DIR });
+      const metaId = task?.meta?.id ?? taskId;
+      const { notes: notesPath } = getTaskDirs(ROOT_DIR, metaId);
+      const notes = await readNotes(notesPath);
+      ctx.body = notes;
+    } catch (err) {
+      if (/task not found/.test(err.message || '')) { ctx.status = 404; }
+      else { ctx.status = 500; }
+      ctx.body = { error: err.message || 'failed to get notes' };
+    }
+  });
+
+  router.post('/tasks/:taskId/notes', async (ctx) => {
+    const { taskId } = ctx.params;
+    const { anchor = '', mediaTimestamp, body } = ctx.request.body || {};
+    if (!body || typeof body !== 'string' || !body.trim()) {
+      ctx.status = 400;
+      ctx.body = { error: 'body is required' };
+      return;
+    }
+    try {
+      const task = await orchestrator.getTask(taskId, { rootDir: ROOT_DIR });
+      const metaId = task?.meta?.id ?? taskId;
+      const { notes: notesPath } = getTaskDirs(ROOT_DIR, metaId);
+      const notes = await readNotes(notesPath);
+      const now = Date.now();
+      const note = {
+        id: crypto.randomUUID(),
+        anchor: anchor || '',
+        ...(mediaTimestamp != null ? { mediaTimestamp: Number(mediaTimestamp) } : {}),
+        body: body.trim(),
+        createdAt: now,
+        updatedAt: now,
+      };
+      notes.unshift(note);
+      await writeNotes(notesPath, notes);
+      ctx.status = 201;
+      ctx.body = note;
+    } catch (err) {
+      if (/task not found/.test(err.message || '')) { ctx.status = 404; }
+      else { ctx.status = 500; }
+      ctx.body = { error: err.message || 'failed to create note' };
+    }
+  });
+
+  router.patch('/tasks/:taskId/notes/:noteId', async (ctx) => {
+    const { taskId, noteId } = ctx.params;
+    const { body } = ctx.request.body || {};
+    if (!body || typeof body !== 'string' || !body.trim()) {
+      ctx.status = 400;
+      ctx.body = { error: 'body is required' };
+      return;
+    }
+    try {
+      const task = await orchestrator.getTask(taskId, { rootDir: ROOT_DIR });
+      const metaId = task?.meta?.id ?? taskId;
+      const { notes: notesPath } = getTaskDirs(ROOT_DIR, metaId);
+      const notes = await readNotes(notesPath);
+      const idx = notes.findIndex((n) => n.id === noteId);
+      if (idx === -1) { ctx.status = 404; ctx.body = { error: 'note not found' }; return; }
+      notes[idx] = { ...notes[idx], body: body.trim(), updatedAt: Date.now() };
+      await writeNotes(notesPath, notes);
+      ctx.body = notes[idx];
+    } catch (err) {
+      if (/task not found/.test(err.message || '')) { ctx.status = 404; }
+      else { ctx.status = 500; }
+      ctx.body = { error: err.message || 'failed to update note' };
+    }
+  });
+
+  router.delete('/tasks/:taskId/notes/:noteId', async (ctx) => {
+    const { taskId, noteId } = ctx.params;
+    try {
+      const task = await orchestrator.getTask(taskId, { rootDir: ROOT_DIR });
+      const metaId = task?.meta?.id ?? taskId;
+      const { notes: notesPath } = getTaskDirs(ROOT_DIR, metaId);
+      const notes = await readNotes(notesPath);
+      const filtered = notes.filter((n) => n.id !== noteId);
+      if (filtered.length === notes.length) {
+        ctx.status = 404; ctx.body = { error: 'note not found' }; return;
+      }
+      await writeNotes(notesPath, filtered);
+      ctx.status = 204;
+    } catch (err) {
+      if (/task not found/.test(err.message || '')) { ctx.status = 404; }
+      else { ctx.status = 500; }
+      ctx.body = { error: err.message || 'failed to delete note' };
+    }
+  });
+
   router.get('/tasks/:taskId/result/content', async (ctx) => {
   const { taskId } = ctx.params;
   const type = (ctx.query && ctx.query.type) || '';
