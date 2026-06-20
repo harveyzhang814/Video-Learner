@@ -28,7 +28,7 @@ export default function Home() {
   }, [handleKeyDown]);
 
   return (
-    <div className="px-8 pt-16 pb-24">
+    <div className="px-8 pt-16 pb-24 max-w-screen-2xl mx-auto">
       {/* Header */}
       <header className="flex items-center justify-between mb-10">
         <h1 className="text-lg font-semibold tracking-tight">Video Learner</h1>
