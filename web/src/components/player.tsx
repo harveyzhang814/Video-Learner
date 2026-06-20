@@ -11,6 +11,7 @@ export function Player({
   onToggleCc,
   ccEnabled = false,
   className,
+  audioOnly = false,
 }: {
   taskId: string;
   kind: 'video' | 'audio';
@@ -18,6 +19,7 @@ export function Player({
   onToggleCc?: () => void;
   ccEnabled?: boolean;
   className?: string;
+  audioOnly?: boolean;
 }) {
   const ref = useRef<HTMLVideoElement | HTMLAudioElement>(null);
   const seekBarRef = useRef<HTMLDivElement>(null);
@@ -67,25 +69,32 @@ export function Player({
   const src = `/api/tasks/${taskId}/media/${kind}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 
   const MediaTag = kind === 'video' ? 'video' : 'audio';
+  const showCustomControls = kind === 'video' || audioOnly;
 
   return (
-    <div className={`relative bg-black flex-shrink-0${className ? ` ${className}` : ''}`}
-         style={{ aspectRatio: kind === 'video' ? '16/9' : 'auto', height: kind === 'audio' ? 120 : undefined }}>
+    <div className={`relative bg-black flex-shrink-0${audioOnly ? ' w-full' : ''}${className ? ` ${className}` : ''}`}
+         style={{
+           aspectRatio: (!audioOnly && kind === 'video') ? '16/9' : 'auto',
+           height: (audioOnly || kind === 'audio') ? 72 : undefined,
+         }}>
       <MediaTag
         ref={ref as React.RefObject<HTMLVideoElement & HTMLAudioElement>}
         src={src}
-        className="w-full h-full object-contain"
+        className={audioOnly ? 'absolute w-0 h-0 opacity-0' : 'w-full h-full object-contain'}
         onLoadedMetadata={(e) => setDuration((e.currentTarget as HTMLMediaElement).duration)}
         onTimeUpdate={(e) => { if (!isDragging.current) setCurrentTime((e.currentTarget as HTMLMediaElement).currentTime); }}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        controls={kind === 'audio'}
+        controls={kind === 'audio' && !audioOnly}
       />
-      {kind === 'video' && ccEnabled && (
+      {kind === 'video' && ccEnabled && !audioOnly && (
         <CcOverlay enabled={ccEnabled} />
       )}
-      {kind === 'video' && (
-        <div className="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-8 bg-gradient-to-t from-black/80 to-transparent">
+      {showCustomControls && (
+        <div className={audioOnly
+          ? "absolute inset-0 flex flex-col justify-center px-4 bg-black/80"
+          : "absolute bottom-0 left-0 right-0 px-3 pb-3 pt-8 bg-gradient-to-t from-black/80 to-transparent"
+        }>
           {/* 进度条 — 宽点击区 */}
           <div
             ref={seekBarRef}
@@ -129,3 +138,4 @@ export function Player({
     </div>
   );
 }
+

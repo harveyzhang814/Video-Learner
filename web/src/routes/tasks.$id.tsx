@@ -77,10 +77,10 @@ export default function TaskDetail() {
         data-mode={layoutMode}
         className="layout-shell flex-1 flex flex-col min-h-0"
       >
-        {/* MODE C: top audio bar */}
+        {/* MODE C: top audio bar — works for both audio and video tasks */}
         <div className="audio-bar" style={{ display: layoutMode === 'C' ? undefined : 'none' }}>
-          {mediaKind === 'audio' && (
-            <Player taskId={id} kind="audio" />
+          {mediaKind && (
+            <Player taskId={id} kind={mediaKind} audioOnly={true} />
           )}
         </div>
 
