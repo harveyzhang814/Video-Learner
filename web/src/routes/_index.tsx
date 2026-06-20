@@ -65,7 +65,7 @@ export default function Home() {
           无匹配结果
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-3 gap-4">
           {filtered.map((t) => <TaskCard key={t.id} task={t} />)}
         </div>
       )}
