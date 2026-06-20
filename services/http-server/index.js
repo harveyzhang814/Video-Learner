@@ -36,6 +36,11 @@ function createApp(options = {}) {
   // clientId → lastSeen timestamp (ms). Used for auto-shutdown.
   const heartbeatRegistry = new Map();
 
+  // --- SSE connection registry ---
+  // Active SSE connection ids. Browser tabs are tracked via this set;
+  // the existing heartbeatRegistry continues to track CLI/API clients.
+  const sseRegistry = new Set();
+
   /** Optional test hook: replace fire-and-forget runTask after reset_scope downstream (default: real orchestrator.runTask). */
   const runTaskForDownstream =
     typeof options.runTaskForDownstream === 'function'
@@ -135,6 +140,9 @@ function createApp(options = {}) {
       write(EventStream.formatSseFrame(ev));
     });
 
+    const sseId = crypto.randomUUID();
+    sseRegistry.add(sseId);
+
     // Heartbeat every 15s (within 10-20s requirement)
     const heartbeat = setInterval(() => {
       write(': ping\n\n');
@@ -147,6 +155,7 @@ function createApp(options = {}) {
       } catch (_) {
         // ignore
       }
+      sseRegistry.delete(sseId);
     };
 
     ctx.req.on('close', cleanup);
@@ -782,6 +791,7 @@ function createApp(options = {}) {
   // Expose token for callers/tests (do not include in logs elsewhere).
   app.context.eventsToken = token;
   app.context.heartbeatRegistry = heartbeatRegistry;
+  app.context.sseRegistry = sseRegistry;
 
   return app;
 }
