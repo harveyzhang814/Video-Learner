@@ -32,6 +32,7 @@
     "test:gui:client:reset-scope": "node tests/service-client-reset-scope-all-steps.test.js",
     "test:cli": "node tests/cli-server-token.test.js && node tests/cli-server.test.js && node tests/cli-server-spawn.test.js && node tests/cli-client.test.js && node tests/cli-format.test.js && node tests/cli-commands.test.js && node tests/cli-run.test.js && node tests/cli-subcommands.test.js && node tests/cli-e2e.test.js",
     "test:http-static-serve": "node tests/http-static-serve.test.js",
+    "test:http-notes": "node tests/http-notes.test.js",
     "web:install": "cd web && npm install",
     "web:dev": "cd web && npm run dev",
     "web:build": "cd web && npm run build"
