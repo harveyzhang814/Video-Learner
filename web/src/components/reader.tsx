@@ -81,8 +81,9 @@ export function Reader({ content, onAnchorSelect }: ReaderProps) {
             left: bubble.x + 6,
             top: bubble.y - 4,
             zIndex: 50,
-            fontSize: 11,
-            padding: '2px 8px',
+            fontSize: 13,
+            lineHeight: 1,
+            padding: '3px 6px',
             borderRadius: 4,
             background: 'var(--accent-9)',
             color: '#fff',
@@ -91,7 +92,9 @@ export function Reader({ content, onAnchorSelect }: ReaderProps) {
             boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
           }}
         >
-          📝 记笔记
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.5 1.5a1.5 1.5 0 0 1 2.121 2.121l-8.5 8.5L2 13l.879-3.121 8.621-8.379z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </button>
       )}
     </>
