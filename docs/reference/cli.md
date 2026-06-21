@@ -39,7 +39,7 @@ npm unlink vdl  # 取消注册
 | `asr` / `article` / `summary` | 60 min | 3 h | 6 h |
 | `audio` | 30 min | 90 min | 3 h |
 | `video` | 2 h | 6 h | 12 h |
-| `fetch` / `subs` / `vtt2md` / `md2vtt` | 10 min | 30 min | 60 min |
+| `fetch` / `subs` / `vtt2md` / `translate` / `md2vtt` | 10 min | 30 min | 60 min |
 
 超时倍率也可通过环境变量 `VL_TIMEOUT_SCALE=<n>` 在服务端全局设置（对该服务上所有任务生效）；单步绝对覆盖仍可用 `VL_TIMEOUT_<STEP>=<ms>`，优先级最高。
 
@@ -169,12 +169,13 @@ Done: work/a1b2c3/writing/summary.md
 | `fetch` | `fetch_info` |
 | `subs` | `download_subs` |
 | `vtt2md` | `convert_vtt_md` |
+| `translate` | `translate_subs` |
+| `md2vtt` | `convert_md_vtt` |
 | `article` | `generate_article` |
 | `summary` | `generate_summary` |
 | `video` | `download_video` |
 | `audio` | `download_audio` |
 | `asr` | `asr_transcribe` |
-| `md2vtt` | `convert_md_vtt` |
 
 ---
 

@@ -37,6 +37,7 @@ Video-Learner/
 │   ├── download_audio.sh      # Step audio：音频下载/提取
 │   ├── download_subs.sh       # Step subs：字幕下载（中/英）
 │   ├── convert_vtt_md.sh      # Step vtt2md：VTT → Markdown 的封装
+│   ├── translate_subs.sh      # Step translate：英文字幕 → 中文字幕（LLM 翻译）
 │   ├── convert_md_vtt.sh      # Step md2vtt：Markdown → VTT 的封装
 │   ├── llm_engine.sh          # 写作引擎路由：claude/opencode（统一入口）
 │   ├── opencode_server.sh     # opencode serve 生命周期管理（ensure/health/stop）
@@ -172,7 +173,9 @@ sequenceDiagram
    - VTT → `original_en.md` / `original_zh.md`（\[mm:ss\]，去重）
    - 反向生成 `original_en.vtt` / `original_zh.vtt`，方便前端播放
 
-5. **Step 3.5：文章生成（article）**：源文件优先 `original_en.md`；模板 `scripts/article_prompt.txt`；写作引擎通过 `scripts/llm_engine.sh` 调用。
+4.5. **Step 3.5：字幕翻译（translate）**：若字幕仅含英文（`original_en.md` 存在，`original_zh.md` 缺失）且 `output_lang=zh-CN`，则通过 LLM 将英文字幕翻译为中文，写入 `original_zh.md`；`md2vtt` 再将其转回 VTT。视频原生含中文字幕时此步骤自动跳过。
+
+5. **Step 3.6：文章生成（article）**：源文件优先 `original_en.md`；模板 `scripts/article_prompt.txt`；写作引擎通过 `scripts/llm_engine.sh` 调用。
 
 6. **Step 4：总结生成（summary）**：源文件 `writing/article.md`；结合用户 FOCUS；模板 `scripts/summary_prompt.txt`。
 
@@ -294,7 +297,7 @@ work/
   "ts": "...",
   "title": "...",
   "duration": "...",
-  "lang": "...",
+  "lang": "en|zh|...",   // 视频语言，由 fetch_info 从 yt-dlp 元数据中提取（如 en-US → en），默认 en
   "output_lang": "zh-CN|en",
   "download_status": "pending|success|failed|skipped_existing",
   "download_attempts": 0,

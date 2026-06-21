@@ -17,12 +17,14 @@
 集成后，DAG 中存在两条独立路径都能让 `vtt2md` 就绪：
 
 ```
-fetch ──► subs ──────────────────► vtt2md ──► article ──► summary
-  │                                   ▲
-  ├──► video ──┐                      │
+fetch ──► subs ──────────────────► vtt2md ──► translate ──► md2vtt
+  │                                   ▲             │
+  ├──► video ──┐                      │             └──► article ──► summary
   │            ├──► asr (fallback) ───┘
   └──► audio ──┘
 ```
+
+> `translate` 位于 `vtt2md → translate → md2vtt` 侧链，负责将英文字幕翻译为中文；`article` 直接从 `vtt2md` 衍生，不经过 `translate`。
 
 `vtt2md` 是 **OR 门**节点：`subs=completed` **或** `asr=completed` 任意一个成立即可触发。
 
@@ -43,10 +45,10 @@ fetch ──► subs ──────────────────► v
 `asr_transcribe.sh` 调用 `asr_transcribe.py`（基于 mlx_whisper），将音频转录为标准 WEBVTT 格式，写入：
 
 ```
-work/<id>/transcript/subs/<id>.zh.asr.vtt
+work/<id>/transcript/subs/<id>.<lang>.asr.vtt
 ```
 
-与 YouTube VTT 文件格式完全一致。`vtt2md` 通过 `*.vtt` glob 自动识别并处理，无需感知来源。
+其中 `<lang>` 来自 `fetch_info` 步骤从 yt-dlp 元数据中提取的视频语言码（如 `en`、`zh`），默认为 `en`。这一设计保证 `vtt2md` 能够根据文件名正确推断字幕语言，进而决定 `translate` 步骤是否触发。与 YouTube VTT 文件格式完全一致。`vtt2md` 通过 `*.vtt` glob 自动识别并处理，无需感知来源。
 
 ---
 
@@ -73,9 +75,9 @@ OR 门的关键语义：**被 mode 排除的或已 `skipped` 的前驱不满足 
 
 原因：`skipStep('summary')` 可被手动调用作为逃生出口，但不代表 pipeline 真正跑完。
 
-### `md2vtt` 的特殊地位
+### `translate` / `md2vtt` 的特殊地位
 
-`md2vtt` 是侧链步骤（`vtt2md → md2vtt`），不在通向 `summary` 的路径上。可达性算法天然忽略 `md2vtt=failed`——它不影响 `summary` 是否可达，不会将任务误判为失败。（旧硬编码逻辑中，`CONTENT_STEPS` 错误地包含了 `md2vtt`，存在这个静默 bug；可达性算法修复了它。）
+`translate` 和 `md2vtt` 是侧链步骤（`vtt2md → translate → md2vtt`），不在通向 `summary` 的路径上。可达性算法天然忽略这两个步骤的失败——它们不影响 `summary` 是否可达，不会将任务误判为失败。（旧硬编码逻辑中，`CONTENT_STEPS` 错误地包含了 `md2vtt`，存在这个静默 bug；可达性算法修复了它。）
 
 ---
 
