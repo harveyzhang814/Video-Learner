@@ -36,17 +36,34 @@ WINDOW_SECS = 25   # 目标窗口 20-30s
 MAX_CHARS   = 800  # 单块字符硬上限
 
 def ts_to_secs(ts):
+    # Strip milliseconds if present: "00:01:23.456" → "00:01:23"
+    ts = ts.split('.')[0]
     parts = ts.split(':')
     if len(parts) == 3:
-        h, m, s = parts; return int(h)*3600 + int(m)*60 + float(s)
+        h, m, s = parts; return int(h)*3600 + int(m)*60 + int(s)
     elif len(parts) == 2:
-        m, s = parts; return int(m)*60 + float(s)
+        m, s = parts; return int(m)*60 + int(s)
     return 0.0
 
 content = open(sys.argv[1], encoding='utf-8').read()
-block_re = re.compile(r'^## (\d{1,2}:\d{2}:\d{2})\s*\n(.*?)(?=\n## |\Z)',
-                      re.MULTILINE | re.DOTALL)
-blocks = [(m.group(1), m.group(2).strip()) for m in block_re.finditer(content)]
+
+# Support two formats:
+#   1. [HH:MM:SS.mmm --> HH:MM:SS.mmm] text   (vtt_converter.py output)
+#   2. ## HH:MM:SS\ntext                        (legacy heading format)
+vtt_line_re = re.compile(r'^\[(\d{2}:\d{2}:\d{2})[^\]]*\]\s+(.*)')
+heading_re  = re.compile(r'^## (\d{1,2}:\d{2}:\d{2})\s*\n(.*?)(?=\n## |\Z)',
+                         re.MULTILINE | re.DOTALL)
+
+blocks = []
+for line in content.splitlines():
+    m = vtt_line_re.match(line.strip())
+    if m:
+        blocks.append((m.group(1), m.group(2).strip()))
+
+if not blocks:
+    # Fallback: try heading format
+    blocks = [(m.group(1), m.group(2).strip())
+              for m in heading_re.finditer(content)]
 
 if not blocks:
     print("ERROR: no timestamp blocks found", file=sys.stderr)
@@ -95,20 +112,33 @@ for i in $(seq 0 $((CHUNK_COUNT - 1))); do
 
     PROMPT_FILE="$TMPDIR_TRANS/prompt_$i.txt"
     {
-        printf '你是一名字幕翻译员。将【待翻译】内容翻译为简体中文。\n'
-        printf '要求：语义准确、中文流畅，不限行数和结构。\n'
+        echo '你是一名字幕翻译员。只输出简体中文翻译结果，不要重复英文原文，不要添加任何解释、分隔线或额外标记。'
+        echo '将【待翻译】内容翻译为简体中文，要求：语义准确、中文流畅，不限行数和结构。'
         if [ -n "$zh_prev_tail" ]; then
-            printf '从【已翻译上文】结束的语义节点自然接续，不重复上文内容。\n\n'
-            printf '--- 已翻译上文（末尾，接续参考）---\n%s\n' "$zh_prev_tail"
+            echo '从【已翻译上文】结束的语义节点自然接续，不重复上文内容。'
+            echo ''
+            echo '--- 已翻译上文（末尾，接续参考）---'
+            printf '%s\n' "$zh_prev_tail"
         fi
-        printf '\n--- 待翻译 ---\n%s\n' "$MERGED_EN"
+        echo ''
+        echo '--- 待翻译 ---'
+        printf '%s\n' "$MERGED_EN"
         if [ -n "$NEXT_EN" ]; then
-            printf '\n--- 下文参考（只读，不翻译）---\n%s\n' "$NEXT_EN"
+            echo ''
+            echo '--- 下文参考（只读，不翻译）---'
+            printf '%s\n' "$NEXT_EN"
         fi
     } > "$PROMPT_FILE"
 
     ZH_OUT="$ZH_DIR/chunk_$i.txt"
     if bash "$SCRIPT_DIR/llm_engine.sh" --input "$PROMPT_FILE" --output "$ZH_OUT" 2>/dev/null; then
+        # Strip <think>...</think> blocks (extended thinking leakage)
+        python3 -c "
+import re, sys
+raw = open('$ZH_OUT', encoding='utf-8').read()
+clean = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
+open('$ZH_OUT', 'w', encoding='utf-8').write(clean)
+"
         zh_prev_tail=$(python3 -c "
 t = open('$ZH_OUT', encoding='utf-8').read().strip()
 print(t[-150:] if len(t) > 150 else t)
