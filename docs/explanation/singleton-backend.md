@@ -83,6 +83,62 @@ HTTP server 维护一个 `Map<clientId, lastSeenTimestamp>` 心跳注册表。
 
 ---
 
+## Web 浏览器：SSE 连接作为被动心跳
+
+浏览器 tab 无法 spawn 后端进程，也无法可靠地在关闭时发送 DELETE 注销请求（`beforeunload` + `sendBeacon` 在多场景下不可靠）。但 web 前端**已经**会建立长连接 `EventSource('/api/events')` 接收任务进度推送——这条 SSE 连接的 TCP 状态天然反映"浏览器还在用"。
+
+服务端用一个独立的 Set 跟踪活跃 SSE 连接：
+
+```
+sseRegistry: Set<sseId>
+
+GET /api/events handler:
+  sseId = crypto.randomUUID()
+  sseRegistry.add(sseId)
+  req.on('close' | 'error') → sseRegistry.delete(sseId)
+```
+
+Auto-shutdown 循环的判断条件由 OR 复合：
+
+```
+hasClients = heartbeatRegistry.size > 0 || sseRegistry.size > 0
+```
+
+→ 三类客户端共用一套生命周期裁决，互不干扰：
+
+| 客户端 | 注册到 | 注册方式 | 注销方式 |
+|---|---|---|---|
+| CLI 任务 (`vdl <URL>`) | `heartbeatRegistry` | 主动 POST `/api/heartbeat` 每 10s | 主动 DELETE 或 20s 超时 evict |
+| API 客户端 | `heartbeatRegistry` | 同上 | 同上 |
+| 浏览器 tab | `sseRegistry` | 建立 SSE 连接（自动） | TCP FIN/RST（关 tab、崩溃、睡眠均触发） |
+
+### 关闭路径
+
+```
+用户关浏览器 tab → TCP FIN → ctx.req.on('close') → sseRegistry.delete(sseId)
+  → auto-shutdown 循环: heartbeatRegistry 空 ∧ sseRegistry 空
+  → 30s grace → process.exit(0)
+```
+
+**最坏情况延迟约 30 秒**（grace 期）。浏览器崩溃或断电导致 TCP RST 也走同一路径，无需任何客户端代码配合。
+
+### `vdl web` 启动模式
+
+CLI 子命令 `vdl web` 专为浏览器场景设计：
+
+```
+vdl web → agent-connect.connect({ noHeartbeat: true })
+       → 若后端未起则 spawn（Phase 2 路径）
+       → spawn 浏览器 open URL
+       → process.exit(0)
+```
+
+关键差异：CLI **不持有心跳**（`noHeartbeat: true`）。后端存活完全由浏览器 SSE 连接维持。终端立即回 prompt，不挂起；用户唯一的关闭动作就是关浏览器 tab。
+
+详见 [how-to/run-web.md](../how-to/run-web.md)。
+
+---
+
 ## EADDRINUSE 竞争处理
 
 两个进程同时检测到端口 3000 未监听，各自尝试 spawn：

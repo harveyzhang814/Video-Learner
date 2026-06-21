@@ -20,6 +20,7 @@
 | [how-to/cli.md](how-to/cli.md) | `vdl` CLI 使用方式：安装、子命令、与 GUI/HTTP Service 并发使用 |
 | [how-to/debug-env.md](how-to/debug-env.md) | 调试日志聚合环境的设置与使用（日志过滤、来源标签、守护进程管理） |
 | [how-to/electron-dev-icon.md](how-to/electron-dev-icon.md) | 开发模式下为 Electron 设置自定义 macOS Dock 图标（生成 .icns、替换 bundle、清图标缓存） |
+| [how-to/run-web.md](how-to/run-web.md) | 用 `vdl web` 启动后端 + 打开 Web 端：关闭浏览器自动停后端的工作流、`--no-browser` / `--port` 选项、故障排查 |
 
 开发调试环境（Dev Harness）：见 [`harness/README.md`](../harness/README.md)（就近原则，与代码同目录）。
 
@@ -29,7 +30,7 @@
 |------|------|
 | [explanation/git-workflow.md](explanation/git-workflow.md) | GitFlow 分支策略与合并规范（为什么 no-ff，为什么 staging 作为中间层） |
 | [explanation/asr-and-dag.md](explanation/asr-and-dag.md) | ASR 回退机制与 DAG 可达性调度原理（两条路径到 vtt2md、OR 门语义、任务失败判定） |
-| [explanation/singleton-backend.md](explanation/singleton-backend.md) | 统一后端与心跳机制原理（固定端口 3000、心跳引用计数、auto-shutdown、EADDRINUSE 竞争处理、崩溃恢复） |
+| [explanation/singleton-backend.md](explanation/singleton-backend.md) | 统一后端与心跳机制原理（固定端口 3000、心跳引用计数、SSE 连接作为浏览器被动心跳、auto-shutdown、EADDRINUSE 竞争处理、崩溃恢复） |
 | [explanation/electron-macos-icon-cache.md](explanation/electron-macos-icon-cache.md) | macOS Dock 图标在 Electron 开发模式下不生效的原因（bundle 优先级、Icon Services 缓存机制、app.dock.setIcon 局限） |
 
 ## adr/ — Architecture Decision Records
