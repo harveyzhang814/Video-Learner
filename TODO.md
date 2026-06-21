@@ -72,4 +72,11 @@ Web 前端是纯浏览器页面，无法像 Electron 主进程那样自动 spawn
 
 ---
 
+### 研究单 session 串联生成 article 与 summary
+**优先级**: P2 | **日期**: 2026-06-21
+
+当前 article 和 summary 由独立 LLM 调用生成，summary 无法以 article 为上下文。目标：研究在同一 session 内先生成 article、再以其为上下文生成 summary，充分复用会话缓存（prompt cache），降低 token 消耗并提升 summary 质量。
+
+---
+
 ## ✅ 已完成
