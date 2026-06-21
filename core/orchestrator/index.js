@@ -126,18 +126,19 @@ function listTasks(options = {}) {
 }
 
 // Step definitions (aligned with scripts/*)
-const STEPS = ['fetch', 'video', 'audio', 'subs', 'asr', 'vtt2md', 'md2vtt', 'article', 'summary'];
+const STEPS = ['fetch', 'video', 'audio', 'subs', 'asr', 'vtt2md', 'translate', 'md2vtt', 'article', 'summary'];
 
 const STEP_SCRIPTS = {
-  fetch: 'fetch_info.sh',
-  video: 'download_video.sh',
-  audio: 'download_audio.sh',
-  subs: 'download_subs.sh',
-  asr: 'asr_transcribe.sh',
-  vtt2md: 'convert_vtt_md.sh',
-  md2vtt: 'convert_md_vtt.sh',
-  article: 'generate_article.sh',
-  summary: 'generate_summary.sh'
+  fetch:     'fetch_info.sh',
+  video:     'download_video.sh',
+  audio:     'download_audio.sh',
+  subs:      'download_subs.sh',
+  asr:       'asr_transcribe.sh',
+  vtt2md:    'convert_vtt_md.sh',
+  translate: 'translate_subs.sh',
+  md2vtt:    'convert_md_vtt.sh',
+  article:   'generate_article.sh',
+  summary:   'generate_summary.sh'
 };
 
 function getWorkDir(rootDir, id) {
@@ -756,6 +757,73 @@ async function runStep(taskId, stepName, options = {}) {
       finishLogs();
       return { success: true };
     }
+    case 'translate': {
+      const outputLang = (task.params && task.params.output_lang) || 'zh-CN';
+
+      // Skip-3: 目标语言非中文
+      if (!outputLang.startsWith('zh')) {
+        stepState.status = 'skipped';
+        task.steps[stepName] = stepState;
+        db.updateStep(id, stepName, 'skipped');
+        finishLogs();
+        return { success: true };
+      }
+      // Skip-1: original_zh.md 已存在
+      if (fs.existsSync(zhMd)) {
+        stepState.status = 'skipped';
+        task.steps[stepName] = stepState;
+        db.updateStep(id, stepName, 'skipped');
+        finishLogs();
+        return { success: true };
+      }
+      // Skip-2: original_en.md 不存在
+      if (!fs.existsSync(enMd)) {
+        stepState.status = 'skipped';
+        task.steps[stepName] = stepState;
+        db.updateStep(id, stepName, 'skipped');
+        finishLogs();
+        return { success: true };
+      }
+
+      const result = await runStepScript(rootDir, 'translate', [enMd, zhMd], {
+        onOutput: options.onOutput,
+        onStdout,
+        onStderr,
+        onProc: (proc) => { task._currentProc = proc; },
+        timeoutScale: options.timeoutScale,
+      });
+      task._currentProc = null;
+
+      if (task._stepAbortResolve) {
+        const resolve = task._stepAbortResolve;
+        task._stepAbortResolve = null;
+        stepState.status = 'pending';
+        task.steps[stepName] = stepState;
+        db.updateStep(id, stepName, 'pending');
+        finishLogs();
+        emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
+        emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'pending' });
+        resolve();
+        return { success: false, error: 'aborted' };
+      }
+      if (task._abortFlag) {
+        finishLogs();
+        return { success: false, error: 'aborted' };
+      }
+      if (result.code !== 0) {
+        stepState.status = 'failed';
+        stepState.error = result.output || 'translate_subs.sh failed';
+        task.steps[stepName] = stepState;
+        db.updateStep(id, stepName, 'failed', stepState.error);
+        finishLogs();
+        return { success: false, error: stepState.error };
+      }
+      stepState.status = 'completed';
+      task.steps[stepName] = stepState;
+      db.updateStep(id, stepName, 'completed');
+      finishLogs();
+      return { success: true };
+    }
     case 'md2vtt': {
       const errors = [];
       const mdNames = listOriginalMdFiles(path.join(dir, 'transcript'));
@@ -1123,6 +1191,13 @@ async function runTask(taskId, options = {}) {
           if (hasSummary && (steps.summary?.status === 'failed' || steps.summary?.status === 'pending')) {
             steps.summary = { ...(steps.summary || {}), status: 'completed', error: null };
             db.updateStep(id, 'summary', 'completed');
+          }
+
+          // D1: backfill translate step for tasks created before this step existed.
+          // Skip conditions are evaluated at runtime; pending means "awaiting DAG evaluation".
+          if (!steps.translate) {
+            steps.translate = { status: 'pending', attempts: 0, error: null };
+            db.updateStep(id, 'translate', 'pending');
           }
 
           // If outputs are missing but step says completed, mark failed (keep error light).
