@@ -1,52 +1,29 @@
-import { useEffect, useRef, useState } from 'react';
-import { usePlayerStore } from '@/stores/player-store';
+import { useEffect, useRef } from 'react';
+import { usePlayerStore, parseVtt, normLang } from '@/stores/player-store';
+import type { Track } from '@/stores/player-store';
 import { formatDuration } from '@/lib/time';
 import { api } from '@/lib/api';
 
-interface Segment { start: number; end?: number; text: string; }
-
-interface Track { lang: string; label?: string; segments: Segment[] }
-
-// Parse WebVTT text into segments
-function parseVtt(vtt: string): Segment[] {
-  const segments: Segment[] = [];
-  const blocks = vtt.replace(/\r\n/g, '\n').split(/\n{2,}/);
-  const timeRe = /(\d+):(\d+):(\d+)[.,](\d+)\s*-->\s*(\d+):(\d+):(\d+)[.,](\d+)/;
-  for (const block of blocks) {
-    const lines = block.trim().split('\n');
-    const timeLine = lines.find((l) => timeRe.test(l));
-    if (!timeLine) continue;
-    const m = timeLine.match(timeRe);
-    if (!m) continue;
-    const start = parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseInt(m[3]) + parseInt(m[4]) / 1000;
-    const end   = parseInt(m[5]) * 3600 + parseInt(m[6]) * 60 + parseInt(m[7]) + parseInt(m[8]) / 1000;
-    const text = lines.filter((l) => !timeRe.test(l) && !/^\d+$/.test(l.trim()) && l.trim() !== 'WEBVTT').join(' ').trim();
-    if (text) segments.push({ start, end, text });
-  }
-  return segments;
-}
-
-// Backend returns lang "zh" or "en"; normalize for display
-function normLang(lang: string) {
-  if (lang === 'zh' || lang === 'zh-CN') return 'zh-CN';
-  return lang;
-}
-
 export function SubtitleList({ taskId }: { taskId: string }) {
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [lang, setLang] = useState<string>('zh-CN');
-  const setSubtitles = usePlayerStore((s) => s.setSubtitles);
-  const setCurrentTime = usePlayerStore((s) => s.setCurrentTime);
+  const tracks = usePlayerStore((s) => s.tracks);
+  const activeLang = usePlayerStore((s) => s.activeLang);
+  const setTracks = usePlayerStore((s) => s.setTracks);
+  const setActiveLang = usePlayerStore((s) => s.setActiveLang);
   const activeIndex = usePlayerStore((s) => s.activeIndex);
+  const setCurrentTime = usePlayerStore((s) => s.setCurrentTime);
   const containerRef = useRef<HTMLUListElement>(null);
 
+  // Fetch tracks if not already loaded by Player
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/tasks/${taskId}/subtitles`, {
-      headers: { Authorization: `Bearer ${api.token()}` }
-    })
-      .then((r) => r.ok ? r.json() : { tracks: [] })
-      .then((data: { tracks: { lang: string; label?: string; vtt?: string; segments?: Segment[] }[] }) => {
+    const load = async () => {
+      if (usePlayerStore.getState().tracks.length > 0) return;
+      try {
+        const r = await fetch(`/api/tasks/${taskId}/subtitles`, {
+          headers: { Authorization: `Bearer ${api.token()}` },
+        });
+        if (!r.ok || cancelled) return;
+        const data = await r.json() as { tracks: { lang: string; label?: string; vtt?: string; segments?: { start: number; end?: number; text: string }[] }[] };
         if (cancelled) return;
         const normalized: Track[] = (data.tracks ?? []).map((t) => ({
           lang: normLang(t.lang),
@@ -54,14 +31,11 @@ export function SubtitleList({ taskId }: { taskId: string }) {
           segments: t.segments ?? (t.vtt ? parseVtt(t.vtt) : []),
         }));
         setTracks(normalized);
-        const first = normalized[0];
-        if (first) {
-          setLang(first.lang);
-          setSubtitles(first.segments);
-        }
-      });
+      } catch { /* network error */ }
+    };
+    load();
     return () => { cancelled = true; };
-  }, [taskId, setSubtitles]);
+  }, [taskId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (activeIndex < 0) return;
@@ -69,18 +43,18 @@ export function SubtitleList({ taskId }: { taskId: string }) {
     el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [activeIndex]);
 
-  const current = tracks.find((t) => t.lang === lang) ?? tracks[0];
+  const current = tracks.find((t) => t.lang === activeLang) ?? tracks[0];
   const segments = current?.segments ?? [];
 
   return (
     <div className="flex-1 overflow-y-auto flex flex-col">
       <div className="px-4 py-2.5 flex items-center gap-4 text-xs border-b" style={{ borderColor: 'var(--border-subtle)' }}>
         {tracks.map((t) => (
-          <button key={t.lang} onClick={() => { setLang(t.lang); setSubtitles(t.segments ?? []); }}
+          <button key={t.lang} onClick={() => setActiveLang(t.lang)}
                   className="cursor-pointer"
                   style={{
-                    color: lang === t.lang ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                    fontWeight: lang === t.lang ? 500 : 400
+                    color: activeLang === t.lang ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                    fontWeight: activeLang === t.lang ? 500 : 400
                   }}>
             {t.lang === 'zh-CN' ? '中文' : t.lang === 'en' ? 'EN' : t.lang}
           </button>

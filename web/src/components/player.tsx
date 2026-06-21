@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { usePlayerStore } from '@/stores/player-store';
+import { usePlayerStore, parseVtt, normLang, langLabel } from '@/stores/player-store';
+import type { Track } from '@/stores/player-store';
 import { formatDuration } from '@/lib/time';
 import { api } from '@/lib/api';
 import { CcOverlay } from './cc-overlay';
@@ -30,6 +31,10 @@ export function Player({
   const playing = usePlayerStore((s) => s.playing);
   const setPlaying = usePlayerStore((s) => s.setPlaying);
   const duration = usePlayerStore((s) => s.duration);
+  const tracks = usePlayerStore((s) => s.tracks);
+  const activeLang = usePlayerStore((s) => s.activeLang);
+  const setTracks = usePlayerStore((s) => s.setTracks);
+  const setActiveLang = usePlayerStore((s) => s.setActiveLang);
 
   // On mount: restore position + resume if was playing before a mode switch
   useEffect(() => {
@@ -48,6 +53,37 @@ export function Player({
       el.currentTime = currentTime;
     }
   }, [currentTime]);
+
+  // Fetch subtitle tracks if not already loaded (covers modes without SubtitleList panel)
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (usePlayerStore.getState().tracks.length > 0) return;
+      try {
+        const r = await fetch(`/api/tasks/${taskId}/subtitles`, {
+          headers: { Authorization: `Bearer ${api.token()}` },
+        });
+        if (!r.ok || cancelled) return;
+        const data = await r.json() as { tracks: { lang: string; label?: string; vtt?: string; segments?: { start: number; end?: number; text: string }[] }[] };
+        if (cancelled) return;
+        const normalized: Track[] = (data.tracks ?? []).map((t) => ({
+          lang: normLang(t.lang),
+          label: t.label,
+          segments: t.segments ?? (t.vtt ? parseVtt(t.vtt) : []),
+        }));
+        setTracks(normalized);
+      } catch { /* network error — tracks stay empty */ }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [taskId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const cycleTrack = useCallback(() => {
+    if (tracks.length < 2) return;
+    const idx = tracks.findIndex((t) => t.lang === activeLang);
+    const next = tracks[(idx + 1) % tracks.length];
+    setActiveLang(next.lang);
+  }, [tracks, activeLang, setActiveLang]);
 
   const seekTo = useCallback((clientX: number) => {
     const bar = seekBarRef.current;
@@ -79,6 +115,7 @@ export function Player({
 
   const MediaTag = kind === 'video' ? 'video' : 'audio';
   const showCustomControls = kind === 'video' || audioOnly;
+  const hasMultipleTracks = tracks.length > 1;
 
   return (
     <div className={`relative bg-black flex-shrink-0${audioOnly ? ' w-full' : ''}${className ? ` ${className}` : ''}`}
@@ -133,9 +170,20 @@ export function Player({
               {formatDuration(currentTime)}
               <span style={{ color: 'rgba(255,255,255,0.35)' }}> / {formatDuration(duration || 0)}</span>
             </span>
+            {/* 字幕轨道切换 — 仅当存在多轨道时显示 */}
+            {hasMultipleTracks && (
+              <button
+                className="ml-auto flex-shrink-0 h-7 px-2 rounded hover:bg-white/15 transition-colors text-xs font-medium"
+                style={{ color: 'rgba(255,255,255,0.85)' }}
+                title="切换字幕语言"
+                onClick={cycleTrack}
+              >
+                {langLabel(activeLang)}
+              </button>
+            )}
             {showCc && (
               <button
-                className={`cc-btn ml-auto${ccEnabled ? ' on' : ''}`}
+                className={`cc-btn${!hasMultipleTracks ? ' ml-auto' : ''}${ccEnabled ? ' on' : ''}`}
                 onClick={onToggleCc}
               >
                 CC
@@ -147,4 +195,3 @@ export function Player({
     </div>
   );
 }
-
