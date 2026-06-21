@@ -11,6 +11,7 @@ YouTube 视频处理流水线 - 下载、转录、总结，一站式完成。
 - **文章整理**: 将转录整理为结构化文章
 - **重点总结**: 根据你关注的重点生成精准摘要
 - **桌面客户端**: 提供 Electron GUI，支持视频播放和字幕同步
+- **Web 客户端**: 浏览器界面（`vdl web`），关闭页面后端自动停（详见 [docs/how-to/run-web.md](docs/how-to/run-web.md)）
 
 ## 快速开始
 
@@ -20,8 +21,10 @@ YouTube 视频处理流水线 - 下载、转录、总结，一站式完成。
 # 自动安装所有依赖（推荐）
 bash scripts/install.sh
 
-# 或者直接启动（会自动检查并安装依赖）
-bash start-electron.sh
+# 启动方式（三选一）
+vdl <YouTube URL>          # CLI：跑任务（最常用，给 agent 也是它）
+vdl web                    # Web 端：起后端 + 开浏览器（关浏览器自动停后端）
+bash start-electron.sh     # Electron 桌面客户端
 ```
 
 ### 部署到新机器
@@ -66,6 +69,19 @@ npm run test:agent:e2e
 # 启动桌面客户端
 bash start-electron.sh
 ```
+
+### Web 端使用
+
+```bash
+# 起后端 + 在默认浏览器打开 web 端
+vdl web                  # 默认
+vdl web --no-browser     # 只起后端，不开浏览器
+vdl web --port 3001      # 端口覆盖
+```
+
+行为：CLI 起后端后**立即退出**，终端回到 prompt；你在浏览器里操作，关闭浏览器 tab 后约 30 秒后端自动停。无需 Ctrl+C 终端。
+
+> **Web 端是给人用的图形界面**，agent 不要自己访问它。Agent 唯一合法触发 `vdl web` 的场景是"替用户打开 UI"。Agent 自己跑任务请用 `vdl <URL>` / `vdl list / status / result` 或 `core/agent-connect.connect()`。详见 [docs/how-to/run-web.md](docs/how-to/run-web.md) 的「Agent 用法」。
 
 ## 参数说明
 

@@ -11,17 +11,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **合并到 `staging` / `master` 时禁止使用 fast-forward**：必须使用 `git merge --no-ff`（规范见 `docs/explanation/git-workflow.md`）
 
 ## 概述
-本仓库实现 YouTube URL → 下载/转录/总结 的自动化流水线。CLI、GUI（Electron）、HTTP API 三种方式共用同一个 `core/orchestrator` 和 SQLite 状态（`work/database.sqlite`）。
+本仓库实现 YouTube URL → 下载/转录/总结 的自动化流水线。CLI、GUI（Electron）、Web（浏览器）、HTTP API 四种方式共用同一个 `core/orchestrator` 和 SQLite 状态（`work/database.sqlite`）。
 
 ## 最短调用方式
 
 ```bash
-vdl <URL>          # CLI（推荐）
-bash start-electron.sh   # GUI
-npm run agent:serve      # HTTP API 服务
+vdl <URL>                # CLI（agent 跑任务首选）
+vdl web                  # Web 端：起后端 + 开浏览器（给人用，agent 别自己用）
+bash start-electron.sh   # Electron GUI
+npm run agent:serve      # HTTP API 长驻服务
 ```
 
-完整 CLI 参考见 `docs/reference/cli.md`，HTTP API 见 `docs/reference/api.md`。
+完整 CLI 参考见 `docs/reference/cli.md`，HTTP API 见 `docs/reference/api.md`，Web 端使用见 `docs/how-to/run-web.md`。
+
+## Agent 与 Web 端的关系
+- Web 端是**给人用的图形界面**，agent **不会自己访问** web 端
+- Agent 唯一合法触发 `vdl web` 的场景：用户让 agent "帮我打开网页"——agent 替用户启动 UI，然后退出
+- Agent 自己跑任务：用 `vdl <URL>` / `vdl list / status / result`
+- Agent 直接调 HTTP API：用 `core/agent-connect.connect({ clientId })`，自动持心跳
+- 详细机制见 `docs/explanation/singleton-backend.md` 的"Web 浏览器：SSE 连接作为被动心跳"小节
 
 ## 字段备忘
 - `mode`: `media`（默认）| `audio` | `transcript` | `full`
@@ -91,7 +99,8 @@ bash harness/debug/read-logs.sh --errors --last 30  # 近期错误日志
 
 ```
 CLI (vdl) ─────┐
-Electron GUI ──┼──► core/orchestrator ──► scripts/*.sh ──► yt-dlp/ffmpeg/llm
+Electron GUI ──┤
+Web Browser ───┼──► core/orchestrator ──► scripts/*.sh ──► yt-dlp/ffmpeg/llm
 HTTP Service ──┘        │
                         └──► work/database.sqlite（状态权威）
 ```
@@ -99,11 +108,13 @@ HTTP Service ──┘        │
 | 目录 | 职责 |
 |------|------|
 | `core/orchestrator/` | 任务状态机 + DAG 调度（`schedule.js`）+ SQLite（`db.js`） |
-| `core/agent-connect.js` | 统一 check-or-start：CLI/Electron 共用，固定端口 3000 |
-| `core/heartbeat-client.js` | 心跳发送；服务无客户端后自动退出 |
-| `services/http-server/` | Koa HTTP API + SSE；`index.js` 含全部路由 |
+| `core/agent-connect.js` | 统一 check-or-start：CLI/Electron/Web 共用，固定端口 3000；`vdl web` 走 `noHeartbeat: true` 路径 |
+| `core/heartbeat-client.js` | 心跳发送（CLI/Electron）；浏览器走 SSE 被动心跳，不走此路径 |
+| `services/http-server/` | Koa HTTP API + SSE；`index.js` 含全部路由 + `sseRegistry` |
 | `scripts/` | 每步骤一个 shell 脚本（fetch/download/convert/generate） |
 | `electron/src/` | 主进程（`main.js`）+ preload IPC + 渲染器 |
+| `web/` | React/TS SPA，给人用的浏览器界面；agent 不访问 |
+| `cli/commands/web.js` | `vdl web` 子命令：起后端 + 开浏览器 + 立即 exit |
 | `tests/` | 无框架，直接 `node tests/*.test.js` |
 | `harness/` | 仅开发用，不在生产代码中引用 |
 
@@ -111,7 +122,7 @@ HTTP Service ──┘        │
 
 - **SQLite 是状态权威**：tasks/steps 表优先于 meta.json；index.jsonl 仅作审计追踪
 - **DAG 调度**：main chain（transcript 流水线）优先；视频下载失败不阻塞后续步骤
-- **单例后端**：固定端口 3000；心跳引用计数管理生命周期（见 `docs/explanation/singleton-backend.md`）
+- **单例后端**：固定端口 3000；CLI/API 主动心跳 + 浏览器 SSE 被动心跳共同决定 auto-shutdown（`heartbeatRegistry.size > 0 || sseRegistry.size > 0`，见 `docs/explanation/singleton-backend.md`）
 - **步骤超时**：各步骤有独立超时上限，超时后 SIGTERM kill，步骤标记 failed（可重跑）
 - **任务 ID**：`sha1(url + '\n').slice(0, 12)`，见 `core/id.js`
 - **Electron IPC**：renderer 只调用 preload 暴露的安全 API
