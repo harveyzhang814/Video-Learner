@@ -14,9 +14,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 URL="${1:-}"
 DIR="${2:-}"
 ID="${3:-}"
+LANG="${4:-en}"
 
 if [ -z "$DIR" ] || [ -z "$ID" ]; then
-    echo "Usage: $0 <URL> <DIR> <ID>"
+    echo "Usage: $0 <URL> <DIR> <ID> [LANG]"
     exit 1
 fi
 
@@ -27,7 +28,7 @@ update_step "$ID" "asr" "running"
 
 ASR_MODEL="${ASR_MODEL:-mlx-community/whisper-large-v3-turbo}"
 
-if python3 "$SCRIPT_DIR/asr_transcribe.py" "$ID" "$DIR" --model "$ASR_MODEL"; then
+if python3 "$SCRIPT_DIR/asr_transcribe.py" "$ID" "$DIR" --model "$ASR_MODEL" --lang "$LANG"; then
     update_step "$ID" "asr" "completed"
     echo "[STATUS] asr_done"
     exit 0

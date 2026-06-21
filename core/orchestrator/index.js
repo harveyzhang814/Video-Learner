@@ -702,7 +702,7 @@ async function runStep(taskId, stepName, options = {}) {
       args = [url, dir, id];
       break;
     case 'asr':
-      args = [url, dir, id];
+      args = [url, dir, id, task.meta.lang || 'en'];
       break;
     case 'vtt2md': {
       const subsDir = path.join(dir, 'transcript', 'subs');
