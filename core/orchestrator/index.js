@@ -191,6 +191,13 @@ function loadTaskFromDb(taskId, rootDir) {
     }
   }
 
+  // D1: backfill translate for tasks created before this step existed.
+  // initSteps() always seeds translate=pending in memory; we only need to persist to DB
+  // if the row was absent (tasks created before translate was added to STEPS).
+  if (!stepsRows.some((r) => r.step_name === 'translate')) {
+    db.writeStepState(taskId, 'translate', { status: 'pending', attempts: 0 });
+  }
+
   const statusList = Object.values(steps).map((s) => s.status);
   const tempTask = { params: { mode: normalizeMode(row.mode) }, steps };
   let status = 'pending';
@@ -1191,13 +1198,6 @@ async function runTask(taskId, options = {}) {
           if (hasSummary && (steps.summary?.status === 'failed' || steps.summary?.status === 'pending')) {
             steps.summary = { ...(steps.summary || {}), status: 'completed', error: null };
             db.updateStep(id, 'summary', 'completed');
-          }
-
-          // D1: backfill translate step for tasks created before this step existed.
-          // Skip conditions are evaluated at runtime; pending means "awaiting DAG evaluation".
-          if (!steps.translate) {
-            steps.translate = { status: 'pending', attempts: 0, error: null };
-            db.updateStep(id, 'translate', 'pending');
           }
 
           // If outputs are missing but step says completed, mark failed (keep error light).

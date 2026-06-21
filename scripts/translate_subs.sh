@@ -156,8 +156,23 @@ if [ "$failed_count" -eq "$CHUNK_COUNT" ]; then
 fi
 
 # ── Phase 3: 组装 original_zh.md ─────────────────────────────────────────────
+# 输出格式与 vtt_converter.py 一致：[HH:MM:SS.000 --> HH:MM:SS.000] text
+# 每个 chunk 的 end_ts = 下一个 chunk 的 start_ts（最后一个 chunk 加 WINDOW_SECS）
 python3 - "$CHUNKS_JSON" "$ZH_DIR" "$OUTPUT_MD" <<'PYTHON_EOF'
 import sys, json, os
+
+WINDOW_SECS = 25
+
+def secs_to_ts(secs):
+    h = int(secs) // 3600
+    m = (int(secs) % 3600) // 60
+    s = int(secs) % 60
+    ms = int(round((secs - int(secs)) * 1000))
+    return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
+
+def ts_to_secs(ts):
+    parts = ts.split(':')
+    return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
 
 chunks = json.load(open(sys.argv[1], encoding='utf-8'))
 results_dir, output_md = sys.argv[2], sys.argv[3]
@@ -168,8 +183,16 @@ for i, chunk in enumerate(chunks):
     if not os.path.exists(rf):
         continue
     zh = open(rf, encoding='utf-8').read().strip()
-    if zh:
-        lines.append(f"## {chunk['start_ts']}\n{zh}")
+    if not zh:
+        continue
+    start_secs = ts_to_secs(chunk['start_ts'])
+    if i + 1 < len(chunks):
+        end_secs = ts_to_secs(chunks[i + 1]['start_ts'])
+    else:
+        end_secs = start_secs + WINDOW_SECS
+    # Inline text (replace newlines with space) for the VTT-line format
+    zh_inline = ' '.join(zh.split())
+    lines.append(f"[{secs_to_ts(start_secs)} --> {secs_to_ts(end_secs)}] {zh_inline}")
 
 if not lines:
     print("ERROR: no translated chunks to write", file=sys.stderr)
