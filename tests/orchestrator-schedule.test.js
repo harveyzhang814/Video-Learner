@@ -23,6 +23,7 @@ function baseSteps() {
     subs: pending(),
     asr: pending(),
     vtt2md: pending(),
+    translate: pending(),
     md2vtt: pending(),
     article: pending(),
     summary: pending()
@@ -134,6 +135,7 @@ function run() {
       steps.subs = completed();
       steps.vtt2md = completed();
       steps.md2vtt = completed();
+      steps.translate = completed();  // ← add this line
       steps.article = completed();
       steps.summary = completed();
       steps.video = failed();
@@ -161,6 +163,7 @@ function run() {
       steps.fetch = completed();
       steps.subs = completed();
       steps.vtt2md = completed();
+      steps.translate = completed();
       steps.md2vtt = completed();
       steps.article = completed();
       steps.summary = completed();
@@ -171,7 +174,7 @@ function run() {
       assert.strictEqual(pickNextStep(ready, 'full', task.steps), 'video');
     }
 
-    // vtt2md completed; article+md2vtt pending → pick article (main before secondary)
+    // vtt2md completed; article+translate pending → pick article (main before secondary)
     {
       const steps = baseSteps();
       steps.fetch = completed();
@@ -179,8 +182,9 @@ function run() {
       steps.vtt2md = completed();
       const task = { params: { mode: 'media' }, steps };
       const ready = computeReadySteps(task);
-      assert.ok(ready.has('article'));
-      assert.ok(ready.has('md2vtt'));
+      assert.ok(ready.has('article'),   'article ready after vtt2md');
+      assert.ok(ready.has('translate'), 'translate ready after vtt2md');
+      assert.ok(!ready.has('md2vtt'),   'md2vtt blocked until translate done');
       assert.strictEqual(pickNextStep(ready, 'media', task.steps), 'article');
     }
 
@@ -452,6 +456,52 @@ function run() {
         fetch: completed(), subs: failed(), asr: { status: 'skipped', attempts: 0, error: null },
         vtt2md: completed(), article: completed(), summary: completed()
       })), false, 'isTaskCompleted: subs=failed, asr=skipped → false (no transcript produced)');
+    }
+
+    // translate: ready after vtt2md completed
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.vtt2md = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('translate'), 'translate ready when vtt2md completed');
+      assert.ok(!ready.has('md2vtt'),   'md2vtt not ready until translate done');
+    }
+
+    // translate completed → md2vtt ready
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.vtt2md = completed();
+      steps.translate = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('md2vtt'),     'md2vtt ready after translate completed');
+      assert.ok(!ready.has('translate'), 'translate not re-ready after completed');
+    }
+
+    // translate skipped → md2vtt ready (predecessorSatisfied treats skipped as satisfied)
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.vtt2md = completed();
+      steps.translate = { status: 'skipped', attempts: 0, error: null };
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('md2vtt'), 'md2vtt ready after translate skipped');
+    }
+
+    // getDownstreamClosure: vtt2md closure includes translate
+    {
+      const c = getDownstreamClosure('vtt2md');
+      assert.ok(c.has('translate'), 'translate in vtt2md downstream closure');
+      assert.ok(c.has('md2vtt'),    'md2vtt in vtt2md downstream closure');
+      assert.ok(c.has('article'),   'article in vtt2md downstream closure');
+      assert.ok(c.has('summary'),   'summary in vtt2md downstream closure');
     }
 
     console.log('orchestrator-schedule.test.js: PASS');

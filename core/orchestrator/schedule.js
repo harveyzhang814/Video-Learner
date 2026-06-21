@@ -15,15 +15,16 @@
  *   vtt2md/md2vtt — local text conversion, should be instant → 5 min
  */
 const _STEP_TIMEOUTS_MS = {
-  fetch:   10  * 60 * 1000,  // 10 min
-  video:   120 * 60 * 1000,  //  2 h
-  audio:   30  * 60 * 1000,  // 30 min
-  subs:    10  * 60 * 1000,  // 10 min
-  asr:     60  * 60 * 1000,  // 60 min
-  vtt2md:  10  * 60 * 1000,  // 10 min
-  md2vtt:  10  * 60 * 1000,  // 10 min
-  article: 60  * 60 * 1000,  // 60 min
-  summary: 60  * 60 * 1000,  // 60 min
+  fetch:     10  * 60 * 1000,  // 10 min
+  video:    120  * 60 * 1000,  //  2 h
+  audio:     30  * 60 * 1000,  // 30 min
+  subs:      10  * 60 * 1000,  // 10 min
+  asr:       60  * 60 * 1000,  // 60 min
+  vtt2md:    10  * 60 * 1000,  // 10 min
+  md2vtt:    10  * 60 * 1000,  // 10 min
+  translate: 60  * 60 * 1000,  // 60 min
+  article:   60  * 60 * 1000,  // 60 min
+  summary:   60  * 60 * 1000,  // 60 min
 };
 
 /**
@@ -70,7 +71,8 @@ const STEP_EDGES = [
   ['fetch', 'asr'],
   ['subs', 'vtt2md'],
   ['asr', 'vtt2md'],
-  ['vtt2md', 'md2vtt'],
+  ['vtt2md', 'translate'],
+  ['translate', 'md2vtt'],
   ['vtt2md', 'article'],
   ['article', 'summary']
 ];
@@ -82,6 +84,7 @@ const ALL_STEPS = [
   'subs',
   'asr',
   'vtt2md',
+  'translate',
   'md2vtt',
   'article',
   'summary'
@@ -240,7 +243,7 @@ const PRIMARY_CHAIN = ['fetch', 'subs', 'vtt2md', 'article', 'summary'];
  * both: video + md2vtt (never audio, matching runTask).
  * asr is also secondary-chain — only activates when subs failed and media is ready.
  */
-const SECONDARY_CHAIN_BASE = ['video', 'audio', 'asr', 'md2vtt'];
+const SECONDARY_CHAIN_BASE = ['video', 'audio', 'asr', 'translate', 'md2vtt'];
 
 function predecessorSatisfied(task, predName) {
   const st = task.steps && task.steps[predName];
