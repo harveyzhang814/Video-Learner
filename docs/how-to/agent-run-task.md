@@ -142,7 +142,7 @@ curl -s -X POST http://127.0.0.1:3000/api/tasks/<task_id>/steps/<step_name>/run 
   -d '{"reset_scope": "downstream"}'
 ```
 
-常见步骤名：`fetch_info`、`download_subs`、`convert_vtt_md`、`generate_article`、`generate_summary`、`download_video`。
+常见步骤名（DAG 内部名）：`fetch`、`subs`、`vtt2md`、`translate`、`md2vtt`、`article`、`summary`、`video`、`audio`、`asr`。
 
 ### 超长视频
 
