@@ -73,12 +73,17 @@ def main() -> None:
         default="mlx-community/whisper-large-v3-turbo",
         help="mlx_whisper HF repo or local path",
     )
+    parser.add_argument(
+        "--lang",
+        default="en",
+        help="Video language code used for output filename (e.g. en, zh)",
+    )
     args = parser.parse_args()
 
     task_id = args.task_id
     work_dir = args.work_dir
     subs_dir = os.path.join(work_dir, "transcript", "subs")
-    vtt_path = os.path.join(subs_dir, f"{task_id}.zh.asr.vtt")
+    vtt_path = os.path.join(subs_dir, f"{task_id}.{args.lang}.asr.vtt")
 
     # Extract audio to temp WAV
     wav_path = None
