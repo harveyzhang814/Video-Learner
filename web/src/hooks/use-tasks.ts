@@ -30,7 +30,7 @@ export function useTask(id: string | undefined) {
 export function useSteps(id: string | undefined) {
   return useQuery({
     queryKey: ['task', id, 'steps'],
-    queryFn: async () => (await api.getSteps(id!)).steps,
+    queryFn: () => api.getSteps(id!),
     enabled: Boolean(id),
     staleTime: 10_000
   });

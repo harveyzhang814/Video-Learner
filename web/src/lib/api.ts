@@ -48,9 +48,10 @@ export interface Task {
 export interface Step {
   name: string;
   status: TaskStatus;
-  started_at?: number;
-  finished_at?: number;
-  error_message?: string;
+  attempts: number;
+  error: string | null;
+  started_at: string | null;
+  completed_at: string | null;
 }
 
 // ── Backend response shapes (real API) ──────────────────────────────────────
@@ -159,7 +160,7 @@ export const api = {
     return { task: normalizeTask(raw) };
   },
   getMediaInfo: (id: string) => request<MediaInfo>(`/api/tasks/${id}/media`),
-  getSteps:  (id: string) => request<{ steps: Step[] }>(`/api/tasks/${id}/steps`),
+  getSteps:  (id: string) => request<Step[]>(`/api/tasks/${id}/steps`),
   getContent:(id: string, type: 'summary' | 'article' | 'transcript') =>
     fetch(`/api/tasks/${id}/result/content?type=${type}`, {
       headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}
