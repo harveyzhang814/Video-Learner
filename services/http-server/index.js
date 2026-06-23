@@ -8,7 +8,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const orchestrator = require('../../core/orchestrator');
-const { getTaskDirs, getWorkRoot } = require('../../core/paths');
+const { getTaskDirs, getWorkRoot, resolveWorkBase, writeWorkRoot } = require('../../core/paths');
 const { EventStream } = require('./event-stream');
 const { migrateModeName } = require('../../scripts/migrate-mode-names');
 const { createStaticServe } = require('./static-serve');
@@ -160,6 +160,35 @@ function createApp(options = {}) {
 
     ctx.req.on('close', cleanup);
     ctx.req.on('error', cleanup);
+  });
+
+  router.get('/config', async (ctx) => {
+    const settingsPath = path.join(ROOT_DIR, 'scripts', 'settings.conf');
+    const workRoot = resolveWorkBase(ROOT_DIR);
+    const isDefault = workRoot === path.resolve(ROOT_DIR);
+    ctx.body = {
+      workRoot: isDefault ? null : workRoot,
+      workDir: path.join(workRoot, 'work'),
+      settingsPath,
+    };
+  });
+
+  router.post('/config', async (ctx) => {
+    const { workRoot } = ctx.request.body || {};
+    if (!workRoot || typeof workRoot !== 'string' || !workRoot.trim()) {
+      ctx.status = 400;
+      ctx.body = { error: 'workRoot is required' };
+      return;
+    }
+    const raw = workRoot.trim();
+    if (!raw.startsWith('/') && !raw.startsWith('~')) {
+      ctx.status = 400;
+      ctx.body = { error: 'workRoot must be an absolute path or start with ~' };
+      return;
+    }
+    const settingsPath = path.join(ROOT_DIR, 'scripts', 'settings.conf');
+    writeWorkRoot(settingsPath, raw);
+    ctx.body = { ok: true, workRoot: raw, restart_required: true };
   });
 
   router.post('/tasks', async (ctx) => {
