@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Video Learner · 命令面板（概念图 · Forest Calm）</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <style>
+    :root {
+      --bg-canvas: #F9F8F4;
+      --bg-surface: #FFFFFF;
+      --bg-elevated: #F1EFE9;
+      --border-subtle: #E5E2DA;
+      --text-primary: #2C2A24;
+      --text-secondary: #67645E;
+      --text-tertiary: #9C9890;
+      --accent-3: #EBF1E8;
+      --accent-9: #5A8A5A;
+      --accent-11: #3D5E3D;
+      --ok: #4A8A5A;
+    }
+    @media (prefers-color-scheme: none-disabled-for-review) {
+      :root {
+        --bg-canvas: #1A1A18;
+        --bg-surface: #232322;
+        --bg-elevated: #2A2A28;
+        --border-subtle: #2E2E2B;
+        --text-primary: #E8E8E6;
+        --text-secondary: #9A9B98;
+        --text-tertiary: #6B6C69;
+        --accent-3: #2A3A2A;
+        --accent-9: #7DAE7D;
+        --accent-11: #9BC79B;
+      }
+    }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+    .surface { background: var(--bg-surface); }
+    .elevated { background: var(--bg-elevated); }
+    .border-subtle { border-color: var(--border-subtle); }
+    .text-secondary { color: var(--text-secondary); }
+    .text-tertiary { color: var(--text-tertiary); }
+    .text-accent { color: var(--accent-11); }
+    .bg-accent { background: var(--accent-9); }
+    .bg-accent-3 { background: var(--accent-3); }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; }
+    kbd {
+      font-size: 10.5px;
+      padding: 2px 5px;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: 3px;
+      color: var(--text-secondary);
+    }
+    .palette {
+      box-shadow: 0 24px 64px -16px rgba(31, 37, 32, 0.18), 0 0 0 1px var(--border-subtle);
+    }
+    @media (prefers-color-scheme: none-disabled-for-review) {
+      .palette {
+        box-shadow: 0 24px 64px -16px rgba(0,0,0,0.7), 0 0 0 1px var(--border-subtle);
+      }
+    }
+    .item { transition: background 80ms ease-out; }
+    .item.selected { background: var(--bg-elevated); }
+    .item.selected .arrow { opacity: 1; }
+    .arrow { opacity: 0; transition: opacity 80ms; }
+  </style>
+</head>
+<body class="h-screen overflow-hidden">
+
+<!-- 背景：模糊首页 -->
+<div class="absolute inset-0 opacity-50 blur-sm pointer-events-none">
+  <div class="flex h-full">
+    <div class="w-60 surface border-r border-subtle"></div>
+    <div class="flex-1" style="background: var(--bg-canvas);"></div>
+  </div>
+</div>
+
+<!-- 遮罩（浅色用淡淡的雾） -->
+<div class="absolute inset-0" style="background: rgba(31, 37, 32, 0.12);"></div>
+
+<!-- 命令面板 -->
+<div class="absolute inset-0 flex items-start justify-center pt-[14vh] px-4 pointer-events-none">
+  <div class="palette w-full max-w-xl rounded-xl surface overflow-hidden pointer-events-auto">
+
+    <div class="flex items-center px-4 py-3.5 border-b border-subtle">
+      <span class="text-tertiary mr-3">🔍</span>
+      <input
+        type="text"
+        value="karpathy"
+        class="flex-1 bg-transparent outline-none text-sm placeholder:text-tertiary"
+        placeholder="搜索任务、命令…"
+      />
+      <kbd>ESC</kbd>
+    </div>
+
+    <div class="max-h-[60vh] overflow-y-auto py-2">
+
+      <div class="px-3 py-1.5 text-xs uppercase tracking-wider text-tertiary">任务（3）</div>
+
+      <button class="item selected w-full flex items-center gap-3 px-3 py-2 rounded mx-1">
+        <div class="w-9 h-9 rounded bg-accent-3 flex items-center justify-center text-sm">🎥</div>
+        <div class="flex-1 text-left min-w-0">
+          <div class="text-sm font-medium truncate">Andrej <span class="text-accent">Karpathy</span>: Deep Dive into LLMs like ChatGPT</div>
+          <div class="mono text-xs text-tertiary truncate">media · 15:32 · 今天 14:23</div>
+        </div>
+        <span class="w-1.5 h-1.5 rounded-full" style="background: var(--ok);"></span>
+        <span class="arrow text-tertiary text-sm">↵</span>
+      </button>
+
+      <button class="item w-full flex items-center gap-3 px-3 py-2 rounded mx-1">
+        <div class="w-9 h-9 rounded bg-accent-3 flex items-center justify-center text-sm">🎙</div>
+        <div class="flex-1 text-left min-w-0">
+          <div class="text-sm font-medium truncate"><span class="text-accent">Karpathy</span>: Let's reproduce GPT-2 (124M)</div>
+          <div class="mono text-xs text-tertiary truncate">transcript · 4:01:26 · 6 月 8 日</div>
+        </div>
+        <span class="w-1.5 h-1.5 rounded-full" style="background: var(--ok);"></span>
+      </button>
+
+      <button class="item w-full flex items-center gap-3 px-3 py-2 rounded mx-1">
+        <div class="w-9 h-9 rounded bg-accent-3 flex items-center justify-center text-sm">🎥</div>
+        <div class="flex-1 text-left min-w-0">
+          <div class="text-sm font-medium truncate"><span class="text-accent">Karpathy</span>: Neural Networks: Zero to Hero · Lecture 1</div>
+          <div class="mono text-xs text-tertiary truncate">media · 2:25:52 · 5 月 22 日</div>
+        </div>
+        <span class="w-1.5 h-1.5 rounded-full" style="background: var(--ok);"></span>
+      </button>
+
+      <div class="px-3 py-1.5 mt-2 text-xs uppercase tracking-wider text-tertiary">命令</div>
+
+      <button class="item w-full flex items-center gap-3 px-3 py-2 rounded mx-1">
+        <div class="w-9 h-9 rounded elevated flex items-center justify-center text-tertiary">⧉</div>
+        <div class="flex-1 text-left">
+          <div class="text-sm font-medium">复制 <code class="mono text-accent">vdl &lt;URL&gt;</code> 命令模板</div>
+          <div class="text-xs text-tertiary">在终端粘贴 URL 即可创建任务</div>
+        </div>
+        <kbd>⌘N</kbd>
+      </button>
+
+      <button class="item w-full flex items-center gap-3 px-3 py-2 rounded mx-1">
+        <div class="w-9 h-9 rounded elevated flex items-center justify-center text-tertiary">🌗</div>
+        <div class="flex-1 text-left">
+          <div class="text-sm font-medium">切换主题</div>
+          <div class="text-xs text-tertiary">当前：跟随系统（浅色）</div>
+        </div>
+        <kbd>⌘⇧L</kbd>
+      </button>
+
+      <button class="item w-full flex items-center gap-3 px-3 py-2 rounded mx-1">
+        <div class="w-9 h-9 rounded elevated flex items-center justify-center text-tertiary">📁</div>
+        <div class="flex-1 text-left">
+          <div class="text-sm font-medium">打开 work/ 目录</div>
+          <div class="text-xs text-tertiary mono">~/Projects/Video-Learner/work</div>
+        </div>
+      </button>
+
+      <button class="item w-full flex items-center gap-3 px-3 py-2 rounded mx-1">
+        <div class="w-9 h-9 rounded elevated flex items-center justify-center text-tertiary">⚙️</div>
+        <div class="flex-1 text-left">
+          <div class="text-sm font-medium">设置</div>
+        </div>
+      </button>
+
+    </div>
+
+    <div class="border-t border-subtle px-4 py-2.5 flex items-center justify-between text-xs text-tertiary">
+      <div class="flex items-center gap-3">
+        <span class="flex items-center gap-1.5"><kbd>↑↓</kbd>导航</span>
+        <span class="flex items-center gap-1.5"><kbd>↵</kbd>选择</span>
+        <span class="flex items-center gap-1.5"><kbd>ESC</kbd>关闭</span>
+      </div>
+      <div>3 个任务 · 4 个命令</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
