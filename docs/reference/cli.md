@@ -31,6 +31,7 @@ npm unlink vdl  # 取消注册
 | `--long` | — | 超长视频模式：所有步骤超时 ×3（适合 1–3 小时视频） |
 | `--ultra-long` | — | 超超长视频模式：所有步骤超时 ×6（适合 4+ 小时视频） |
 | `--timeout-scale <n>` | `1` | 自定义超时倍率（正数，覆盖 `--long`/`--ultra-long`） |
+| `--work-root <path>` | — | 临时覆盖 work 根目录（仅本次进程，不写 settings.conf） |
 
 **超时倍率参考（默认 × scale）：**
 
@@ -70,6 +71,18 @@ npm unlink vdl  # 取消注册
 ### `vdl list`
 
 列出最近任务。直接读取 `work/database.sqlite`，无需 HTTP 服务在运行。
+
+### `vdl config`
+
+查看或持久化修改配置项。修改写入 `scripts/settings.conf`，重启后端后生效。
+
+```bash
+vdl config get                          # 查看当前 workRoot / workDir
+vdl config set work-root <path>         # 持久化设置 WORK_ROOT
+```
+
+`<path>` 必须是绝对路径或以 `~` 开头。等效 API：`POST /api/config`。
+详见 [how-to/configure-work-dir.md](../how-to/configure-work-dir.md)。
 
 ### `vdl gui`
 

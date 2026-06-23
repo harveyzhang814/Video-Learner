@@ -83,5 +83,41 @@ check('quoted settings value is unquoted', () => withTmp((tmp) => {
   assert.strictEqual(paths.resolveWorkBase(tmp), path.resolve(target));
 }));
 
+// --- writeWorkRoot ---
+
+// 9. 新文件创建并写入
+check('writeWorkRoot creates file and writes value', () => withTmp((tmp) => {
+  delete process.env.WORK_ROOT;
+  const settingsPath = path.join(tmp, 'scripts', 'settings.conf');
+  paths.writeWorkRoot(settingsPath, '/new/root');
+  const content = fs.readFileSync(settingsPath, 'utf8');
+  assert.ok(content.includes('WORK_ROOT=/new/root'), `expected WORK_ROOT line, got: ${content}`);
+  assert.strictEqual(paths.resolveWorkBase(tmp), '/new/root');
+}));
+
+// 10. 更新已有值
+check('writeWorkRoot updates existing WORK_ROOT line', () => withTmp((tmp) => {
+  delete process.env.WORK_ROOT;
+  const settingsPath = path.join(tmp, 'scripts', 'settings.conf');
+  writeSettings(tmp, 'OUTPUT_LANG=zh-CN\nWORK_ROOT=/old/root\n');
+  paths.writeWorkRoot(settingsPath, '/new/root');
+  const content = fs.readFileSync(settingsPath, 'utf8');
+  assert.ok(!content.includes('/old/root'), 'old value should be removed');
+  assert.ok(content.includes('WORK_ROOT=/new/root'), 'new value should be present');
+  assert.ok(content.includes('OUTPUT_LANG=zh-CN'), 'other keys should be preserved');
+}));
+
+// 11. 保留注释行（不删除 # WORK_ROOT=...）
+check('writeWorkRoot preserves commented WORK_ROOT lines', () => withTmp((tmp) => {
+  delete process.env.WORK_ROOT;
+  const settingsPath = path.join(tmp, 'scripts', 'settings.conf');
+  writeSettings(tmp, '# WORK_ROOT=~/example\nWORK_ROOT=/old\n');
+  paths.writeWorkRoot(settingsPath, '/new/root');
+  const content = fs.readFileSync(settingsPath, 'utf8');
+  assert.ok(content.includes('# WORK_ROOT=~/example'), 'comment line should be preserved');
+  assert.ok(content.includes('WORK_ROOT=/new/root'), 'new value should be present');
+  assert.ok(!content.includes('WORK_ROOT=/old'), 'old uncommented value should be gone');
+}));
+
 if (failures > 0) { console.error(`work-dir-resolution.test.js: FAIL (${failures})`); process.exit(1); }
 console.log('work-dir-resolution.test.js: PASS');

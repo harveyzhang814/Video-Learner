@@ -28,7 +28,42 @@
 | POST | `/api/tasks/:taskId/steps/:stepName/cancel` | 中止运行中的指定步骤（同步等待进程退出）。步骤重置为 `pending`，任务继续调度后续步骤。步骤非运行中 **409**（`code: STEP_NOT_RUNNING`）。 |
 | GET | `/api/events` | SSE 流（query: token），推送任务/步骤/日志事件，供 GUI 实时刷新。 |
 | GET | `/api/tasks/:taskId/paths` | 返回该任务的路径信息（base/media/transcript/writing），供 Electron 等客户端打开本地输出目录。 |
+| GET | `/api/tasks/:taskId/paths` | 返回该任务的路径信息（base/media/transcript/writing），供 Electron 等客户端打开本地输出目录。 |
+| GET | `/api/config` | 返回当前 work 根目录配置（`workRoot`、`workDir`、`settingsPath`）。 |
+| POST | `/api/config` | 持久化写入 `WORK_ROOT` 到 `scripts/settings.conf`，返回 `{ ok, restart_required: true }`。 |
 | GET | `/healthz` | 健康检查，返回 200 OK。 |
+
+## `GET /api/config` 与 `POST /api/config`
+
+查看和修改 work 根目录。修改仅写入配置文件，**重启后端**后才对已建立的 DB 连接生效。
+
+### `GET /api/config`
+
+```json
+{
+  "workRoot": "~/Syncthing/video-learner",
+  "workDir":  "/Users/alice/Syncthing/video-learner/work",
+  "settingsPath": "/path/to/project/scripts/settings.conf"
+}
+```
+
+`workRoot` 为 `null` 表示当前使用默认值（项目目录）。
+
+### `POST /api/config`
+
+请求体：
+
+```json
+{ "workRoot": "~/Syncthing/video-learner" }
+```
+
+`workRoot` 必须是绝对路径或以 `~` 开头。成功响应：
+
+```json
+{ "ok": true, "workRoot": "~/Syncthing/video-learner", "restart_required": true }
+```
+
+等效 CLI：`vdl config set work-root <path>`。
 
 ## `POST .../steps/:stepName/run` 与 `reset_scope`
 
