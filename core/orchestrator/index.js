@@ -7,7 +7,7 @@ const { EventEmitter } = require('events');
 const { generateId } = require('../id');
 const { createDb } = require('./db');
 const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts');
-const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode, normalizeMode, isTaskFailed, isTaskCompleted, getStepTimeoutMs } = require('./schedule');
+const { computeReadySteps, pickNextStep, pickReadyStepsOrdered, getDownstreamClosure, excludedByMode, normalizeMode, isTaskFailed, isTaskCompleted, getStepTimeoutMs } = require('./schedule');
 
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
@@ -1084,6 +1084,15 @@ function applyResetScope(taskId, stepName, scope, options = {}) {
 }
 
 /**
+ * Max steps allowed to run concurrently within a single runTask.
+ * Override via VL_MAX_PARALLEL_STEPS (integer >= 1); invalid values fall back to 3.
+ */
+function getMaxParallelSteps() {
+  const n = Number(process.env.VL_MAX_PARALLEL_STEPS);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 3;
+}
+
+/**
  * Run the full pipeline by orchestrating individual steps.
  * This is synchronous from the caller's perspective (returns when finished).
  */
@@ -1101,16 +1110,14 @@ async function runTask(taskId, options = {}) {
   const { mode, focus } = task.params;
 
   try {
-    // B-layer: DAG readiness + two-tier serial priority (see docs/plans/2026-03-22-orchestrator-dag-scheduler.md).
-    for (let guard = 0; guard < 64; guard++) {
-      const ready = computeReadySteps(task);
-      const next = pickNextStep(ready, mode, task.steps);
-      if (!next) break;
+    // B-layer: DAG readiness + bounded-concurrency pool scheduler.
+    // Main-chain steps fill slots first (pickReadyStepsOrdered preserves priority);
+    // up to N steps run concurrently. A finished/failed step frees a slot.
+    const N = getMaxParallelSteps();
+    const inFlight = new Map(); // stepName -> Promise<{ stepName }>
 
-      if (task._abortFlag) break;
-
+    function buildStepOptions(next) {
       const stepOptions = { ...options };
-      // Propagate per-task timeout scale so runStepScript can apply it.
       if (task.params.timeout_scale && task.params.timeout_scale !== 1) {
         stepOptions.timeoutScale = task.params.timeout_scale;
       }
@@ -1126,7 +1133,28 @@ async function runTask(taskId, options = {}) {
         }
         stepOptions.focus = String(summaryFocus || '').trim() || '视频的主要内容和要点';
       }
-      await runStep(taskId, next, stepOptions);
+      return stepOptions;
+    }
+
+    // Safety bound on scheduler iterations (steps may reset to pending on step-abort).
+    let guard = 0;
+    const GUARD_MAX = 256;
+    while (guard++ < GUARD_MAX) {
+      if (!task._abortFlag) {
+        const ready = computeReadySteps(task);                 // 'running' steps excluded
+        const ordered = pickReadyStepsOrdered(ready, mode, task.steps);
+        for (const next of ordered) {
+          if (inFlight.size >= N) break;
+          if (inFlight.has(next)) continue;                    // defensive
+          const p = runStep(taskId, next, buildStepOptions(next))
+            .then(() => ({ stepName: next }))
+            .catch(() => ({ stepName: next }));
+          inFlight.set(next, p);
+        }
+      }
+      if (inFlight.size === 0) break;                          // nothing in flight & nothing ready
+      const settled = await Promise.race(inFlight.values());
+      inFlight.delete(settled.stepName);
     }
 
     if (!task._abortFlag) {
