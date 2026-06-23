@@ -101,10 +101,28 @@ function getTaskDirs(rootDir, taskId) {
   };
 }
 
+/**
+ * Write (or update) WORK_ROOT in a bash-style settings file.
+ * Removes any existing uncommented WORK_ROOT= lines, then appends the new value.
+ * Creates the file if it doesn't exist.
+ */
+function writeWorkRoot(settingsPath, value) {
+  let lines = [];
+  try {
+    lines = fs.readFileSync(settingsPath, 'utf8').split(/\r?\n/);
+  } catch (_) {}
+  const filtered = lines.filter(l => !l.match(/^\s*WORK_ROOT\s*=/));
+  filtered.push(`WORK_ROOT=${value}`);
+  const content = filtered.join('\n').replace(/\n{3,}/g, '\n\n');
+  fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+  fs.writeFileSync(settingsPath, content.endsWith('\n') ? content : content + '\n', 'utf8');
+}
+
 module.exports = {
   resolveWorkBase,
   getWorkRoot,
   getDbPath,
   getIndexPath,
   getTaskDirs,
+  writeWorkRoot,
 };
