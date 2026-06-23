@@ -10,7 +10,7 @@ const fmt = require('../lib/format');
 function parseArgs(args) {
   const opts = {
     url: null, focus: '', mode: 'media', lang: 'zh-CN',
-    force: false, json: false, timeout_scale: 1,
+    force: false, json: false, timeout_scale: 1, workRoot: null,
   };
   let i = 0;
   while (i < args.length) {
@@ -20,12 +20,13 @@ function parseArgs(args) {
     else if (a === '--lang')        { opts.lang   = args[++i]; }
     else if (a === '--force')       { opts.force  = true; }
     else if (a === '--json')        { opts.json   = true; }
-    else if (a === '--long')        { opts.timeout_scale = 3; }   // ×3 all step timeouts
-    else if (a === '--ultra-long')  { opts.timeout_scale = 6; }   // ×6 all step timeouts
+    else if (a === '--long')        { opts.timeout_scale = 3; }
+    else if (a === '--ultra-long')  { opts.timeout_scale = 6; }
     else if (a === '--timeout-scale') {
       const n = Number(args[++i]);
       if (Number.isFinite(n) && n > 0) opts.timeout_scale = n;
     }
+    else if (a === '--work-root')   { opts.workRoot = args[++i]; }
     else if (!opts.url && a.startsWith('http')) { opts.url = a; }
     i++;
   }
@@ -86,6 +87,10 @@ async function poll(taskId, startedAt) {
 async function run(args) {
   const opts = parseArgs(args);
   if (!opts.url) { fmt.printError('URL required. Usage: vdl <url> [options]'); process.exit(1); }
+
+  if (opts.workRoot) {
+    process.env.WORK_ROOT = opts.workRoot;
+  }
 
   if (!opts.focus) {
     opts.focus = await askFocus();

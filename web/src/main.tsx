@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RootLayout from './routes/_layout';
 import Home from './routes/_index';
 import TaskDetail from './routes/tasks.$id';
+import GanttPage from './routes/tasks.$id.gantt';
 import './styles/globals.css';
 
 const queryClient = new QueryClient({
@@ -16,7 +17,8 @@ const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { path: '/', element: <Home /> },
-      { path: '/tasks/:id', element: <TaskDetail /> }
+      { path: '/tasks/:id', element: <TaskDetail /> },
+      { path: '/tasks/:id/gantt', element: <GanttPage /> }
     ]
   }
 ]);

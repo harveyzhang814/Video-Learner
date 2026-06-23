@@ -71,6 +71,14 @@ export default function TaskDetail() {
         </div>
         <div className="flex items-center gap-3">
           <ModeSwitcher />
+          <Link
+            to={`/tasks/${id}/gantt`}
+            title="执行甘特图"
+            className="text-sm px-2 py-1 rounded hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            ▦
+          </Link>
           <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
             <kbd className="px-1 py-0.5 rounded border" style={{ borderColor: 'var(--border-subtle)' }}>⌘K</kbd>
             <button>⋯</button>

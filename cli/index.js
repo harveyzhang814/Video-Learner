@@ -11,6 +11,7 @@ const commands = {
   list:   () => require('./commands/list').run(args.slice(1)),
   gui:    () => require('./commands/gui').run(),
   web:    () => require('./commands/web').run(args.slice(1)),
+  config: () => require('./commands/config').run(args.slice(1)),
 };
 
 function printUsage() {
@@ -19,6 +20,7 @@ Usage:
   vdl <url> [--focus <text>] [--mode transcript|media|audio|full]
             [--lang zh-CN|en] [--force] [--json]
             [--long] [--ultra-long] [--timeout-scale <n>]
+            [--work-root <path>]
 
   --long            超长任务模式：所有步骤超时 ×3（适合 1-3 小时视频）
   --ultra-long      超超长任务模式：所有步骤超时 ×6（适合 4+ 小时视频）
@@ -28,6 +30,9 @@ Usage:
   vdl result <task_id> [--type summary|article]
   vdl rerun  <task_id> <step> [--reset downstream|step|off]
   vdl list
+  vdl config get
+  vdl config set work-root <path>
+                     持久化写入 scripts/settings.conf，重启后端生效
   vdl gui
   vdl web [--no-browser] [--port <n>]
                      启动后端并打开 Web 端（关闭浏览器后自动停止后端）
