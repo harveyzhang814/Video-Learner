@@ -20,14 +20,30 @@
 
 `WORK_ROOT` 必须是**绝对路径**，支持前导 `~` 与 `$VAR` 展开。
 
-### 持久配置（推荐）
+### 持久配置（三种等效方式，选其一）
 
-编辑 `scripts/settings.conf`：
+**方式一：CLI**
+
+    vdl config set work-root ~/Syncthing/video-learner
+
+**方式二：HTTP API**
+
+    curl -X POST http://127.0.0.1:3000/api/config \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer <token>" \
+      -d '{"workRoot":"~/Syncthing/video-learner"}'
+    # → { "ok": true, "restart_required": true }
+
+**方式三：直接编辑** `scripts/settings.conf`：
 
     WORK_ROOT=~/Syncthing/video-learner
 
-### 单次覆盖
+CLI 和 API 均写入 `scripts/settings.conf`，效果相同。修改后重启后端生效。
 
+### 单次覆盖（不写 settings.conf）
+
+    vdl --work-root ~/Syncthing/video-learner <URL>
+    # 或
     WORK_ROOT=/mnt/external vdl <URL>
 
 ## 迁移已有数据
