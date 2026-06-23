@@ -9,10 +9,11 @@ const { execFileSync } = require('child_process');
 const CLI = path.resolve(__dirname, '../cli/index.js');
 const ROOT = path.resolve(__dirname, '..');
 
-function runCli(args, env = {}) {
+function runCli(args, env = {}, stdin = '') {
   try {
     const out = execFileSync(process.execPath, [CLI, ...args], {
       encoding: 'utf8',
+      input: stdin,
       env: { ...process.env, ...env },
     });
     return { code: 0, out };
@@ -49,13 +50,17 @@ check('config get shows (default) when no WORK_ROOT', () => {
   assert.ok(out.includes('workDir'), `expected workDir in: ${out}`);
 });
 
-// vdl config set work-root + verify settings.conf written
+// vdl config set work-root + verify settings.conf written (answer 'n' to migration prompt)
 check('config set work-root writes to settings.conf', () => {
   try {
-    const { code, out } = runCli(['config', 'set', 'work-root', '/tmp/vl-cli-config-test'], { WORK_ROOT: '' });
+    const { code, out } = runCli(
+      ['config', 'set', 'work-root', '/tmp/vl-cli-config-test'],
+      { WORK_ROOT: '' },
+      'n\n'   // decline migration prompt if shown
+    );
     assert.strictEqual(code, 0, `exit code: ${out}`);
-    assert.ok(out.includes('work-root set to'), `expected confirmation in: ${out}`);
-    assert.ok(out.toLowerCase().includes('restart'), `expected restart notice in: ${out}`);
+    assert.ok(out.includes('work-root set to') || out.includes('已设置为'), `expected confirmation in: ${out}`);
+    assert.ok(out.toLowerCase().includes('restart') || out.includes('重启'), `expected restart notice in: ${out}`);
     const conf = fs.readFileSync(SETTINGS, 'utf8');
     assert.ok(conf.includes('WORK_ROOT=/tmp/vl-cli-config-test'), `settings.conf missing value: ${conf}`);
   } finally {
