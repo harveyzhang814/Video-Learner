@@ -2,13 +2,14 @@
 
 const fs = require('fs');
 const path = require('path');
+const { getWorkRoot } = require('../paths');
 
 function isNonEmptyString(s) {
   return typeof s === 'string' && s.trim().length > 0;
 }
 
 function getTaskDir(rootDir, id) {
-  return path.join(rootDir, 'work', id);
+  return path.join(getWorkRoot(rootDir), id);
 }
 
 /**
@@ -34,7 +35,7 @@ function canWriteOrCreateTaskDir(rootDir, id) {
       return { ok: true };
     }
 
-    const workDir = path.join(absRoot, 'work');
+    const workDir = getWorkRoot(absRoot);
     if (fs.existsSync(workDir)) {
       if (!fs.statSync(workDir).isDirectory()) {
         return { ok: false, error: 'work/ exists but is not a directory' };

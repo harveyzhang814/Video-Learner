@@ -8,7 +8,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 const orchestrator = require('../../core/orchestrator');
-const { getTaskDirs } = require('../../core/paths');
+const { getTaskDirs, getWorkRoot } = require('../../core/paths');
 const { EventStream } = require('./event-stream');
 const { migrateModeName } = require('../../scripts/migrate-mode-names');
 const { createStaticServe } = require('./static-serve');
@@ -25,7 +25,7 @@ function createApp(options = {}) {
   const ROOT_DIR = options.rootDir ?? path.resolve(__dirname, '../..');
   const HOST = options.host ?? '127.0.0.1';
   // Run once on startup — idempotent, no-op if DB doesn't exist yet.
-  migrateModeName(path.join(ROOT_DIR, 'work'));
+  migrateModeName(getWorkRoot(ROOT_DIR));
   const PKG_PATH = path.join(ROOT_DIR, 'package.json');
   const pkg = fs.existsSync(PKG_PATH) ? JSON.parse(fs.readFileSync(PKG_PATH, 'utf8')) : { version: 'unknown' };
 
@@ -356,8 +356,8 @@ function createApp(options = {}) {
       return;
     }
 
-    const videoAllowedPath = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'media', 'video.mp4');
-    const audioAllowedPath = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'media', 'audio.m4a');
+    const videoAllowedPath = path.join(getWorkRoot(ROOT_DIR), taskIdInMeta, 'media', 'video.mp4');
+    const audioAllowedPath = path.join(getWorkRoot(ROOT_DIR), taskIdInMeta, 'media', 'audio.m4a');
 
     const outPath = result && result.outputs ? result.outputs.video_path : undefined;
     if (outPath && typeof outPath === 'string') {
@@ -413,7 +413,7 @@ function createApp(options = {}) {
       if (!taskIdInMeta) { ctx.status = 404; ctx.body = { error: 'task not found' }; return; }
 
       const filename = kind === 'video' ? 'video.mp4' : 'audio.m4a';
-      const filePath = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'media', filename);
+      const filePath = path.join(getWorkRoot(ROOT_DIR), taskIdInMeta, 'media', filename);
       if (!fs.existsSync(filePath)) { ctx.status = 404; ctx.body = { error: 'file not found' }; return; }
 
       const stat = fs.statSync(filePath);
@@ -456,7 +456,7 @@ function createApp(options = {}) {
       return;
     }
 
-    const transcriptDir = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'transcript');
+    const transcriptDir = path.join(getWorkRoot(ROOT_DIR), taskIdInMeta, 'transcript');
     const allowed = [
       { file: 'original_zh.vtt', id: 'original_zh', lang: 'zh', label: '中文' },
       { file: 'original_en.vtt', id: 'original_en', lang: 'en', label: 'English' }
@@ -634,7 +634,7 @@ function createApp(options = {}) {
       return;
     }
 
-    const writingDir = path.resolve(ROOT_DIR, 'work', taskIdInMeta, 'writing');
+    const writingDir = path.join(getWorkRoot(ROOT_DIR), taskIdInMeta, 'writing');
     const allowedPath = path.resolve(writingDir, type === 'article' ? 'article.md' : 'summary.md');
 
     const resolved = path.resolve(path.isAbsolute(outPath) ? outPath : path.resolve(ROOT_DIR, outPath));
