@@ -123,6 +123,15 @@ async function run() {
             });
             assert.strictEqual(stepBody.success, true);
             assert.ok(stepBody.reset_steps.includes(stepName));
+          } else if (stepName === 'translate') {
+            // translate skips-with-success when original_en.md is absent (Skip-2);
+            // the fixture writes no artifact files, so it returns success rather
+            // than a 4xx like other A-layer steps.
+            const stepBody = await client.runStep(taskStep, stepName, {
+              reset_scope: 'step',
+              force: true
+            });
+            assert.strictEqual(stepBody.success, true, `step skip ${mode}/${stepName}`);
           } else {
             await expectClientError(
               () => client.runStep(taskStep, stepName, { reset_scope: 'step', force: true }),
