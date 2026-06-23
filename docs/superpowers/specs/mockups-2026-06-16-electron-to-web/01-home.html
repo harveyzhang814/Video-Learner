@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Video Learner · 任务列表（极简阅读版）</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <style>
+    :root {
+      --bg-canvas: #F9F8F4;
+      --bg-surface: #FFFFFF;
+      --bg-elevated: #F1EFE9;
+      --border-subtle: #E5E2DA;
+      --text-primary: #2C2A24;
+      --text-secondary: #67645E;
+      --text-tertiary: #9C9890;
+      --accent-9: #5A8A5A;
+      --accent-11: #3D5E3D;
+      --accent-3: #EBF1E8;
+      --ok: #4A8A5A;
+      --err: #B05050;
+      --busy: #C28A3D;
+    }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+    .text-secondary { color: var(--text-secondary); }
+    .text-tertiary { color: var(--text-tertiary); }
+    .text-accent { color: var(--accent-11); }
+    .chinese { line-height: 1.7; }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    kbd {
+      font-size: 11px;
+      padding: 2px 6px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      color: var(--text-secondary);
+    }
+    .task-row {
+      transition: background 160ms ease-out;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .task-row:last-child { border-bottom: none; }
+    .task-row:hover {
+      background: var(--bg-surface);
+    }
+    .filter-link {
+      color: var(--text-tertiary);
+      transition: color 120ms ease-out;
+      cursor: pointer;
+    }
+    .filter-link:hover { color: var(--text-secondary); }
+    .filter-link.active {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    .progress-bar {
+      height: 2px;
+      background: var(--border-subtle);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+    .progress-bar > span {
+      display: block;
+      height: 100%;
+      background: var(--accent-9);
+      transition: width 400ms ease-out;
+    }
+    .pulse { animation: pulse 1.8s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<div class="max-w-3xl mx-auto px-8 pt-16 pb-24">
+
+  <header class="flex items-baseline justify-between mb-10">
+    <h1 class="text-lg font-semibold tracking-tight">Video Learner</h1>
+    <button class="text-xs text-tertiary hover:text-secondary flex items-center gap-1.5">
+      搜索 <kbd>⌘K</kbd>
+    </button>
+  </header>
+
+  <nav class="flex items-center gap-6 mb-6 text-sm">
+    <a class="filter-link active">全部 <span class="mono text-xs text-tertiary">128</span></a>
+    <a class="filter-link">进行中 <span class="mono text-xs">3</span></a>
+    <a class="filter-link">已完成 <span class="mono text-xs">119</span></a>
+    <a class="filter-link">失败 <span class="mono text-xs">6</span></a>
+  </nav>
+
+  <ul>
+
+    <li class="task-row py-4">
+      <div class="flex items-baseline gap-3 mb-1.5">
+        <h2 class="chinese text-[15.5px] font-medium flex-1 truncate">
+          Andrej Karpathy: Deep Dive into LLMs like ChatGPT
+        </h2>
+        <span class="text-xs text-tertiary mono flex-shrink-0">2 分钟前</span>
+      </div>
+      <div class="text-xs text-tertiary mono mb-2 truncate">
+        media · 15:32 · 正在转录 47%
+      </div>
+      <div class="progress-bar max-w-md">
+        <span style="width: 47%;" class="pulse"></span>
+      </div>
+    </li>
+
+    <li class="task-row py-4">
+      <div class="flex items-baseline gap-3 mb-1.5">
+        <h2 class="chinese text-[15.5px] font-medium flex-1 truncate">
+          Lex Fridman Podcast #410 · Sam Altman on GPT-5 &amp; AGI
+        </h2>
+        <span class="text-xs text-tertiary mono flex-shrink-0">17 分钟前</span>
+      </div>
+      <div class="text-xs text-tertiary mono mb-2 truncate">
+        audio · 1:48:21 · 下载中 41%
+      </div>
+      <div class="progress-bar max-w-md">
+        <span style="width: 41%;" class="pulse"></span>
+      </div>
+    </li>
+
+    <li class="task-row py-4">
+      <div class="flex items-baseline gap-3 mb-1.5">
+        <h2 class="chinese text-[15.5px] font-medium flex-1 truncate">
+          YC Startup School · How to Find Product-Market Fit
+        </h2>
+        <span class="text-xs text-tertiary mono flex-shrink-0">今天 14:23</span>
+      </div>
+      <div class="text-xs text-tertiary mono truncate">
+        transcript · 42:08 · 创业方法论
+      </div>
+    </li>
+
+    <li class="task-row py-4">
+      <div class="flex items-baseline gap-3 mb-1.5">
+        <h2 class="chinese text-[15.5px] font-medium flex-1 truncate">
+          Rich Harris — Frameworks: A History &amp; The Future of Svelte 5
+        </h2>
+        <span class="text-xs text-tertiary mono flex-shrink-0">昨天</span>
+      </div>
+      <div class="text-xs text-tertiary mono truncate">
+        media · 38:15
+      </div>
+    </li>
+
+    <li class="task-row py-4">
+      <div class="flex items-baseline gap-3 mb-1.5">
+        <h2 class="chinese text-[15.5px] font-medium flex-1 truncate text-secondary">
+          私人视频（无法访问）
+        </h2>
+        <span class="text-xs text-tertiary mono flex-shrink-0">3 天前</span>
+      </div>
+      <div class="text-xs mono truncate" style="color: var(--err);">
+        失败 · fetch HTTP 403
+      </div>
+    </li>
+
+    <li class="task-row py-4">
+      <div class="flex items-baseline gap-3 mb-1.5">
+        <h2 class="chinese text-[15.5px] font-medium flex-1 truncate">
+          3Blue1Brown · But what is a neural network?
+        </h2>
+        <span class="text-xs text-tertiary mono flex-shrink-0">2026-06-12</span>
+      </div>
+      <div class="text-xs text-tertiary mono truncate">
+        transcript · 19:13
+      </div>
+    </li>
+
+    <li class="task-row py-4">
+      <div class="flex items-baseline gap-3 mb-1.5">
+        <h2 class="chinese text-[15.5px] font-medium flex-1 truncate">
+          The Pragmatic Engineer · How Anthropic builds Claude
+        </h2>
+        <span class="text-xs text-tertiary mono flex-shrink-0">2026-06-10</span>
+      </div>
+      <div class="text-xs text-tertiary mono truncate">
+        full · 1:12:04
+      </div>
+    </li>
+
+    <li class="task-row py-4">
+      <div class="flex items-baseline gap-3 mb-1.5">
+        <h2 class="chinese text-[15.5px] font-medium flex-1 truncate">
+          Stripe Sessions · Building Internet-Scale Payments
+        </h2>
+        <span class="text-xs text-tertiary mono flex-shrink-0">2026-06-08</span>
+      </div>
+      <div class="text-xs text-tertiary mono truncate">
+        media · 28:30
+      </div>
+    </li>
+
+  </ul>
+
+  <div class="mt-16 text-xs text-tertiary text-center">
+    新建任务：在终端输入 <code class="mono text-accent">vdl &lt;URL&gt;</code>
+  </div>
+
+</div>
+
+</body>
+</html>

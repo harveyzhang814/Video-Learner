@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>配色快速预览 · 三套对比</title>
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #18181b;
+      color: #ededf0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .chinese { line-height: 1.75; }
+    .reading { line-height: 1.85; font-size: 15px; }
+
+    /* === Warm Paper === */
+    .warm {
+      --bg: #FAF7F0;
+      --card: #FFFEF9;
+      --text: #2A2520;
+      --text-2: #6B5E54;
+      --text-3: #A89C8E;
+      --border: #E8E0D0;
+      --accent: #B8865B;
+      --accent-h: #A07749;
+      --accent-bg: #F4ECD8;
+      --ok: #6B8E3D;
+      --err: #B5524A;
+      --busy: #C8954B;
+    }
+    /* === Forest Calm === */
+    .forest {
+      --bg: #F7F8F5;
+      --card: #FFFFFF;
+      --text: #1F2520;
+      --text-2: #5C6660;
+      --text-3: #9AA39E;
+      --border: #E0E5DD;
+      --accent: #5A8A5A;
+      --accent-h: #466F46;
+      --accent-bg: #EBF1E8;
+      --ok: #4A8A5A;
+      --err: #B05050;
+      --busy: #C28A3D;
+    }
+    /* === Solarized Lite === */
+    .solar {
+      --bg: #FDF6E3;
+      --card: #EEE8D5;
+      --text: #586E75;
+      --text-2: #93A1A1;
+      --text-3: #B5AC8F;
+      --border: #E2DBC0;
+      --accent: #268BD2;
+      --accent-h: #1A6FAB;
+      --accent-bg: #E4E0CC;
+      --ok: #859900;
+      --err: #DC322F;
+      --busy: #B58900;
+    }
+
+    .palette-col {
+      background: var(--bg);
+      color: var(--text);
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+    .accent { color: var(--accent); }
+    .bg-accent { background: var(--accent); color: white; }
+    .accent-bg { background: var(--accent-bg); }
+    .border-line { border-color: var(--border); }
+    .text-2 { color: var(--text-2); }
+    .text-3 { color: var(--text-3); }
+    .dot-ok { background: var(--ok); }
+    .dot-err { background: var(--err); }
+    .dot-busy { background: var(--busy); }
+    .bg-ok { background: var(--ok); }
+    .bg-busy { background: var(--busy); }
+    .pulse { animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .quote {
+      border-left: 3px solid var(--accent);
+      background: var(--accent-bg);
+      padding: 10px 14px;
+      border-radius: 0 6px 6px 0;
+      color: var(--text-2);
+      font-size: 13.5px;
+    }
+    .swatch {
+      width: 24px; height: 24px; border-radius: 4px;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+  </style>
+</head>
+<body class="min-h-screen p-6">
+
+<div class="max-w-7xl mx-auto">
+  <h1 class="text-xl font-semibold mb-1">阅读友好配色 · 三套对比</h1>
+  <p class="text-sm text-zinc-400 mb-6">同样的任务卡片 + 阅读段落 + 引用 + 状态点，三套配色并排渲染。</p>
+
+  <div class="grid grid-cols-3 gap-4">
+
+    <!-- ============ Warm Paper ============ -->
+    <div class="palette-col warm rounded-lg overflow-hidden">
+      <div class="px-5 pt-5 pb-3 border-b border-line">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-base font-semibold">A · Warm Paper</h2>
+          <span class="text-xs px-2 py-0.5 rounded bg-accent">推荐</span>
+        </div>
+        <p class="text-xs text-2">暑米纸本 · 暖色卡纸 · 焦糖强调</p>
+        <div class="flex gap-1.5 mt-2">
+          <div class="swatch" style="background:#FAF7F0"></div>
+          <div class="swatch" style="background:#FFFEF9"></div>
+          <div class="swatch" style="background:#B8865B"></div>
+          <div class="swatch" style="background:#6B8E3D"></div>
+          <div class="swatch" style="background:#B5524A"></div>
+          <div class="swatch" style="background:#2A2520"></div>
+        </div>
+      </div>
+
+      <!-- 任务卡片样本 -->
+      <div class="p-5">
+        <div class="card rounded-lg p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="w-1.5 h-1.5 rounded-full dot-busy pulse"></span>
+            <h3 class="chinese text-sm font-semibold flex-1 truncate">Karpathy: Deep Dive into LLMs</h3>
+            <span class="text-xs px-1.5 py-0.5 rounded mono accent" style="background:var(--accent-bg)">media</span>
+          </div>
+          <div class="mono text-xs text-3">youtube.com · 15:32 · 2 分钟前</div>
+          <div class="mt-2.5 flex gap-1">
+            <div class="flex-1 h-1 rounded-full bg-accent"></div>
+            <div class="flex-1 h-1 rounded-full bg-accent"></div>
+            <div class="flex-1 h-1 rounded-full bg-accent pulse"></div>
+            <div class="flex-1 h-1 rounded-full" style="background:var(--border)"></div>
+            <div class="flex-1 h-1 rounded-full" style="background:var(--border)"></div>
+          </div>
+        </div>
+
+        <!-- 阅读段落样本 -->
+        <div class="mt-5 reading chinese">
+          <h3 class="text-base font-semibold mb-2">一、预训练（Pretraining）</h3>
+          <p class="mb-2">预训练是 LLM 训练的<strong style="color:var(--accent-h)">第一个阶段</strong>，目标是让模型学会"世界知识"。核心方法是 <code class="mono text-sm px-1.5 py-0.5 rounded accent" style="background:var(--accent-bg)">next-token prediction</code>。</p>
+          <div class="quote chinese">如果你只听一次入门讲座，这一个就够了。</div>
+        </div>
+
+        <!-- 状态点样本 -->
+        <div class="mt-4 flex items-center gap-3 text-xs">
+          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full dot-ok"></span>已完成</span>
+          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full dot-busy pulse"></span>进行中</span>
+          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full dot-err"></span>失败</span>
+        </div>
+
+        <!-- 按钮样本 -->
+        <div class="mt-4 flex items-center gap-2">
+          <button class="px-3 py-1.5 rounded text-sm font-medium bg-accent">主按钮</button>
+          <button class="px-3 py-1.5 rounded text-sm border border-line text-2">次按钮</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Forest Calm ============ -->
+    <div class="palette-col forest rounded-lg overflow-hidden">
+      <div class="px-5 pt-5 pb-3 border-b border-line">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-base font-semibold">B · Forest Calm</h2>
+        </div>
+        <p class="text-xs text-2">森林静谧 · 鼠尾草背景 · 鲦鱼草绿强调</p>
+        <div class="flex gap-1.5 mt-2">
+          <div class="swatch" style="background:#F7F8F5"></div>
+          <div class="swatch" style="background:#FFFFFF"></div>
+          <div class="swatch" style="background:#5A8A5A"></div>
+          <div class="swatch" style="background:#4A8A5A"></div>
+          <div class="swatch" style="background:#B05050"></div>
+          <div class="swatch" style="background:#1F2520"></div>
+        </div>
+      </div>
+
+      <div class="p-5">
+        <div class="card rounded-lg p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="w-1.5 h-1.5 rounded-full dot-busy pulse"></span>
+            <h3 class="chinese text-sm font-semibold flex-1 truncate">Karpathy: Deep Dive into LLMs</h3>
+            <span class="text-xs px-1.5 py-0.5 rounded mono accent" style="background:var(--accent-bg)">media</span>
+          </div>
+          <div class="mono text-xs text-3">youtube.com · 15:32 · 2 分钟前</div>
+          <div class="mt-2.5 flex gap-1">
+            <div class="flex-1 h-1 rounded-full bg-accent"></div>
+            <div class="flex-1 h-1 rounded-full bg-accent"></div>
+            <div class="flex-1 h-1 rounded-full bg-accent pulse"></div>
+            <div class="flex-1 h-1 rounded-full" style="background:var(--border)"></div>
+            <div class="flex-1 h-1 rounded-full" style="background:var(--border)"></div>
+          </div>
+        </div>
+
+        <div class="mt-5 reading chinese">
+          <h3 class="text-base font-semibold mb-2">一、预训练（Pretraining）</h3>
+          <p class="mb-2">预训练是 LLM 训练的<strong style="color:var(--accent-h)">第一个阶段</strong>，目标是让模型学会"世界知识"。核心方法是 <code class="mono text-sm px-1.5 py-0.5 rounded accent" style="background:var(--accent-bg)">next-token prediction</code>。</p>
+          <div class="quote chinese">如果你只听一次入门讲座，这一个就够了。</div>
+        </div>
+
+        <div class="mt-4 flex items-center gap-3 text-xs">
+          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full dot-ok"></span>已完成</span>
+          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full dot-busy pulse"></span>进行中</span>
+          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full dot-err"></span>失败</span>
+        </div>
+
+        <div class="mt-4 flex items-center gap-2">
+          <button class="px-3 py-1.5 rounded text-sm font-medium bg-accent">主按钮</button>
+          <button class="px-3 py-1.5 rounded text-sm border border-line text-2">次按钮</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Solarized Lite ============ -->
+    <div class="palette-col solar rounded-lg overflow-hidden">
+      <div class="px-5 pt-5 pb-3 border-b border-line">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-base font-semibold">C · Solarized Lite</h2>
+        </div>
+        <p class="text-xs text-2">经典太阳能 · 米黄底 · 蓝调强调</p>
+        <div class="flex gap-1.5 mt-2">
+          <div class="swatch" style="background:#FDF6E3"></div>
+          <div class="swatch" style="background:#EEE8D5"></div>
+          <div class="swatch" style="background:#268BD2"></div>
+          <div class="swatch" style="background:#859900"></div>
+          <div class="swatch" style="background:#DC322F"></div>
+          <div class="swatch" style="background:#586E75"></div>
+        </div>
+      </div>
+
+      <div class="p-5">
+        <div class="card rounded-lg p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="w-1.5 h-1.5 rounded-full dot-busy pulse"></span>
+            <h3 class="chinese text-sm font-semibold flex-1 truncate">Karpathy: Deep Dive into LLMs</h3>
+            <span class="text-xs px-1.5 py-0.5 rounded mono accent" style="background:var(--accent-bg)">media</span>
+          </div>
+          <div class="mono text-xs text-3">youtube.com · 15:32 · 2 分钟前</div>
+          <div class="mt-2.5 flex gap-1">
+            <div class="flex-1 h-1 rounded-full bg-accent"></div>
+            <div class="flex-1 h-1 rounded-full bg-accent"></div>
+            <div class="flex-1 h-1 rounded-full bg-accent pulse"></div>
+            <div class="flex-1 h-1 rounded-full" style="background:var(--border)"></div>
+            <div class="flex-1 h-1 rounded-full" style="background:var(--border)"></div>
+          </div>
+        </div>
+
+        <div class="mt-5 reading chinese">
+          <h3 class="text-base font-semibold mb-2">一、预训练（Pretraining）</h3>
+          <p class="mb-2">预训练是 LLM 训练的<strong style="color:var(--accent-h)">第一个阶段</strong>，目标是让模型学会"世界知识"。核心方法是 <code class="mono text-sm px-1.5 py-0.5 rounded accent" style="background:var(--accent-bg)">next-token prediction</code>。</p>
+          <div class="quote chinese">如果你只听一次入门讲座，这一个就够了。</div>
+        </div>
+
+        <div class="mt-4 flex items-center gap-3 text-xs">
+          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full dot-ok"></span>已完成</span>
+          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full dot-busy pulse"></span>进行中</span>
+          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full dot-err"></span>失败</span>
+        </div>
+
+        <div class="mt-4 flex items-center gap-2">
+          <button class="px-3 py-1.5 rounded text-sm font-medium bg-accent">主按钮</button>
+          <button class="px-3 py-1.5 rounded text-sm border border-line text-2">次按钮</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 决策提示 -->
+  <div class="mt-6 p-4 rounded-lg bg-zinc-800 text-sm text-zinc-300">
+    <div class="font-semibold mb-2">如何挑选？</div>
+    <ul class="space-y-1 text-zinc-400">
+      <li>· <strong class="text-zinc-200">A · Warm Paper</strong>：长时间阅读最舒适，焦糖色温暖低调，气质偏纸质感。适合"读 30 分钟总结"的场景。</li>
+      <li>· <strong class="text-zinc-200">B · Forest Calm</strong>：偏冷中性，绿色强调更"产品工具感"。适合既要阅读也要做任务管理的折中场景。</li>
+      <li>· <strong class="text-zinc-200">C · Solarized Lite</strong>：经典设计师/程序员配色，对代码块最友好，但米黄底略偏黄绿，部分人会觉得"老气"。</li>
+    </ul>
+    <div class="mt-3 text-zinc-400">告诉我代号（A / B / C）或描述你想调整的方向（比如"A 但强调色换成更深的红棕"）。</div>
+  </div>
+</div>
+
+</body>
+</html>
