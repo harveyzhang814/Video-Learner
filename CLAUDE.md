@@ -124,6 +124,7 @@ HTTP Service ──┘        │
 - **DAG 调度**：main chain（transcript 流水线）优先；视频下载失败不阻塞后续步骤
 - **单例后端**：固定端口 3000；CLI/API 主动心跳 + 浏览器 SSE 被动心跳共同决定 auto-shutdown（`heartbeatRegistry.size > 0 || sseRegistry.size > 0`，见 `docs/explanation/singleton-backend.md`）
 - **步骤超时**：各步骤有独立超时上限，超时后 SIGTERM kill，步骤标记 failed（可重跑）
+- **步骤并发**：单任务内按 DAG 就绪度并发执行步骤，固定上限 `N`（默认 3，`VL_MAX_PARALLEL_STEPS` 覆盖）；主链优先占槽，旁支用余量（`runTask` 池式调度）
 - **任务 ID**：`sha1(url + '\n').slice(0, 12)`，见 `core/id.js`
 - **Electron IPC**：renderer 只调用 preload 暴露的安全 API
 - **文档**：Diátaxis 方法论（`docs/reference/`、`docs/how-to/`、`docs/explanation/`、`docs/adr/`）
