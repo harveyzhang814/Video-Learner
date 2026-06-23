@@ -239,9 +239,9 @@ function loadTaskFromDb(taskId, rootDir) {
     steps,
     processInfo: null,
     _abortFlag: false,
-    _currentProc: null,
+    _currentProcs: {},
     _abortResolvers: [],
-    _stepAbortResolve: null
+    _stepAbortResolves: {}
   };
   tasks.set(taskId, task);
   updateTaskMetaFromFilesystem(task);
@@ -311,9 +311,9 @@ async function createTask(params) {
     steps: initSteps(),
     processInfo: null,
     _abortFlag: false,
-    _currentProc: null,
+    _currentProcs: {},
     _abortResolvers: [],
-    _stepAbortResolve: null
+    _stepAbortResolves: {}
   };
 
   tasks.set(taskId, task);
@@ -719,23 +719,23 @@ async function runStep(taskId, stepName, options = {}) {
             onOutput: options.onOutput,
             onStdout,
             onStderr,
-            onProc: (proc) => { task._currentProc = proc; },
+            onProc: (proc) => { task._currentProcs[stepName] = proc; },
             timeoutScale: options.timeoutScale,
           });
-          task._currentProc = null;
-          if (task._abortFlag || task._stepAbortResolve) break;
+          delete task._currentProcs[stepName];
+          if (task._abortFlag || task._stepAbortResolves[stepName]) break;
           if (result.code !== 0) {
             errors.push(`${vtt}: ${result.output || 'failed'}`);
           }
         } catch (e) {
-          task._currentProc = null;
+          delete task._currentProcs[stepName];
           errors.push(`${vtt}: ${e.message}`);
         }
       }
       // Abort check after loop (covers both task-level and step-level abort).
-      if (task._stepAbortResolve) {
-        const resolve = task._stepAbortResolve;
-        task._stepAbortResolve = null;
+      if (task._stepAbortResolves[stepName]) {
+        const resolve = task._stepAbortResolves[stepName];
+        delete task._stepAbortResolves[stepName];
         stepState.status = 'pending';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'pending');
@@ -796,14 +796,14 @@ async function runStep(taskId, stepName, options = {}) {
         onOutput: options.onOutput,
         onStdout,
         onStderr,
-        onProc: (proc) => { task._currentProc = proc; },
+        onProc: (proc) => { task._currentProcs[stepName] = proc; },
         timeoutScale: options.timeoutScale,
       });
-      task._currentProc = null;
+      delete task._currentProcs[stepName];
 
-      if (task._stepAbortResolve) {
-        const resolve = task._stepAbortResolve;
-        task._stepAbortResolve = null;
+      if (task._stepAbortResolves[stepName]) {
+        const resolve = task._stepAbortResolves[stepName];
+        delete task._stepAbortResolves[stepName];
         stepState.status = 'pending';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'pending');
@@ -841,22 +841,22 @@ async function runStep(taskId, stepName, options = {}) {
             onOutput: options.onOutput,
             onStdout,
             onStderr,
-            onProc: (proc) => { task._currentProc = proc; },
+            onProc: (proc) => { task._currentProcs[stepName] = proc; },
             timeoutScale: options.timeoutScale,
           });
-          task._currentProc = null;
-          if (task._abortFlag || task._stepAbortResolve) break;
+          delete task._currentProcs[stepName];
+          if (task._abortFlag || task._stepAbortResolves[stepName]) break;
           if (result.code !== 0) {
             errors.push(`${name}: ${result.output || 'failed'}`);
           }
         } catch (e) {
-          task._currentProc = null;
+          delete task._currentProcs[stepName];
           errors.push(`${name}: ${e.message}`);
         }
       }
-      if (task._stepAbortResolve) {
-        const resolve = task._stepAbortResolve;
-        task._stepAbortResolve = null;
+      if (task._stepAbortResolves[stepName]) {
+        const resolve = task._stepAbortResolves[stepName];
+        delete task._stepAbortResolves[stepName];
         stepState.status = 'pending';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'pending');
@@ -955,14 +955,14 @@ async function runStep(taskId, stepName, options = {}) {
       onOutput,
       onStdout,
       onStderr,
-      onProc: (proc) => { task._currentProc = proc; },
+      onProc: (proc) => { task._currentProcs[stepName] = proc; },
       timeoutScale: options.timeoutScale,
     });
-    task._currentProc = null;
+    delete task._currentProcs[stepName];
     // Step-level abort: runStep resets step to pending and notifies abortStep.
-    if (task._stepAbortResolve) {
-      const resolve = task._stepAbortResolve;
-      task._stepAbortResolve = null;
+    if (task._stepAbortResolves[stepName]) {
+      const resolve = task._stepAbortResolves[stepName];
+      delete task._stepAbortResolves[stepName];
       if (stepName === 'article') tryDeleteFile(path.join(dir, 'writing', 'article.md'));
       if (stepName === 'summary') tryDeleteFile(path.join(dir, 'writing', 'summary.md'));
       stepState.status = 'pending';
@@ -1164,8 +1164,8 @@ async function runTask(taskId, options = {}) {
         emitOrchestratorEvent('task.updated', taskId, { status: 'aborted' });
       } catch (_) {}
       task._abortFlag = false;
-      task._currentProc = null;
-      task._stepAbortResolve = null;
+      task._currentProcs = {};
+      task._stepAbortResolves = {};
       const resolvers = task._abortResolvers.splice(0);
       resolvers.forEach((r) => r());
     } else {
@@ -1393,13 +1393,17 @@ async function abortTask(taskId, options = {}) {
 
   task._abortFlag = true;
 
-  const proc = task._currentProc;
-  if (proc && proc.pid) {
+  const procs = Object.values(task._currentProcs).filter((p) => p && p.pid);
+  if (procs.length > 0) {
     const sigkillTimer = setTimeout(() => {
-      try { process.kill(-proc.pid, 'SIGKILL'); } catch (_) {}
+      for (const p of procs) {
+        try { process.kill(-p.pid, 'SIGKILL'); } catch (_) {}
+      }
     }, 5000);
     waitDone.then(() => clearTimeout(sigkillTimer));
-    try { process.kill(-proc.pid, 'SIGTERM'); } catch (_) {}
+    for (const p of procs) {
+      try { process.kill(-p.pid, 'SIGTERM'); } catch (_) {}
+    }
   } else {
     // No proc running (between steps): DAG loop will see _abortFlag and break,
     // then the finally block calls resolvers. Nothing extra needed here.
@@ -1423,15 +1427,15 @@ async function abortStep(taskId, stepName, options = {}) {
     throw e;
   }
 
-  if (task._stepAbortResolve) {
+  if (task._stepAbortResolves[stepName]) {
     const e = new Error('step abort already in progress');
     e.code = 'STEP_ABORT_IN_PROGRESS';
     throw e;
   }
 
-  const waitDone = new Promise((resolve) => { task._stepAbortResolve = resolve; });
+  const waitDone = new Promise((resolve) => { task._stepAbortResolves[stepName] = resolve; });
 
-  const proc = task._currentProc;
+  const proc = task._currentProcs[stepName];
   if (proc && proc.pid) {
     const sigkillTimer = setTimeout(() => {
       try { process.kill(-proc.pid, 'SIGKILL'); } catch (_) {}
