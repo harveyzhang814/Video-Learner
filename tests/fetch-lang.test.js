@@ -49,7 +49,7 @@ function taskLang(id) {
   sqlite(`INSERT OR IGNORE INTO tasks (id, url, lang) VALUES ('${TEST_ID}', 'https://test', '')`);
 
   // Simulate the sqlite UPDATE from fetch_info.sh
-  sqlite(`UPDATE tasks SET lang='fr', updated_at=datetime('now') WHERE id='${TEST_ID}'`);
+  sqlite(`UPDATE tasks SET lang='fr', updated_at=strftime('%Y-%m-%dT%H:%M:%f', 'now') WHERE id='${TEST_ID}'`);
   assert.strictEqual(taskLang(TEST_ID), 'fr', 'lang should be written to DB');
 
   // Cleanup

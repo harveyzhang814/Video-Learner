@@ -123,6 +123,27 @@ function initTables(db) {
       UNIQUE(task_id, step_name)
     )
   `);
+
+  // Migrate old-format timestamps (YYYY-MM-DD HH:MM:SS, space-separated, no ms)
+  // to ISO 8601 with T separator. One-shot: only rows containing a space are touched.
+  db.exec(`
+    UPDATE tasks SET
+      ts         = replace(ts,         ' ', 'T'),
+      created_at = replace(created_at, ' ', 'T'),
+      updated_at = replace(updated_at, ' ', 'T'),
+      deleted_at = replace(deleted_at, ' ', 'T')
+    WHERE ts         LIKE '____-__-__ %'
+       OR created_at LIKE '____-__-__ %'
+       OR updated_at LIKE '____-__-__ %'
+       OR deleted_at LIKE '____-__-__ %'
+  `);
+  db.exec(`
+    UPDATE steps SET
+      started_at   = replace(started_at,   ' ', 'T'),
+      completed_at = replace(completed_at, ' ', 'T')
+    WHERE started_at   LIKE '____-__-__ %'
+       OR completed_at LIKE '____-__-__ %'
+  `);
 }
 
 function createDbManager(dbPath) {
@@ -160,8 +181,10 @@ function createDbManager(dbPath) {
       return db
         .prepare(
           `
-          INSERT OR REPLACE INTO tasks (id, url, ts)
-          VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'))
+          INSERT OR REPLACE INTO tasks (id, url, ts, created_at, updated_at)
+          VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'),
+                      strftime('%Y-%m-%dT%H:%M:%f', 'now'),
+                      strftime('%Y-%m-%dT%H:%M:%f', 'now'))
         `
         )
         .run(id, url);
@@ -209,7 +232,7 @@ function createDbManager(dbPath) {
     updateStep(taskId, stepName, status, error = null) {
       const taskExists = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
       if (!taskExists) {
-        db.prepare("INSERT INTO tasks (id, url, ts) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'))").run(taskId, '');
+        db.prepare("INSERT INTO tasks (id, url, ts, created_at, updated_at) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'), strftime('%Y-%m-%dT%H:%M:%f', 'now'), strftime('%Y-%m-%dT%H:%M:%f', 'now'))").run(taskId, '');
       }
 
       const existing = db
@@ -246,7 +269,7 @@ function createDbManager(dbPath) {
     writeStepState(taskId, stepName, { status, attempts = 0, error = null }) {
       const taskExists = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
       if (!taskExists) {
-        db.prepare("INSERT INTO tasks (id, url, ts) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'))").run(taskId, '');
+        db.prepare("INSERT INTO tasks (id, url, ts, created_at, updated_at) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'), strftime('%Y-%m-%dT%H:%M:%f', 'now'), strftime('%Y-%m-%dT%H:%M:%f', 'now'))").run(taskId, '');
       }
 
       const existing = db.prepare('SELECT * FROM steps WHERE task_id = ? AND step_name = ?').get(taskId, stepName);
