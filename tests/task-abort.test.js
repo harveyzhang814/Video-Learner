@@ -337,6 +337,80 @@ async function run() {
     }
   }
 
+  // ── Test: abortStep kills only the target step; siblings keep running ──────
+  {
+    // media mode: after instant fetch, subs (main) + video (secondary) run concurrently.
+    const rootDir = makeTempDir({
+      'fetch_info.sh':     EXIT0_SCRIPT,
+      'download_subs.sh':  SLEEP_SCRIPT,   // sleeps 30
+      'download_video.sh': SLEEP_SCRIPT,   // sleeps 30
+    });
+    try {
+      const { task_id } = await orchestrator.createTask({
+        url: 'https://www.youtube.com/watch?v=concurrent-abortstep',
+        mode: 'media',
+        force: 1,
+        rootDir,
+      });
+      orchestrator.runTask(task_id, { rootDir }).catch(() => {});
+
+      // Wait until both subs and video are running concurrently.
+      await pollUntil(async () => {
+        const t = await orchestrator.getTask(task_id, { rootDir });
+        return (t.steps.subs.status === 'running' && t.steps.video.status === 'running') ? t : null;
+      });
+
+      await orchestrator.abortStep(task_id, 'video', { rootDir });
+
+      const t2 = await orchestrator.getTask(task_id, { rootDir });
+      if (t2.steps.video.status !== 'pending') {
+        throw new Error(`video should be pending after abortStep, got ${t2.steps.video.status}`);
+      }
+      if (t2.steps.subs.status !== 'running') {
+        throw new Error(`subs should still be running, got ${t2.steps.subs.status}`);
+      }
+      console.log('[abort-test] Test passed: abortStep targets only the named step');
+
+      await safeAbort(task_id, rootDir); // clean up the still-running subs
+    } finally {
+      fs.rmSync(rootDir, { recursive: true });
+    }
+  }
+
+  // ── Test: abortTask kills all in-flight steps ─────────────────────────────
+  {
+    const rootDir = makeTempDir({
+      'fetch_info.sh':     EXIT0_SCRIPT,
+      'download_subs.sh':  SLEEP_SCRIPT,
+      'download_video.sh': SLEEP_SCRIPT,
+    });
+    try {
+      const { task_id } = await orchestrator.createTask({
+        url: 'https://www.youtube.com/watch?v=concurrent-aborttask',
+        mode: 'media',
+        force: 1,
+        rootDir,
+      });
+      orchestrator.runTask(task_id, { rootDir }).catch(() => {});
+
+      await pollUntil(async () => {
+        const t = await orchestrator.getTask(task_id, { rootDir });
+        return (t.steps.subs.status === 'running' && t.steps.video.status === 'running') ? t : null;
+      });
+
+      const result = await orchestrator.abortTask(task_id, { rootDir });
+      if (result.status !== 'aborted') throw new Error(`expected aborted, got ${result.status}`);
+
+      const t2 = await orchestrator.getTask(task_id, { rootDir });
+      for (const [name, info] of Object.entries(t2.steps)) {
+        if (info.status === 'running') throw new Error(`step ${name} still running after abortTask`);
+      }
+      console.log('[abort-test] Test passed: abortTask kills all in-flight steps');
+    } finally {
+      fs.rmSync(rootDir, { recursive: true });
+    }
+  }
+
   // Not covered: STEP_ABORT_IN_PROGRESS (requires precise concurrent scheduling),
   // summary.md cleanup (same code path as article), SSE event payloads.
 

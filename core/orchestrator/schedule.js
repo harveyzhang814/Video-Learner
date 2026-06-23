@@ -362,6 +362,28 @@ function pickNextStep(readySet, mode, steps) {
   return null;
 }
 
+/**
+ * Order all ready steps by scheduling priority (main chain first, then secondary).
+ * Pure: repeatedly applies pickNextStep over a shrinking working copy so the
+ * existing priority rules are the single source of truth.
+ *
+ * @param {Set<string>|string[]} readySet
+ * @param {string} [mode]
+ * @param {object} [steps]
+ * @returns {string[]} ready step names in priority order
+ */
+function pickReadyStepsOrdered(readySet, mode, steps) {
+  const work =
+    readySet instanceof Set ? new Set(readySet) : new Set(Array.isArray(readySet) ? readySet : []);
+  const out = [];
+  let next;
+  while ((next = pickNextStep(work, mode, steps)) !== null) {
+    out.push(next);
+    work.delete(next);
+  }
+  return out;
+}
+
 module.exports = {
   STEP_EDGES,
   ALL_STEPS,
@@ -375,6 +397,7 @@ module.exports = {
   isTaskCompleted,
   computeReadySteps,
   pickNextStep,
+  pickReadyStepsOrdered,
   getDownstreamClosure,
   excludedByMode,
   normalizeMode,

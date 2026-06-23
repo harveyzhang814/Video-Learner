@@ -76,6 +76,8 @@ interface BackendTask {
 
 function parseDateStr(s?: string): number {
   if (!s) return Date.now();
+  // DB stores ISO 8601 with T separator (YYYY-MM-DDTHH:MM:SS.mmm).
+  // Space-separated fallback handles pre-migration rows in dev environments.
   return new Date(s.includes('T') ? s : s.replace(' ', 'T')).getTime();
 }
 
