@@ -2,6 +2,7 @@
 'use strict';
 const readline = require('readline');
 const path = require('path');
+const { getWorkRoot } = require('../../core/paths');
 const server = require('../lib/server');
 const client = require('../lib/client');
 const fmt = require('../lib/format');
@@ -108,7 +109,7 @@ async function run(args) {
   const startedAt = Date.now();
   const { elapsed } = await poll(taskId, startedAt);
 
-  const workDir = path.resolve(__dirname, '../../work', taskId);
+  const workDir = path.join(getWorkRoot(path.resolve(__dirname, '../..')), taskId);
   const paths = {
     transcript: `${workDir}/transcript/original.md`,
     article:    `${workDir}/writing/article.md`,

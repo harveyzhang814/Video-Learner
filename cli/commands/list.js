@@ -1,8 +1,9 @@
 'use strict';
 const path = require('path');
 const fmt = require('../lib/format');
+const { getDbPath } = require('../../core/paths');
 
-const DB_PATH = path.resolve(__dirname, '../../work/database.sqlite');
+const DB_PATH = getDbPath(path.resolve(__dirname, '../..'));
 
 async function run(_args) {
   let Database;

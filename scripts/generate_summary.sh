@@ -10,7 +10,6 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-DB_PATH="$PROJECT_DIR/work/database.sqlite"
 PROMPT_TEMPLATE="$SCRIPT_DIR/summary_prompt.txt"
 MINI_PROMPT_TEMPLATE="$SCRIPT_DIR/summary_mini_prompt.txt"
 REDUCE_PROMPT_TEMPLATE="$SCRIPT_DIR/summary_reduce_prompt.txt"
@@ -33,7 +32,7 @@ OUTPUT_LANG="${4:-zh-CN}"  # Default to zh-CN
 # Extract task ID from article path (e.g., work/<id>/writing/article.md)
 # Convert to absolute path first to ensure regex matches correctly
 ARTICLE_PATH="$(cd "$(dirname "$ARTICLE_PATH")" && pwd)/$(basename "$ARTICLE_PATH")"
-TASK_ID=$(echo "$ARTICLE_PATH" | sed -E 's|.*/work/([^/]+)/writing.*|\1|')
+TASK_ID=$(echo "$ARTICLE_PATH" | sed -E 's|.*/([^/]+)/writing/.*|\1|')
 
 # Validate input file exists
 if [ ! -f "$ARTICLE_PATH" ]; then

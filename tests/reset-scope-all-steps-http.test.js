@@ -126,6 +126,11 @@ async function run() {
           restore();
         }
 
+        // translate skips-with-success when original_en.md is absent (Skip-2 in
+        // runStep's translate case). The fixture writes no artifact files, so
+        // translate always skips → 202, unlike other A-layer steps which fail → 400.
+        const skipsWhenInputMissing = ['translate'];
+
         if (excluded.has(stepName)) {
           assert.strictEqual(stepRes.status, 400, `step ${mode}/${stepName} expected 400`);
           assert.strictEqual(stepRes.body.code, 'BAD_ANCHOR_MODE', `step ${mode}/${stepName}`);
@@ -134,6 +139,9 @@ async function run() {
           assert.strictEqual(stepRes.body.success, true);
           assert.ok(Array.isArray(stepRes.body.reset_steps));
           assert.ok(stepRes.body.reset_steps.includes(stepName), `reset_steps should include ${stepName}`);
+        } else if (skipsWhenInputMissing.includes(stepName)) {
+          assert.strictEqual(stepRes.status, 202, `step skip ${mode}/${stepName} expected 202`);
+          assert.strictEqual(stepRes.body.success, true, `step skip ${mode}/${stepName}`);
         } else {
           assert.strictEqual(stepRes.status, 400, `step A-layer ${mode}/${stepName} expected 400`);
           assert.strictEqual(stepRes.body.success, false);

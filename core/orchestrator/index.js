@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { EventEmitter } = require('events');
 const { generateId } = require('../id');
+const { getWorkRoot, getIndexPath, resolveWorkBase } = require('../paths');
 const { createDb } = require('./db');
 const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts');
 const { computeReadySteps, pickNextStep, getDownstreamClosure, excludedByMode, normalizeMode, isTaskFailed, isTaskCompleted, getStepTimeoutMs } = require('./schedule');
@@ -142,14 +143,14 @@ const STEP_SCRIPTS = {
 };
 
 function getWorkDir(rootDir, id) {
-  return path.join(rootDir, 'work', id);
+  return path.join(getWorkRoot(rootDir), id);
 }
 
 /**
  * Append a simple JSONL entry to work/index.jsonl for traceability.
  */
 function appendIndex(rootDir, record) {
-  const indexPath = path.join(rootDir, 'work', 'index.jsonl');
+  const indexPath = getIndexPath(rootDir);
   const line = JSON.stringify(record) + '\n';
   fs.mkdirSync(path.dirname(indexPath), { recursive: true });
   fs.appendFileSync(indexPath, line, 'utf8');
@@ -435,11 +436,13 @@ function formatStepError(code, output) {
 /**
  * Build env for child process so yt-dlp/ffmpeg are found when run from Electron (no full shell PATH).
  */
-function spawnEnv() {
+function spawnEnv(rootDir) {
   const extra = ['/usr/local/bin', '/opt/homebrew/bin', '/usr/bin', '/bin'];
   const pathList = [process.env.PATH, ...extra].filter(Boolean);
   const PATH = [...new Set(pathList.join(':').split(':'))].filter(Boolean).join(':');
-  return { ...process.env, PATH };
+  const env = { ...process.env, PATH };
+  if (rootDir) env.WORK_ROOT = resolveWorkBase(rootDir);
+  return env;
 }
 
 function tryDeleteFile(filePath) {
@@ -455,7 +458,7 @@ function tryDeleteFile(filePath) {
 function runStepScript(rootDir, stepName, args, opts = {}) {
   return new Promise((resolve, reject) => {
     const script = path.join(rootDir, 'scripts', STEP_SCRIPTS[stepName]);
-    const proc = spawn('bash', [script, ...args], { cwd: rootDir, env: spawnEnv(), detached: true });
+    const proc = spawn('bash', [script, ...args], { cwd: rootDir, env: spawnEnv(rootDir), detached: true });
     if (opts.onProc) opts.onProc(proc);
 
     let output = '';
@@ -1231,7 +1234,7 @@ async function runTask(taskId, options = {}) {
               const script = path.join(rootDir, 'scripts', 'opencode_server.sh');
               // Run stop as a standalone bash command (not a step).
               await new Promise((resolve) => {
-                const proc = spawn('bash', [script, 'stop-if-started'], { cwd: rootDir, env: spawnEnv() });
+                const proc = spawn('bash', [script, 'stop-if-started'], { cwd: rootDir, env: spawnEnv(rootDir) });
                 proc.on('close', () => resolve());
                 proc.on('error', () => resolve());
               });

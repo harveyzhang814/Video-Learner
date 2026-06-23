@@ -1,6 +1,7 @@
 'use strict';
 const path = require('node:path');
 const fs = require('node:fs');
+const { getWorkRoot } = require('../../core/paths');
 const { spawn: realSpawn } = require('node:child_process');
 
 function pickOpener() {
@@ -19,7 +20,7 @@ function registerRevealRoute(router, { rootDir, host, spawn = realSpawn }) {
       return;
     }
     const { taskId } = ctx.params;
-    const dir = path.join(rootDir, 'work', taskId);
+    const dir = path.join(getWorkRoot(rootDir), taskId);
     if (!fs.existsSync(dir)) {
       ctx.status = 404;
       ctx.body = { error: { code: 'NOT_FOUND', message: 'task folder not found' } };
