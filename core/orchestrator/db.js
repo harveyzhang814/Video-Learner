@@ -161,7 +161,7 @@ function createDbManager(dbPath) {
         .prepare(
           `
           INSERT OR REPLACE INTO tasks (id, url, ts)
-          VALUES (?, ?, datetime('now'))
+          VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'))
         `
         )
         .run(id, url);
@@ -194,7 +194,7 @@ function createDbManager(dbPath) {
       }
     },
     softDeleteTask(id) {
-      return db.prepare("UPDATE tasks SET deleted_at = datetime('now') WHERE id = ?").run(id);
+      return db.prepare("UPDATE tasks SET deleted_at = strftime('%Y-%m-%dT%H:%M:%f', 'now') WHERE id = ?").run(id);
     },
 
     updateTask(id, data) {
@@ -202,14 +202,14 @@ function createDbManager(dbPath) {
         .map((k) => `${k} = @${k}`)
         .join(', ');
       return db
-        .prepare(`UPDATE tasks SET ${fields}, updated_at = datetime('now') WHERE id = @id`)
+        .prepare(`UPDATE tasks SET ${fields}, updated_at = strftime('%Y-%m-%dT%H:%M:%f', 'now') WHERE id = @id`)
         .run({ ...data, id });
     },
 
     updateStep(taskId, stepName, status, error = null) {
       const taskExists = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
       if (!taskExists) {
-        db.prepare("INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime('now'))").run(taskId, '');
+        db.prepare("INSERT INTO tasks (id, url, ts) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'))").run(taskId, '');
       }
 
       const existing = db
@@ -222,8 +222,8 @@ function createDbManager(dbPath) {
           .prepare(
             `
             UPDATE steps SET status = ?, attempts = ?, error = ?,
-            started_at = COALESCE(started_at, datetime('now')),
-            completed_at = CASE WHEN ? IN ('completed', 'failed', 'skipped') THEN datetime('now') ELSE completed_at END
+            started_at = COALESCE(started_at, strftime('%Y-%m-%dT%H:%M:%f', 'now')),
+            completed_at = CASE WHEN ? IN ('completed', 'failed', 'skipped') THEN strftime('%Y-%m-%dT%H:%M:%f', 'now') ELSE completed_at END
             WHERE task_id = ? AND step_name = ?
           `
           )
@@ -234,7 +234,7 @@ function createDbManager(dbPath) {
         .prepare(
           `
           INSERT INTO steps (task_id, step_name, status, attempts, error, started_at)
-          VALUES (?, ?, ?, 1, ?, datetime('now'))
+          VALUES (?, ?, ?, 1, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'))
         `
         )
         .run(taskId, stepName, status, error);
@@ -246,7 +246,7 @@ function createDbManager(dbPath) {
     writeStepState(taskId, stepName, { status, attempts = 0, error = null }) {
       const taskExists = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
       if (!taskExists) {
-        db.prepare("INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime('now'))").run(taskId, '');
+        db.prepare("INSERT INTO tasks (id, url, ts) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'))").run(taskId, '');
       }
 
       const existing = db.prepare('SELECT * FROM steps WHERE task_id = ? AND step_name = ?').get(taskId, stepName);
@@ -266,7 +266,7 @@ function createDbManager(dbPath) {
         .prepare(
           `
           INSERT INTO steps (task_id, step_name, status, attempts, error, started_at)
-          VALUES (?, ?, ?, ?, ?, datetime('now'))
+          VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'))
         `
         )
         .run(taskId, stepName, status, attempts, error);

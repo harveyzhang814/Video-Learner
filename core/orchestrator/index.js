@@ -184,9 +184,11 @@ function loadTaskFromDb(taskId, rootDir) {
   for (const r of stepsRows) {
     if (STEPS.includes(r.step_name)) {
       steps[r.step_name] = {
-        status: r.status || 'pending',
-        attempts: r.attempts || 0,
-        error: r.error || null
+        status:       r.status || 'pending',
+        attempts:     r.attempts || 0,
+        error:        r.error || null,
+        started_at:   r.started_at || null,
+        completed_at: r.completed_at || null,
       };
     }
   }
@@ -1288,6 +1290,15 @@ async function getTask(taskId, options = {}) {
       if (row.uploader != null && row.uploader !== '') task.meta.uploader = row.uploader;
       if (row.upload_date != null && row.upload_date !== '') task.meta.upload_date = row.upload_date;
     }
+    // Refresh step timestamps from DB — in-memory stepState never tracks started_at/completed_at
+    if (task.steps) {
+      for (const r of db.getSteps(task.meta.id)) {
+        if (task.steps[r.step_name]) {
+          if (r.started_at)   task.steps[r.step_name].started_at   = r.started_at;
+          if (r.completed_at) task.steps[r.step_name].completed_at = r.completed_at;
+        }
+      }
+    }
   }
   if (task.status === 'completed' || task.status === 'failed') {
     updateTaskMetaFromFilesystem(task);
@@ -1333,11 +1344,24 @@ async function getTaskResult(taskId, options = {}) {
 async function getTaskSteps(taskId, options = {}) {
   const task = ensureTask(taskId, options);
   task.steps = task.steps || initSteps();
+  // Refresh timestamps from DB — in-memory stepState never tracks started_at/completed_at
+  const rootDir = task.params && task.params.rootDir;
+  if (rootDir) {
+    const db = ensureDb(rootDir);
+    for (const r of db.getSteps(task.meta.id)) {
+      if (task.steps[r.step_name]) {
+        if (r.started_at)   task.steps[r.step_name].started_at   = r.started_at;
+        if (r.completed_at) task.steps[r.step_name].completed_at = r.completed_at;
+      }
+    }
+  }
   return Object.entries(task.steps).map(([name, info]) => ({
     name,
-    status: info.status,
-    attempts: info.attempts,
-    error: info.error
+    status:       info.status,
+    attempts:     info.attempts,
+    error:        info.error,
+    started_at:   info.started_at || null,
+    completed_at: info.completed_at || null,
   }));
 }
 
