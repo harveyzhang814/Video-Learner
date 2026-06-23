@@ -40,7 +40,6 @@ fi
 
 # Database path
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-DB_PATH="$PROJECT_DIR/work/database.sqlite"
 
 # Initialize database
 source "$SCRIPT_DIR/db.sh"

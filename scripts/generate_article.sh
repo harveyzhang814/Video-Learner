@@ -9,7 +9,6 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-DB_PATH="$PROJECT_DIR/work/database.sqlite"
 PROMPT_TEMPLATE="$SCRIPT_DIR/article_prompt.txt"
 
 # Initialize database
@@ -29,7 +28,7 @@ OUTPUT_LANG="${3:-zh-CN}"  # Default to zh-CN
 # Extract task ID from original path (e.g., work/<id>/transcript/original.md)
 # Convert to absolute path first to ensure regex matches correctly
 ORIGINAL_PATH="$(cd "$(dirname "$ORIGINAL_PATH")" && pwd)/$(basename "$ORIGINAL_PATH")"
-TASK_ID=$(echo "$ORIGINAL_PATH" | sed -E 's|.*/work/([^/]+)/transcript.*|\1|')
+TASK_ID=$(echo "$ORIGINAL_PATH" | sed -E 's|.*/([^/]+)/transcript/.*|\1|')
 
 # Validate input file exists
 if [ ! -f "$ORIGINAL_PATH" ]; then

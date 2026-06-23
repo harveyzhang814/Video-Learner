@@ -14,14 +14,17 @@ _is_command() {
     [[ "$cmd" == "get-task" ]] || [[ "$cmd" == "get-steps" ]]
 }
 
+_db_sh_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if _is_sourced; then
-    # 被 sourced，使用默认值
-    DB_PATH="work/database.sqlite"
+    # 被 sourced：用 work_dir.sh 解析默认 DB_PATH
+    source "$_db_sh_dir/work_dir.sh"
 elif _is_command "${1:-}"; then
-    # 第一个参数是命令，使用默认值
-    DB_PATH="work/database.sqlite"
+    source "$_db_sh_dir/work_dir.sh"
 else
-    DB_PATH="${1:-work/database.sqlite}"
+    DB_PATH="${1:-}"
+    if [ -z "$DB_PATH" ]; then
+        source "$_db_sh_dir/work_dir.sh"
+    fi
 fi
 
 # 获取脚本所在目录（处理 sourced 的情况）
