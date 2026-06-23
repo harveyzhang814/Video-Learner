@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { computeReadySteps, pickNextStep, getDownstreamClosure, normalizeMode, excludedByMode, isNodeReachable, isTaskFailed, isTaskCompleted } = require('../core/orchestrator/schedule');
+const { computeReadySteps, pickNextStep, pickReadyStepsOrdered, getDownstreamClosure, normalizeMode, excludedByMode, isNodeReachable, isTaskFailed, isTaskCompleted } = require('../core/orchestrator/schedule');
 
 function pending() {
   return { status: 'pending', attempts: 0, error: null };
@@ -502,6 +502,38 @@ function run() {
       assert.ok(c.has('md2vtt'),    'md2vtt in vtt2md downstream closure');
       assert.ok(c.has('article'),   'article in vtt2md downstream closure');
       assert.ok(c.has('summary'),   'summary in vtt2md downstream closure');
+    }
+
+    // pickReadyStepsOrdered: media mode after fetch — subs (main chain) before video (secondary)
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      const ordered = pickReadyStepsOrdered(ready, 'media', steps);
+      assert.deepStrictEqual(ordered, ['subs', 'video'], 'subs (main) precedes video (secondary)');
+    }
+
+    // pickReadyStepsOrdered: empty ready set yields empty array
+    {
+      const steps = baseSteps();
+      const ordered = pickReadyStepsOrdered(new Set(), 'media', steps);
+      assert.deepStrictEqual(ordered, [], 'empty ready set -> []');
+    }
+
+    // pickReadyStepsOrdered: parallel side branches — translate and article both ready, main chain first
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.video = completed();
+      steps.vtt2md = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);              // expect { translate, article, audio? } minus excluded
+      const ordered = pickReadyStepsOrdered(ready, 'media', steps);
+      assert.strictEqual(ordered[0], 'article', 'article (main chain) picked first');
+      assert.ok(ordered.includes('translate'), 'translate (side branch) included');
+      assert.ok(ordered.indexOf('article') < ordered.indexOf('translate'), 'article before translate');
     }
 
     console.log('orchestrator-schedule.test.js: PASS');
