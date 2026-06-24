@@ -48,6 +48,14 @@ source "$SCRIPT_DIR/yt-dlp-cookies.sh"
 # With `set -u`, ensure cookie opts are always defined (may be empty).
 YT_DLP_COOKIE_OPTS="${YT_DLP_COOKIE_OPTS:-}"
 
+# When the URL contains a playlist parameter, force single-video mode so
+# yt-dlp targets the specific `v=` video rather than the first playlist entry.
+if [[ "$URL" == *"list="* ]]; then
+    NO_PLAYLIST_OPT="--no-playlist"
+else
+    NO_PLAYLIST_OPT=""
+fi
+
 # Create output directory
 SUBS_DIR="$DIR/transcript/subs"
 if ! mkdir -p "$SUBS_DIR"; then
@@ -65,9 +73,9 @@ update_step "$ID" "subs" "running"
 
 # Detect available subtitles
 echo "Detecting available subtitles..."
-available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh-CN|zh|zh-TW|zh-Hans|zh-Hant)[[:space:]]/{print $1}' | head -20 || true)
+available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS $NO_PLAYLIST_OPT --list-subs "$URL" 2>/dev/null | awk '/^[[:space:]]*(en-orig|en|zh-CN|zh|zh-TW|zh-Hans|zh-Hant)[[:space:]]/{print $1}' | head -20 || true)
 if [ -z "$available_subs" ]; then
-    available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20 || true)
+    available_subs=$(yt-dlp $YT_DLP_COOKIE_OPTS $NO_PLAYLIST_OPT --dump-json --no-download "$URL" 2>/dev/null | jq -r '.requested_subtitles | keys[]' 2>/dev/null | head -20 || true)
 fi
 echo "Available subtitles: ${available_subs:-none}"
 
@@ -100,10 +108,10 @@ download_subtitle_for_lang() {
 
     if [ "$sub_type" = "original" ]; then
         # Use --write-subs for original subtitles
-        yt-dlp $YT_DLP_COOKIE_OPTS --skip-download --write-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null || return 1
+        yt-dlp $YT_DLP_COOKIE_OPTS $NO_PLAYLIST_OPT --skip-download --write-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null || return 1
     else
         # Use --write-auto-subs for auto-generated subtitles
-        yt-dlp $YT_DLP_COOKIE_OPTS --skip-download --write-auto-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null || return 1
+        yt-dlp $YT_DLP_COOKIE_OPTS $NO_PLAYLIST_OPT --skip-download --write-auto-subs --sub-lang "$subs_lang" -o "${outfile_base}.%(ext)s" "$URL" 2>/dev/null || return 1
     fi
 
     # Find and rename the downloaded file
