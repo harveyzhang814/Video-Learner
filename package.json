@@ -34,10 +34,12 @@
     "summary"
   ],
   "license": "MIT",
-  "devDependencies": {
-    "better-sqlite3": "^12.6.2"
+  "bin": {
+    "vdl": "cli/index.js"
   },
+  "devDependencies": {},
   "dependencies": {
+    "better-sqlite3": "^12.6.2",
     "node-fetch": "^3.3.2",
     "koa": "^3.1.2",
     "koa-bodyparser": "^4.4.1",
