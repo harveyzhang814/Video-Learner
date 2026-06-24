@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/user-config.sh"
 
@@ -47,7 +47,7 @@ fi
 
 # Resolve final writing engine with precedence:
 # 1) explicit WRITING_ENGINE
-# 2) WRITING_ENGINE_DEFAULT from settings.conf
+# 2) WRITING_ENGINE_DEFAULT from ~/.config/vdl/settings.conf
 # 3) hard fallback: opencode
 raw_engine="${WRITING_ENGINE:-${WRITING_ENGINE_DEFAULT:-opencode}}"
 case "$raw_engine" in
