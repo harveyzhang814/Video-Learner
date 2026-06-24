@@ -3,12 +3,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SETTINGS_FILE="$SCRIPT_DIR/settings.conf"
-
-if [ -f "$SETTINGS_FILE" ]; then
-  # shellcheck source=/dev/null
-  source "$SETTINGS_FILE"
-fi
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/user-config.sh"
 
 INPUT_FILE=""
 OUTPUT_FILE=""
