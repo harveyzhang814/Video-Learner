@@ -1,6 +1,6 @@
 # 配置 work 目录路径（Syncthing 同步）
 
-默认情况下，所有任务产物与 SQLite 数据库存放在项目目录下的 `work/`。
+默认情况下，所有任务产物与 SQLite 数据库存放在 `~/vdl-work/work/`。
 通过 `WORK_ROOT` 配置项，可把它移到项目外的任意目录——例如 Syncthing
 管理的共享目录，实现多设备间任务产物的自动同步。
 
@@ -15,8 +15,8 @@
 解析优先级（Node 与 shell 一致）：
 
 1. 环境变量 `WORK_ROOT`（单次会话覆盖）
-2. `scripts/settings.conf` 中的 `WORK_ROOT`（持久配置）
-3. 未设置时：项目目录（即默认 `<项目>/work`）
+2. `~/.config/vdl/settings.conf` 中的 `WORK_ROOT`（持久配置）
+3. 未设置时：`~/vdl-work`（即默认 `~/vdl-work/work`）
 
 `WORK_ROOT` 必须是**绝对路径**，支持前导 `~` 与 `$VAR` 展开。
 
@@ -34,11 +34,11 @@
       -d '{"workRoot":"~/Syncthing/video-learner"}'
     # → { "ok": true, "restart_required": true }
 
-**方式三：直接编辑** `scripts/settings.conf`：
+**方式三：直接编辑** `~/.config/vdl/settings.conf`：
 
     WORK_ROOT=~/Syncthing/video-learner
 
-CLI 和 API 均写入 `scripts/settings.conf`，效果相同。修改后重启后端生效。
+CLI 和 API 均写入 `~/.config/vdl/settings.conf`，效果相同。修改后重启后端生效。
 
 ### 单次覆盖（不写 settings.conf）
 

@@ -29,13 +29,7 @@ bash start-electron.sh     # Electron 桌面客户端
 
 ### 部署到新机器
 
-`scripts/settings.conf` **不会随仓库提交**（见 `.gitignore`），克隆后请复制并编辑：
-
-```bash
-cp scripts/settings.example.conf scripts/settings.conf
-```
-
-至少配置 **`WRITING_ENGINE_DEFAULT`**（`opencode` / `claude`）、**`OUTPUT_LANG`**；若 YouTube 出现人机验证，再配置 **`YT_DLP_COOKIES_BROWSER`** 或 **`YT_DLP_COOKIES_FILE`**。手动跑 Agent Service 时可设置环境变量 **`PORT`**、**`AGENT_EVENTS_TOKEN`**、**`OPENCODE_HOST`** / **`OPENCODE_PORT`** 等。
+首次运行任意 `vdl` 命令时，向导自动创建 **`~/.config/vdl/settings.conf`**。至少配置 **`WRITING_ENGINE_DEFAULT`**（`opencode` / `claude`）、**`OUTPUT_LANG`**；若 YouTube 出现人机验证，再配置 **`YT_DLP_COOKIES_BROWSER`** 或 **`YT_DLP_COOKIES_FILE`**。手动跑 Agent Service 时可设置环境变量 **`PORT`**、**`AGENT_EVENTS_TOKEN`**、**`OPENCODE_HOST`** / **`OPENCODE_PORT`** 等。
 
 根目录 **`npm install`** 为跑 Agent Service / 测试所必需；仅 GUI 时仍需 **`cd electron && npm install`**。
 

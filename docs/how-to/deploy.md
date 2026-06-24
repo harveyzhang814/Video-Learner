@@ -59,7 +59,7 @@ cp /opt/homebrew/lib/node_modules/video-learner/scripts/settings.example.conf ~/
 ## 4. 安装步骤（建议顺序）
 
 1. **克隆仓库**并进入根目录。
-2. **创建** `scripts/settings.conf`（见上文）。
+2. **配置文件**：首次运行 `vdl` 命令时向导自动创建 `~/.config/vdl/settings.conf`，无需手动操作。
 3. **系统依赖**：`bash scripts/install.sh`（按脚本支持平台安装 yt-dlp、ffmpeg、jq 等）。
 4. **根目录 Node 依赖**：在仓库根目录执行 `npm install`（Agent Service、测试脚本等需要）。
 5. **Electron 依赖**：`cd electron && npm install`（仅使用 GUI 时需要）。
@@ -86,7 +86,7 @@ cp /opt/homebrew/lib/node_modules/video-learner/scripts/settings.example.conf ~/
 
 ## 6. 仅 OpenCode、不安装 Claude
 
-将 `scripts/settings.conf` 中 **`WRITING_ENGINE_DEFAULT=opencode`**，且不要将 **`WRITING_ENGINE=claude`** 写进全局环境。流水线中的 `generate_article.sh` / `generate_summary.sh` 经 `llm_engine.sh` 只会在选中 `claude` 时调用 `claude` 可执行文件。
+将 `~/.config/vdl/settings.conf` 中 **`WRITING_ENGINE_DEFAULT=opencode`**，且不要将 **`WRITING_ENGINE=claude`** 写进全局环境。流水线中的 `generate_article.sh` / `generate_summary.sh` 经 `llm_engine.sh` 只会在选中 `claude` 时调用 `claude` 可执行文件。
 
 ---
 

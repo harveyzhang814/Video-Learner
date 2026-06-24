@@ -7,11 +7,11 @@
 ## 安装
 
 ```bash
-npm link      # 全局注册（开发环境）
-npm unlink vdl  # 取消注册
+npm pack                               # 生成 video-learner-x.x.x.tgz
+npm install -g ./video-learner-*.tgz   # 真实拷贝，删仓库后 vdl 仍可运行
+rm video-learner-*.tgz
+npm uninstall -g video-learner         # 卸载
 ```
-
-`npm link` 通过 symlink 安装，`__dirname` 仍解析到项目根目录，数据库和服务路径均正确定位。
 
 ---
 
@@ -74,7 +74,7 @@ npm unlink vdl  # 取消注册
 
 ### `vdl config`
 
-查看或持久化修改配置项。修改写入 `scripts/settings.conf`，重启后端后生效。
+查看或持久化修改配置项。修改写入 `~/.config/vdl/settings.conf`，重启后端后生效。
 
 ```bash
 vdl config get                          # 查看当前 workRoot / workDir
