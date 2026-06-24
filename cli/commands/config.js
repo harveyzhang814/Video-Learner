@@ -4,9 +4,10 @@ const path = require('path');
 const fs = require('fs');
 const readline = require('readline');
 const { writeWorkRoot, resolveWorkBase, getWorkRoot } = require('../../core/paths');
+const { USER_CONFIG_PATH, DEFAULT_WORK_ROOT } = require('../../core/user-config');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
-const SETTINGS_PATH = path.join(ROOT_DIR, 'scripts', 'settings.conf');
+const SETTINGS_PATH = process.env.VDL_CONFIG_FILE || USER_CONFIG_PATH;
 
 function expandHome(p) {
   if (p === '~') return process.env.HOME || p;
@@ -162,9 +163,10 @@ async function run(args) {
 
   if (action === 'get') {
     const workRoot = resolveWorkBase(ROOT_DIR);
-    const isDefault = workRoot === ROOT_DIR;
-    process.stdout.write(`workRoot: ${isDefault ? '(default)' : workRoot}\n`);
+    const isDefault = workRoot === DEFAULT_WORK_ROOT;
+    process.stdout.write(`workRoot: ${isDefault ? '(default — ~/vdl-work)' : workRoot}\n`);
     process.stdout.write(`workDir:  ${getWorkRoot(ROOT_DIR)}\n`);
+    process.stdout.write(`config:   ${SETTINGS_PATH}\n`);
     return;
   }
 
