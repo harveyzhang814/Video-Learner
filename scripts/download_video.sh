@@ -24,12 +24,11 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 # Initialize database
 source "$SCRIPT_DIR/db.sh"
 source "$SCRIPT_DIR/yt-dlp-cookies.sh"
+source "$SCRIPT_DIR/platform.sh"
 
-mkdir -p "$DIR"
+mkdir -p "$DIR/media"
 
 echo "[STATUS] video_start"
-
-# Update step to running
 update_step "$ID" "video" "running"
 
 # Check if already exists
@@ -49,73 +48,134 @@ rm -f "$DIR/media/video.temp.mp4" "$DIR/media/v_tempvideo"* "$DIR/media/v_tempau
 FORMAT="bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
 PROGRESS_TMPL="[progress] downloaded=%(progress.downloaded_bytes)d total=%(progress.total_bytes or progress.total_bytes_estimate or 0)d speed=%(progress.speed or 0.0)f eta=%(progress.eta or 0)d"
 
-# Helper: attempt combined format download with given cookie opts
-try_combined() {
-    local cookie_opts="$1"
-    local label="$2"
-    echo "[INFO] $label"
+# ── Bilibili ──────────────────────────────────────────────────────────────────
+# Always uses cookies (Bilibili returns HTTP 412 without them).
+# Always passes --no-playlist (handles ?p= multi-part URLs).
+_run_bilibili() {
+    local cookie_opts="$YT_DLP_COOKIE_OPTS"
+
+    # Attempt 1: combined format with cookies
+    echo "[INFO] Attempting Bilibili download (with cookies, --no-playlist)..."
     yt-dlp $cookie_opts \
+        --no-playlist \
         --newline \
         --progress-template "$PROGRESS_TMPL" \
         -f "$FORMAT" \
-        -o "$DIR/media/video.temp.mp4" --merge-output-format mp4 "$URL" 2>&1
+        -o "$DIR/media/video.temp.mp4" --merge-output-format mp4 "$URL" 2>&1 || true
+
     if [ -f "$DIR/media/video.temp.mp4" ]; then
         mv "$DIR/media/video.temp.mp4" "$DIR/media/video.mp4"
-        return 0
-    fi
-    return 1
-}
-
-# Attempt 1: no cookies (avoids TV-client HLS path that causes 403)
-_TMPOUT=$(mktemp)
-try_combined "" "Attempting download (no cookies)..." 2>&1 | tee "$_TMPOUT"
-OUTPUT=$(cat "$_TMPOUT"); rm -f "$_TMPOUT"
-if [ -f "$DIR/media/video.mp4" ]; then
-    echo "[STATUS] video_done"
-    update_step "$ID" "video" "completed"
-    update_download "$ID" "success" "" "$DIR/media/video.mp4"
-    exit 0
-fi
-
-# Attempt 2: with cookies only if bot-detection error and cookies are configured
-if [ -n "$YT_DLP_COOKIE_OPTS" ] && echo "$OUTPUT" | grep -qi "sign in\|bot\|confirm your age\|login required"; then
-    echo "[INFO] Bot detection encountered, retrying with cookies..."
-    if try_combined "$YT_DLP_COOKIE_OPTS" "Attempting download (with cookies)..."; then
         echo "[STATUS] video_done"
         update_step "$ID" "video" "completed"
         update_download "$ID" "success" "" "$DIR/media/video.mp4"
         exit 0
     fi
-fi
 
-# Attempt 3: DASH fallback (no cookies)
-echo "[INFO] Combined format failed, trying DASH fallback..."
-echo "[INFO] Downloading video stream..."
-yt-dlp \
-    --newline \
-    --progress-template "$PROGRESS_TMPL" \
-    -f "bestvideo[height<=1080][ext=mp4]" -o "$DIR/media/v_tempvideo.mp4" "$URL" 2>&1 || true
-echo "[INFO] Downloading audio stream..."
-yt-dlp \
-    --newline \
-    --progress-template "$PROGRESS_TMPL" \
-    -f "bestaudio[ext=m4a]" -o "$DIR/media/v_tempaudio.m4a" "$URL" 2>&1 || true
+    # Attempt 2: DASH fallback (separate streams + ffmpeg merge)
+    echo "[INFO] Combined format failed, trying DASH fallback..."
+    yt-dlp $cookie_opts --no-playlist --newline --progress-template "$PROGRESS_TMPL" \
+        -f "bestvideo[height<=1080][ext=mp4]" -o "$DIR/media/v_tempvideo.mp4" "$URL" 2>&1 || true
+    yt-dlp $cookie_opts --no-playlist --newline --progress-template "$PROGRESS_TMPL" \
+        -f "bestaudio[ext=m4a]" -o "$DIR/media/v_tempaudio.m4a" "$URL" 2>&1 || true
 
-if [ -f "$DIR/media/v_tempvideo.mp4" ] && [ -f "$DIR/media/v_tempaudio.m4a" ]; then
-    echo "[INFO] Merging video and audio with ffmpeg..."
-    ffmpeg -i "$DIR/media/v_tempvideo.mp4" -i "$DIR/media/v_tempaudio.m4a" -c copy -y "$DIR/media/video.mp4" 2>&1
-    rm -f "$DIR/media/v_tempvideo.mp4" "$DIR/media/v_tempaudio.m4a"
+    if [ -f "$DIR/media/v_tempvideo.mp4" ] && [ -f "$DIR/media/v_tempaudio.m4a" ]; then
+        echo "[INFO] Merging with ffmpeg..."
+        ffmpeg -i "$DIR/media/v_tempvideo.mp4" -i "$DIR/media/v_tempaudio.m4a" -c copy -y "$DIR/media/video.mp4" 2>&1
+        rm -f "$DIR/media/v_tempvideo.mp4" "$DIR/media/v_tempaudio.m4a"
+        if [ -f "$DIR/media/video.mp4" ]; then
+            echo "[STATUS] video_done"
+            update_step "$ID" "video" "completed"
+            update_download "$ID" "success" "" "$DIR/media/video.mp4"
+            exit 0
+        fi
+    fi
+
+    rm -f "$DIR/media/v_tempvideo.mp4" "$DIR/media/v_tempaudio.m4a" "$DIR/media/video.temp.mp4" 2>/dev/null || true
+    echo "[STATUS] video_error: download failed"
+    update_step "$ID" "video" "failed" "download failed"
+    update_download "$ID" "failed" "download failed"
+    exit 1
+}
+
+# ── YouTube / generic ─────────────────────────────────────────────────────────
+# Attempt 1: no cookies (avoids TV-client HLS path that causes 403).
+# Attempt 2: with cookies only if bot-detection error text detected.
+# Attempt 3: DASH fallback without cookies.
+_run_youtube() {
+    # Helper: attempt combined format download with given cookie opts
+    _try_combined() {
+        local cookie_opts="$1"
+        local label="$2"
+        echo "[INFO] $label"
+        yt-dlp $cookie_opts \
+            --newline \
+            --progress-template "$PROGRESS_TMPL" \
+            -f "$FORMAT" \
+            -o "$DIR/media/video.temp.mp4" --merge-output-format mp4 "$URL" 2>&1
+        if [ -f "$DIR/media/video.temp.mp4" ]; then
+            mv "$DIR/media/video.temp.mp4" "$DIR/media/video.mp4"
+            return 0
+        fi
+        return 1
+    }
+
+    # Attempt 1: no cookies
+    _TMPOUT=$(mktemp)
+    _try_combined "" "Attempting download (no cookies)..." 2>&1 | tee "$_TMPOUT"
+    OUTPUT=$(cat "$_TMPOUT"); rm -f "$_TMPOUT"
     if [ -f "$DIR/media/video.mp4" ]; then
         echo "[STATUS] video_done"
         update_step "$ID" "video" "completed"
         update_download "$ID" "success" "" "$DIR/media/video.mp4"
         exit 0
     fi
-fi
 
-# Failed
-echo "[STATUS] video_error: download failed"
-rm -f "$DIR/media/v_tempvideo.mp4" "$DIR/media/v_tempaudio.m4a" "$DIR/media/video.temp.mp4" 2>/dev/null || true
-update_step "$ID" "video" "failed" "download failed"
-update_download "$ID" "failed" "download failed"
-exit 1
+    # Attempt 2: with cookies only if bot-detection error and cookies are configured
+    if [ -n "$YT_DLP_COOKIE_OPTS" ] && echo "$OUTPUT" | grep -qi "sign in\|bot\|confirm your age\|login required"; then
+        echo "[INFO] Bot detection encountered, retrying with cookies..."
+        if _try_combined "$YT_DLP_COOKIE_OPTS" "Attempting download (with cookies)..."; then
+            echo "[STATUS] video_done"
+            update_step "$ID" "video" "completed"
+            update_download "$ID" "success" "" "$DIR/media/video.mp4"
+            exit 0
+        fi
+    fi
+
+    # Attempt 3: DASH fallback (no cookies)
+    echo "[INFO] Combined format failed, trying DASH fallback..."
+    echo "[INFO] Downloading video stream..."
+    yt-dlp \
+        --newline \
+        --progress-template "$PROGRESS_TMPL" \
+        -f "bestvideo[height<=1080][ext=mp4]" -o "$DIR/media/v_tempvideo.mp4" "$URL" 2>&1 || true
+    echo "[INFO] Downloading audio stream..."
+    yt-dlp \
+        --newline \
+        --progress-template "$PROGRESS_TMPL" \
+        -f "bestaudio[ext=m4a]" -o "$DIR/media/v_tempaudio.m4a" "$URL" 2>&1 || true
+
+    if [ -f "$DIR/media/v_tempvideo.mp4" ] && [ -f "$DIR/media/v_tempaudio.m4a" ]; then
+        echo "[INFO] Merging video and audio with ffmpeg..."
+        ffmpeg -i "$DIR/media/v_tempvideo.mp4" -i "$DIR/media/v_tempaudio.m4a" -c copy -y "$DIR/media/video.mp4" 2>&1
+        rm -f "$DIR/media/v_tempvideo.mp4" "$DIR/media/v_tempaudio.m4a"
+        if [ -f "$DIR/media/video.mp4" ]; then
+            echo "[STATUS] video_done"
+            update_step "$ID" "video" "completed"
+            update_download "$ID" "success" "" "$DIR/media/video.mp4"
+            exit 0
+        fi
+    fi
+
+    echo "[STATUS] video_error: download failed"
+    rm -f "$DIR/media/v_tempvideo.mp4" "$DIR/media/v_tempaudio.m4a" "$DIR/media/video.temp.mp4" 2>/dev/null || true
+    update_step "$ID" "video" "failed" "download failed"
+    update_download "$ID" "failed" "download failed"
+    exit 1
+}
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+if is_bilibili "$URL"; then
+    _run_bilibili
+else
+    _run_youtube
+fi
