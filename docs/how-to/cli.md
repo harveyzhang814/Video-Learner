@@ -4,7 +4,9 @@
 
 ```bash
 cd /path/to/Video-Learner
-npm install -g .    # 全局安装（真实拷贝，删仓库后 vdl 仍可运行）
+npm pack                               # 生成 video-learner-x.x.x.tgz
+npm install -g ./video-learner-*.tgz   # 真实拷贝，删仓库后 vdl 仍可运行
+rm video-learner-*.tgz                 # 清理临时包文件
 ```
 
 首次运行任意 `vdl` 命令时，会自动创建 `~/.config/vdl/settings.conf` 并询问数据目录（默认 `~/vdl-work`）。
