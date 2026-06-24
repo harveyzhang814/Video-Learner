@@ -5,7 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { ensureUserConfig } = require('../cli/lib/ensure-user-config');
+const { ensureUserConfig, detectExistingData } = require('../cli/lib/ensure-user-config');
 
 let failures = 0;
 function check(name, fn) {
@@ -65,17 +65,39 @@ Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true
     });
   });
 
-  // 4. detectExistingData: finds existing database.sqlite
+  // 4. detectExistingData: finds existing database.sqlite + task folders
   await checkAsync('detectExistingData finds existing database', async () => {
     await withTmp(async (dir) => {
       const workDir = path.join(dir, 'work');
       fs.mkdirSync(workDir, { recursive: true });
       fs.writeFileSync(path.join(workDir, 'database.sqlite'), '', 'utf8');
       fs.mkdirSync(path.join(workDir, 'abc123def456'));
-      // Run wizard in non-TTY; it should still create the config
-      const cfgPath = path.join(dir, 'cfg.conf');
-      await ensureUserConfig({ configPath: cfgPath, configDir: dir });
-      assert.ok(fs.existsSync(cfgPath));
+      fs.mkdirSync(path.join(workDir, 'deadbeef0001'));
+      const result = detectExistingData(dir);
+      assert.strictEqual(result.found, true, 'found should be true');
+      assert.strictEqual(result.hasDb, true, 'hasDb should be true');
+      assert.strictEqual(result.taskCount, 2, `taskCount should be 2, got ${result.taskCount}`);
+    });
+  });
+
+  // 5. detectExistingData: task folders only (no database.sqlite)
+  await checkAsync('detectExistingData finds task folders without database', async () => {
+    await withTmp(async (dir) => {
+      const workDir = path.join(dir, 'work');
+      fs.mkdirSync(workDir, { recursive: true });
+      fs.mkdirSync(path.join(workDir, 'abc123def456'));
+      const result = detectExistingData(dir);
+      assert.strictEqual(result.found, true, 'found should be true');
+      assert.strictEqual(result.hasDb, false, 'hasDb should be false');
+      assert.strictEqual(result.taskCount, 1, `taskCount should be 1, got ${result.taskCount}`);
+    });
+  });
+
+  // 6. detectExistingData: empty/missing work dir
+  await checkAsync('detectExistingData returns not found for empty dir', async () => {
+    await withTmp(async (dir) => {
+      const result = detectExistingData(dir);
+      assert.strictEqual(result.found, false, 'found should be false for missing work dir');
     });
   });
 

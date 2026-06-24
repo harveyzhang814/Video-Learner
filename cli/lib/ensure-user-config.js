@@ -87,4 +87,4 @@ async function ensureUserConfig({
   }
 }
 
-module.exports = { ensureUserConfig };
+module.exports = { ensureUserConfig, detectExistingData };

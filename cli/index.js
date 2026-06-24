@@ -67,4 +67,7 @@ Usage:
     printUsage();
     process.exit(1);
   }
-})();
+})().catch(err => {
+  process.stderr.write(`Error: ${err.message}\n`);
+  process.exit(1);
+});
