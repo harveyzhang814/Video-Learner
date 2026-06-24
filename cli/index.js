@@ -34,7 +34,7 @@ Usage:
   vdl list
   vdl config get
   vdl config set work-root <path>
-                     持久化写入 scripts/settings.conf，重启后端生效
+                     持久化写入 ~/.config/vdl/settings.conf，重启后端生效
   vdl gui
   vdl web [--no-browser] [--port <n>]
                      启动后端并打开 Web 端（关闭浏览器后自动停止后端）
