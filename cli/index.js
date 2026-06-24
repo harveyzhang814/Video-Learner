@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
+const { ensureUserConfig } = require('./lib/ensure-user-config');
+
 const args = process.argv.slice(2);
 const sub = args[0];
 
@@ -39,24 +41,30 @@ Usage:
 \n`);
 }
 
-if (!sub || sub === '--help' || sub === '-h') {
-  printUsage();
-  process.exit(0);
-}
+(async () => {
+  // Skip first-run wizard for --help / -h
+  if (sub && sub !== '--help' && sub !== '-h') {
+    await ensureUserConfig();
+  }
 
-if (commands[sub]) {
-  commands[sub]().catch(err => {
-    require('./lib/format').printError(err.message);
+  if (!sub || sub === '--help' || sub === '-h') {
+    printUsage();
+    process.exit(0);
+  }
+
+  if (commands[sub]) {
+    commands[sub]().catch(err => {
+      require('./lib/format').printError(err.message);
+      process.exit(1);
+    });
+  } else if (sub.startsWith('http') || sub.startsWith('-')) {
+    require('./commands/run').run(args).catch(err => {
+      require('./lib/format').printError(err.message);
+      process.exit(1);
+    });
+  } else {
+    process.stderr.write(`Unknown command: ${sub}\n`);
+    printUsage();
     process.exit(1);
-  });
-} else if (sub.startsWith('http') || sub.startsWith('-')) {
-  // Route to run: either URL is first arg, or flags precede the URL
-  require('./commands/run').run(args).catch(err => {
-    require('./lib/format').printError(err.message);
-    process.exit(1);
-  });
-} else {
-  process.stderr.write(`Unknown command: ${sub}\n`);
-  printUsage();
-  process.exit(1);
-}
+  }
+})();
