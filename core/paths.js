@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { USER_CONFIG_PATH, DEFAULT_WORK_ROOT } = require('./user-config');
 
 /**
  * Expand a leading ~ and $VAR / ${VAR} references against process.env.
@@ -45,18 +46,17 @@ function readSettingValue(settingsPath, key) {
 
 /**
  * Resolve the configurable WORK *root* (the parent under which "work/" lives).
- * Order: env WORK_ROOT > <rootDir>/scripts/settings.conf WORK_ROOT > rootDir.
+ * Order: env WORK_ROOT > VDL_CONFIG_FILE (or ~/.config/vdl/settings.conf) WORK_ROOT > ~/vdl-work.
+ * rootDir param retained for API compatibility; no longer used for config resolution.
  */
 function resolveWorkBase(rootDir) {
-  if (!rootDir || typeof rootDir !== 'string') {
-    throw new Error('resolveWorkBase requires a non-empty rootDir string');
-  }
-  const base = path.resolve(rootDir);
+  // rootDir retained for API compatibility; no longer used for config lookup.
   let raw = process.env.WORK_ROOT;
   if (!raw || !raw.trim()) {
-    raw = readSettingValue(path.join(base, 'scripts', 'settings.conf'), 'WORK_ROOT');
+    const cfgPath = process.env.VDL_CONFIG_FILE || USER_CONFIG_PATH;
+    raw = readSettingValue(cfgPath, 'WORK_ROOT');
   }
-  if (!raw || !raw.trim()) return base;
+  if (!raw || !raw.trim()) return DEFAULT_WORK_ROOT;
   const resolved = path.resolve(expandPath(raw));
   return resolved.replace(/\/+$/, '') || '/';
 }
