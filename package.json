@@ -51,11 +51,11 @@
     "vdl": "cli/index.js"
   },
   "devDependencies": {
-    "better-sqlite3": "^12.6.2",
     "playwright": "^1.61.0"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
+    "better-sqlite3": "^12.6.2",
     "koa": "^3.1.2",
     "koa-bodyparser": "^4.4.1",
     "koa-router": "^14.0.0"

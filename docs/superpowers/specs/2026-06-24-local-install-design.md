@@ -175,8 +175,12 @@ Checking /Volumes/Data/vdl-data/work/ ...
 npm link
 
 # 新（真实拷贝，删仓库没问题）
-npm install -g .
+npm pack
+npm install -g ./video-learner-*.tgz
+rm video-learner-*.tgz
 ```
+
+注意：`npm install -g .` 在 npm v11+ 仍会创建 symlink（与 `npm link` 等效），无法实现"删仓库后独立运行"的目标。必须先 `npm pack` 生成 tarball 再安装。
 
 更新 `docs/how-to/cli.md` 和 `docs/how-to/deploy.md`。
 
