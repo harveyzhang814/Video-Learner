@@ -361,7 +361,8 @@ function updateTaskMetaFromFilesystem(task) {
     download_status: task.meta.download_status,
     transcript_done: task.meta.transcript_done,
     article_done: task.meta.article_done,
-    summary_done: task.meta.summary_done
+    summary_done: task.meta.summary_done,
+    opencode_session_id: task.meta.opencode_session_id ?? null
   };
 
   if (fs.existsSync(mediaDir)) {
