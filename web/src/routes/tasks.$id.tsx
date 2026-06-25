@@ -187,7 +187,7 @@ export default function TaskDetail() {
 
           </div>{/* end mode-content-body */}
 
-          {/* MODE F: theater — full-width video above */}
+          {/* MODE F: theater — full-width media above */}
           <div className="theater-section">
             {layoutMode === 'F' && mediaKind === 'video' && (
               <div className="relative bg-black w-full" style={{ maxHeight: '58vh', aspectRatio: '16/9' }}>
@@ -199,6 +199,11 @@ export default function TaskDetail() {
                   onToggleCc={() => setCcEnabled((v) => !v)}
                   className="w-full h-full"
                 />
+              </div>
+            )}
+            {layoutMode === 'F' && mediaKind === 'audio' && (
+              <div className="flex items-center px-5" style={{ height: 72 }}>
+                <Player taskId={id} kind="audio" audioOnly={true} />
               </div>
             )}
           </div>
