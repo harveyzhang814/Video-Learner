@@ -59,7 +59,7 @@ POST /api/tasks  { "url": "...", "timeout_scale": 3 }
 ## 多引擎写作
 
 写作引擎通过 `scripts/llm_engine.sh` 路由：
-- **默认**：`scripts/settings.conf` 中设置 `WRITING_ENGINE_DEFAULT=opencode|claude`
+- **默认**：`~/.config/vdl/settings.conf` 中设置 `WRITING_ENGINE_DEFAULT=opencode|claude`
 - **单次覆盖**：启动前设置环境变量 `WRITING_ENGINE=claude|opencode`
 - `opencode`：MiniMax-M2.7（HTTP）；`claude`：Claude Code CLI
 

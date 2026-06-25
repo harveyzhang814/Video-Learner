@@ -30,7 +30,7 @@
 | GET | `/api/tasks/:taskId/paths` | 返回该任务的路径信息（base/media/transcript/writing），供 Electron 等客户端打开本地输出目录。 |
 | GET | `/api/tasks/:taskId/paths` | 返回该任务的路径信息（base/media/transcript/writing），供 Electron 等客户端打开本地输出目录。 |
 | GET | `/api/config` | 返回当前 work 根目录配置（`workRoot`、`workDir`、`settingsPath`）。 |
-| POST | `/api/config` | 持久化写入 `WORK_ROOT` 到 `scripts/settings.conf`，返回 `{ ok, restart_required: true }`。 |
+| POST | `/api/config` | 持久化写入 `WORK_ROOT` 到 `~/.config/vdl/settings.conf`，返回 `{ ok, restart_required: true }`。 |
 | GET | `/healthz` | 健康检查，返回 200 OK。 |
 
 ## `GET /api/config` 与 `POST /api/config`
@@ -43,11 +43,11 @@
 {
   "workRoot": "~/Syncthing/video-learner",
   "workDir":  "/Users/alice/Syncthing/video-learner/work",
-  "settingsPath": "/path/to/project/scripts/settings.conf"
+  "settingsPath": "/Users/alice/.config/vdl/settings.conf"
 }
 ```
 
-`workRoot` 为 `null` 表示当前使用默认值（项目目录）。
+`workRoot` 为 `null` 表示当前使用默认值（`~/vdl-work`）。
 
 ### `POST /api/config`
 

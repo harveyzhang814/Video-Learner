@@ -16,12 +16,15 @@
 
 ---
 
-## 2. 必做：本地配置文件 `scripts/settings.conf`
+## 2. 本地配置文件 `~/.config/vdl/settings.conf`
 
-`scripts/settings.conf` **不在 Git 中**（见根目录 `.gitignore`），克隆后必须自行创建：
+首次运行 `vdl` 命令时，向导自动从内置模板创建 `~/.config/vdl/settings.conf`，无需手动复制。
+
+若需提前手动创建：
 
 ```bash
-cp scripts/settings.example.conf scripts/settings.conf
+mkdir -p ~/.config/vdl
+cp /opt/homebrew/lib/node_modules/video-learner/scripts/settings.example.conf ~/.config/vdl/settings.conf
 ```
 
 按环境编辑，常用项：
@@ -35,7 +38,7 @@ cp scripts/settings.example.conf scripts/settings.conf
 
 其他键（`DOWNLOAD_VIDEO`、`DEFAULT_QUALITY`、`TRANSCRIPT_LANG` 等）见 `settings.example.conf` 内注释。
 
-`scripts/yt-dlp-cookies.sh` 会在调用 yt-dlp 的脚本中自动读取 `settings.conf` 中的 Cookie 配置。
+`scripts/yt-dlp-cookies.sh` 会在调用 yt-dlp 的脚本中自动读取 `~/.config/vdl/settings.conf` 中的 Cookie 配置。
 
 ---
 
@@ -56,7 +59,7 @@ cp scripts/settings.example.conf scripts/settings.conf
 ## 4. 安装步骤（建议顺序）
 
 1. **克隆仓库**并进入根目录。
-2. **创建** `scripts/settings.conf`（见上文）。
+2. **配置文件**：首次运行 `vdl` 命令时向导自动创建 `~/.config/vdl/settings.conf`，无需手动操作。
 3. **系统依赖**：`bash scripts/install.sh`（按脚本支持平台安装 yt-dlp、ffmpeg、jq 等）。
 4. **根目录 Node 依赖**：在仓库根目录执行 `npm install`（Agent Service、测试脚本等需要）。
 5. **Electron 依赖**：`cd electron && npm install`（仅使用 GUI 时需要）。
@@ -72,7 +75,7 @@ cp scripts/settings.example.conf scripts/settings.conf
 | GUI | `bash start-electron.sh` | 内嵌启动本地 HTTP 服务（随机端口 + token），通过 SSE 刷新界面。 |
 | Agent Service | `npm run agent:serve` | 默认 `http://localhost:$PORT`；自行保存启动日志中的 SSE token 或设置 `AGENT_EVENTS_TOKEN`。 |
 
-运行时数据位于 **`work/`**（默认在仓库根下）：
+运行时数据位于 **`~/vdl-work/work/`**（默认；可在 `~/.config/vdl/settings.conf` 通过 `WORK_ROOT` 修改）：
 
 - `work/database.sqlite`：任务与步骤状态（GUI 与 HTTP 共用）。
 - `work/<id>/`：各 URL 对应的媒体、转录、文章与总结产物。
@@ -83,7 +86,7 @@ cp scripts/settings.example.conf scripts/settings.conf
 
 ## 6. 仅 OpenCode、不安装 Claude
 
-将 `scripts/settings.conf` 中 **`WRITING_ENGINE_DEFAULT=opencode`**，且不要将 **`WRITING_ENGINE=claude`** 写进全局环境。流水线中的 `generate_article.sh` / `generate_summary.sh` 经 `llm_engine.sh` 只会在选中 `claude` 时调用 `claude` 可执行文件。
+将 `~/.config/vdl/settings.conf` 中 **`WRITING_ENGINE_DEFAULT=opencode`**，且不要将 **`WRITING_ENGINE=claude`** 写进全局环境。流水线中的 `generate_article.sh` / `generate_summary.sh` 经 `llm_engine.sh` 只会在选中 `claude` 时调用 `claude` 可执行文件。
 
 ---
 

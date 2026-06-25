@@ -1,25 +1,24 @@
 #!/bin/bash
 # scripts/work_dir.sh — resolve the configurable work root/dir. SOURCE ONLY.
 #
-# Resolution (must mirror core/paths.js):
+# Resolution (mirrors core/paths.js):
 #   1. env WORK_ROOT (non-empty)
-#   2. else WORK_ROOT from scripts/settings.conf
-#   3. else project dir (parent of scripts/)
+#   2. else WORK_ROOT from VDL_CONFIG_FILE or ~/.config/vdl/settings.conf
+#   3. else ~/vdl-work
 # Exports: WORK_ROOT, WORK_DIR (=<root>/work), DB_PATH (=<work>/database.sqlite).
 # Ensures WORK_DIR exists.
 
 _wd_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_wd_project_dir="$(dirname "$_wd_script_dir")"
 
-# 1+2: only consult settings.conf when env did not provide WORK_ROOT.
-if [ -z "${WORK_ROOT:-}" ] && [ -f "$_wd_script_dir/settings.conf" ]; then
+# 1+2: load user config only when env did not provide WORK_ROOT.
+if [ -z "${WORK_ROOT:-}" ]; then
     # shellcheck source=/dev/null
-    source "$_wd_script_dir/settings.conf"
+    source "$_wd_script_dir/user-config.sh"
 fi
 
-# 3: default to project dir.
+# 3: default to ~/vdl-work.
 if [ -z "${WORK_ROOT:-}" ]; then
-    WORK_ROOT="$_wd_project_dir"
+    WORK_ROOT="$HOME/vdl-work"
 fi
 
 # Expand leading ~ (bash already expanded $VARs when sourcing settings.conf;
