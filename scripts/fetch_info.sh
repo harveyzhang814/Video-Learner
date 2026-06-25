@@ -27,6 +27,7 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 # Initialize database
 source "$SCRIPT_DIR/db.sh"
 source "$SCRIPT_DIR/yt-dlp-cookies.sh"
+source "$SCRIPT_DIR/platform.sh"
 init_db
 
 # Create task in database
@@ -61,7 +62,9 @@ upload_date_raw=$(echo "$video_info" | jq -r '.upload_date // ""' 2>/dev/null)
 # Extract and normalize video language (e.g. "en-US" → "en"); default "en"
 lang_raw=$(echo "$video_info" | jq -r '.language // ""' 2>/dev/null)
 lang=$(echo "$lang_raw" | cut -d'-' -f1 | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
-[ -z "$lang" ] && lang="en"
+if [ -z "$lang" ]; then
+    is_bilibili "$URL" && lang="zh" || lang="en"
+fi
 
 # Normalize upload_date from YYYYMMDD to YYYY-MM-DD
 upload_date=""

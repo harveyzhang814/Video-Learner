@@ -13,6 +13,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/yt-dlp-cookies.sh"
+source "$SCRIPT_DIR/platform.sh"
 
 # Trap for cleanup on interrupt
 trap 'rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null; exit 1' INT TERM
@@ -37,41 +38,57 @@ rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
 FORMAT="bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/worst[ext=mp4]/worst"
 PROGRESS_TMPL="[progress] downloaded=%(progress.downloaded_bytes)d total=%(progress.total_bytes or progress.total_bytes_estimate or 0)d speed=%(progress.speed or 0.0)f eta=%(progress.eta or 0)d"
 
-# Helper: attempt audio download with given cookie opts, capture output
-try_audio() {
-    local cookie_opts="$1"
-    local label="$2"
-    echo "[INFO] $label"
-    yt-dlp $cookie_opts \
+# ── Bilibili ──────────────────────────────────────────────────────────────────
+# Always uses cookies (Bilibili returns HTTP 412 without them).
+# Always passes --no-playlist (handles ?p= multi-part URLs).
+_run_bilibili() {
+    echo "[INFO] Downloading Bilibili audio (with cookies, --no-playlist)..."
+    yt-dlp $YT_DLP_COOKIE_OPTS \
+        --no-playlist \
         --newline \
         --progress-template "$PROGRESS_TMPL" \
         -f "$FORMAT" \
         -o "$DIR/media/audio.temp.m4a" "$URL" 2>&1
-    return $?
+    local exit_code=$?
+
+    if [ "$exit_code" -eq 0 ] && [ -f "$DIR/media/audio.temp.m4a" ]; then
+        local temp_size
+        temp_size=$(stat -f%z "$DIR/media/audio.temp.m4a" 2>/dev/null || stat -c%s "$DIR/media/audio.temp.m4a" 2>/dev/null || echo "0")
+        if [ "$temp_size" -gt 1000 ]; then
+            mv "$DIR/media/audio.temp.m4a" "$DIR/media/audio.m4a"
+            echo "[STATUS] audio_done"
+            exit 0
+        fi
+    fi
+
+    rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
+    echo "[STATUS] audio_error: download failed"
+    exit 1
 }
 
-# Attempt 1: no cookies (avoids TV-client HLS path that causes 403)
-_TMPOUT=$(mktemp)
-try_audio "" "Downloading audio (no cookies)..." 2>&1 | tee "$_TMPOUT"
-YTDLP_EXIT=${PIPESTATUS[0]}
-OUTPUT=$(cat "$_TMPOUT"); rm -f "$_TMPOUT"
+# ── YouTube / generic ─────────────────────────────────────────────────────────
+# Attempt 1: no cookies (avoids TV-client HLS path that causes 403).
+# Attempt 2: with cookies only if bot-detection error text detected.
+_run_youtube() {
+    _try_audio() {
+        local cookie_opts="$1"
+        local label="$2"
+        echo "[INFO] $label"
+        yt-dlp $cookie_opts \
+            --newline \
+            --progress-template "$PROGRESS_TMPL" \
+            -f "$FORMAT" \
+            -o "$DIR/media/audio.temp.m4a" "$URL" 2>&1
+        return $?
+    }
 
-if [ "$YTDLP_EXIT" -eq 0 ] && [ -f "$DIR/media/audio.temp.m4a" ]; then
-    temp_size=$(stat -f%z "$DIR/media/audio.temp.m4a" 2>/dev/null || stat -c%s "$DIR/media/audio.temp.m4a" 2>/dev/null || echo "0")
-    if [ "$temp_size" -gt 1000 ]; then
-        mv "$DIR/media/audio.temp.m4a" "$DIR/media/audio.m4a"
-        echo "[STATUS] audio_done"
-        exit 0
-    fi
-fi
-rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
+    # Attempt 1: no cookies
+    _TMPOUT=$(mktemp)
+    _try_audio "" "Downloading audio (no cookies)..." 2>&1 | tee "$_TMPOUT"
+    YTDLP_EXIT=${PIPESTATUS[0]}
+    OUTPUT=$(cat "$_TMPOUT"); rm -f "$_TMPOUT"
 
-# Attempt 2: with cookies only if bot-detection error and cookies are configured
-if [ -n "$YT_DLP_COOKIE_OPTS" ] && echo "$OUTPUT" | grep -qi "sign in\|bot\|confirm your age\|login required"; then
-    echo "[INFO] Bot detection encountered, retrying with cookies..."
-    OUTPUT2=$(try_audio "$YT_DLP_COOKIE_OPTS" "Downloading audio (with cookies)...")
-    YTDLP_EXIT2=$?
-    if [ "$YTDLP_EXIT2" -eq 0 ] && [ -f "$DIR/media/audio.temp.m4a" ]; then
+    if [ "$YTDLP_EXIT" -eq 0 ] && [ -f "$DIR/media/audio.temp.m4a" ]; then
         temp_size=$(stat -f%z "$DIR/media/audio.temp.m4a" 2>/dev/null || stat -c%s "$DIR/media/audio.temp.m4a" 2>/dev/null || echo "0")
         if [ "$temp_size" -gt 1000 ]; then
             mv "$DIR/media/audio.temp.m4a" "$DIR/media/audio.m4a"
@@ -80,8 +97,30 @@ if [ -n "$YT_DLP_COOKIE_OPTS" ] && echo "$OUTPUT" | grep -qi "sign in\|bot\|conf
         fi
     fi
     rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
-fi
 
-# Failed
-echo "[STATUS] audio_error: download failed"
-exit 1
+    # Attempt 2: with cookies only if bot-detection error and cookies are configured
+    if [ -n "$YT_DLP_COOKIE_OPTS" ] && echo "$OUTPUT" | grep -qi "sign in\|bot\|confirm your age\|login required"; then
+        echo "[INFO] Bot detection encountered, retrying with cookies..."
+        _try_audio "$YT_DLP_COOKIE_OPTS" "Downloading audio (with cookies)..."
+        YTDLP_EXIT2=$?
+        if [ "$YTDLP_EXIT2" -eq 0 ] && [ -f "$DIR/media/audio.temp.m4a" ]; then
+            temp_size=$(stat -f%z "$DIR/media/audio.temp.m4a" 2>/dev/null || stat -c%s "$DIR/media/audio.temp.m4a" 2>/dev/null || echo "0")
+            if [ "$temp_size" -gt 1000 ]; then
+                mv "$DIR/media/audio.temp.m4a" "$DIR/media/audio.m4a"
+                echo "[STATUS] audio_done"
+                exit 0
+            fi
+        fi
+        rm -f "$DIR/media/audio.temp.m4a" 2>/dev/null || true
+    fi
+
+    echo "[STATUS] audio_error: download failed"
+    exit 1
+}
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+if is_bilibili "$URL"; then
+    _run_bilibili
+else
+    _run_youtube
+fi
