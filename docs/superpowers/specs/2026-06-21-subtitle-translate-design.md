@@ -1,3 +1,11 @@
+---
+migrated: 2026-06-26
+docs:
+  - reference/architecture.md  # §4 Step 3.5 translate 步骤说明（DAG 位置、跳过条件）
+superseded_by:
+  - 2026-06-25-parallel-translate-design.md  # 翻译算法（串行 25s 窗口 → 并行整体式）、格式校验层、AI 字幕预合并
+---
+
 # 字幕翻译步骤（translate）设计文档
 
 ## 概述
