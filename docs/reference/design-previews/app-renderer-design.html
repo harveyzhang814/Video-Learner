@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Pipeline — App UI States Design Preview</title>
+  <style>
+    /* ── Page Chrome ── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      background: #F0F0F0;
+      color: #111;
+      padding: 40px 48px;
+    }
+
+    .page-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    .page-subtitle {
+      font-size: 20px;
+      font-weight: 600;
+      color: #111;
+      margin-bottom: 48px;
+    }
+
+    .state-block {
+      margin-bottom: 64px;
+    }
+
+    .state-label {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #999;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .state-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #DDD;
+    }
+
+    .state-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    /* ── App Frame ── */
+    .app-frame {
+      width: 1200px;
+      height: 680px;
+      border: 1px solid #CCC;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      overflow: hidden;
+      position: relative;
+      background: #FAFAFA;
+    }
+
+    /* ── Design Tokens ── */
+    .app-frame {
+      --grid-unit: 8px;
+      --sidebar-width: 220px;
+      --video-panel-width: 400px;
+      --video-container-height: 200px;
+      --bg: #FFFFFF;
+      --bg-alt: #FAFAFA;
+      --bg-hover: #F5F5F5;
+      --text: #111111;
+      --text-secondary: #666666;
+      --text-muted: #999999;
+      --border: #E5E5E5;
+      --accent: #000000;
+      --radius: 0px;
+      --transition: 0.15s ease;
+    }
+
+    /* ── Layout ── */
+    .app { display: flex; height: 100%; width: 100%; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-width);
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .sidebar-header {
+      padding: calc(var(--grid-unit) * 3);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .new-btn {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    .sidebar-search {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .search-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      padding: 5px 8px;
+    }
+
+    .search-icon { color: var(--text-muted); font-size: 12px; flex-shrink: 0; }
+
+    .sidebar-search-input {
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text);
+      outline: none;
+      width: 100%;
+    }
+
+    .history-label {
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .history-list { flex: 1; overflow-y: auto; }
+
+    .history-item {
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    .history-item.active {
+      background: var(--bg-alt);
+      border-left: 2px solid var(--accent);
+      padding-left: calc(var(--grid-unit) * 3 - 2px);
+    }
+
+    .item-title {
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+
+    .item-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .item-time { font-size: 10px; color: var(--text-muted); }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot.running  { background: #FFD700; }
+    .status-dot.completed { background: #22C55E; }
+    .status-dot.failed   { background: #EF4444; }
+    .status-dot.unknown  { background: #999999; }
+    .status-dot.aborted  { background: #F97316; }
+
+    /* ── Main ── */
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-alt);
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      gap: calc(var(--grid-unit) * 1.5);
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: var(--radius);
+    }
+
+    .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .btn.danger  { background: #D00; color: #FFF; border-color: #D00; }
+
+    /* ── Output Section ── */
+    .output-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .content-card-header {
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3) 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-alt);
+    }
+
+    .tabs {
+      display: inline-flex;
+      background: var(--bg-alt);
+      padding: 2px;
+      margin-bottom: calc(var(--grid-unit) * 2);
+      gap: 0;
+    }
+
+    .tab {
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .tab.active { background: var(--accent); color: var(--bg); }
+
+    /* ── Progress (running state) ── */
+    .progress-section { margin-bottom: calc(var(--grid-unit) * 2); }
+    .progress-bar { height: 3px; background: var(--border); overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); }
+    .progress-steps { display: flex; gap: calc(var(--grid-unit) * 2); margin-top: 8px; }
+    .progress-step {
+      font-size: 11px; color: var(--text-muted);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .progress-step.done  { color: var(--text); }
+    .progress-step.active { color: var(--text); font-weight: 500; }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--border);
+    }
+    .progress-step.done .dot  { background: var(--accent); }
+    .progress-step.active .dot {
+      background: var(--accent);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .content-card-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3) calc(var(--grid-unit) * 3);
+    }
+
+    /* ── Empty / Content ── */
+    .empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .markdown-content { font-size: 14px; line-height: 1.7; color: var(--text); }
+    .markdown-content h1 { font-size: 22px; font-weight: 600; margin: 0 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .markdown-content h2 { font-size: 16px; font-weight: 600; margin: 20px 0 10px; }
+    .markdown-content p  { margin: 0 0 12px; }
+
+    /* ── Resizer ── */
+    .resizer {
+      width: 1px;
+      background: var(--border);
+      cursor: col-resize;
+      flex-shrink: 0;
+    }
+
+    /* ── Video Panel ── */
+    .video-panel {
+      width: var(--video-panel-width);
+      flex-shrink: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border);
+    }
+
+    /* ── Panel Tab Strip ── */
+    .panel-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+    .panel-tab {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 11px;
+      font-weight: 500;
+      text-align: center;
+      cursor: pointer;
+      border: none;
+      background: var(--bg-alt);
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      letter-spacing: 0.02em;
+      font-family: inherit;
+    }
+
+    .panel-tab.active {
+      background: var(--bg);
+      color: var(--text);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .panel-pane { display: none; flex-direction: column; flex: 1; overflow: hidden; min-height: 0; }
+    .panel-pane.active { display: flex; }
+
+    /* ── Player Pane ── */
+    .video-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      height: var(--video-container-height);
+      flex-shrink: 0;
+    }
+
+    .video-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #666;
+      font-size: 13px;
+      gap: 8px;
+    }
+
+    .video-empty-icon { font-size: 28px; opacity: 0.3; }
+
+    .video-controls {
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: calc(var(--grid-unit) * 2);
+      background: var(--bg);
+    }
+
+    .video-btn {
+      width: 32px; height: 32px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; cursor: pointer;
+    }
+
+    .video-progress-track {
+      flex: 1; height: 4px; background: var(--border); position: relative;
+    }
+
+    .video-progress-fill {
+      height: 100%; background: var(--accent); width: 35%;
+    }
+
+    .video-time { font-size: 11px; color: var(--text-muted); font-family: monospace; white-space: nowrap; }
+
+    .video-resizer { height: 6px; background: var(--border); cursor: row-resize; flex-shrink: 0; }
+
+    /* ── Subtitle Module ── */
+    .subtitle-module { flex: 1; overflow-y: auto; border-top: 1px solid var(--border); background: var(--bg); }
+    .subtitle-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: calc(var(--grid-unit) * 2) calc(var(--grid-unit) * 3);
+      border-bottom: 1px solid var(--border);
+    }
+    .subtitle-header-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+    .language-switcher { display: flex; background: var(--bg-alt); padding: 2px; }
+    .language-switcher button {
+      padding: 3px 8px; font-size: 11px; font-weight: 500;
+      border: none; background: transparent; color: var(--text-muted); cursor: pointer;
+    }
+    .language-switcher button.active { background: var(--accent); color: var(--bg); }
+
+    .subtitle-list { padding: calc(var(--grid-unit) * 2); }
+    .subtitle-item { padding: 6px 8px; cursor: pointer; margin-bottom: 2px; }
+    .subtitle-item.active { background: #000; color: #fff; }
+    .subtitle-item .timestamp { font-size: 10px; font-family: monospace; color: var(--text-muted); margin-right: 8px; }
+    .subtitle-item.active .timestamp { color: rgba(255,255,255,0.6); }
+    .subtitle-item .text { font-size: 13px; line-height: 1.5; }
+
+    /* ── Info Pane ── */
+    .info-pane-scroll { flex: 1; overflow-y: auto; }
+
+    .info-pane-section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+
+    .info-pane-section-label {
+      font-size: 10px; font-weight: 500; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 10px;
+    }
+
+    .info-pane-field { margin-bottom: 8px; }
+    .info-pane-field:last-child { margin-bottom: 0; }
+
+    .info-pane-field-label {
+      font-size: 10px; color: var(--text-muted); margin-bottom: 2px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+
+    .info-pane-field-value { font-size: 12px; color: var(--text); line-height: 1.4; word-break: break-all; }
+    .info-pane-field-value.is-title { font-size: 13px; font-weight: 500; word-break: break-word; }
+    .info-pane-field-value.is-url   { color: var(--text-muted); font-size: 11px; }
+
+    /* ── Status Pills ── */
+    .info-status { display: flex; gap: 4px; flex-wrap: wrap; font-size: 11px; }
+
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 7px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .status-pill.active {
+      border-color: #E6AC00;
+      background: #FFFDE7;
+      color: #9A7200;
+    }
+
+    .status-pill.done {
+      border-color: #BBF7D0;
+      background: #F0FDF4;
+      color: #166534;
+    }
+
+    .status-pill.error {
+      border-color: #FECACA;
+      background: #FEF2F2;
+      color: #991B1B;
+      cursor: pointer;
+    }
+
+    .status-pill .icon { font-size: 10px; }
+
+    /* ── TODO Stub ── */
+    .info-pane-todo {
+      padding: 12px 16px;
+      background: var(--bg-alt);
+    }
+
+    .info-pane-todo-label {
+      font-size: 10px; font-weight: 500; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 10px;
+    }
+
+    .info-pane-todo-field { margin-bottom: 6px; }
+    .info-pane-todo-field-label { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .info-pane-todo-field-value { font-size: 12px; color: #CCC; }
+
+    /* ── Video Placeholder ── */
+    .video-placeholder { flex: 1; background: var(--bg-alt); min-height: 60px; }
+
+    /* ── Hidden ── */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="page-title">YouTube Pipeline · Design Preview</div>
+<div class="page-subtitle">App UI States — electron/src/renderer/index.html</div>
+
+<!-- ══════════════════════════════════════════════════
+     状态 1：empty（空状态，无任务选中）
+════════════════════════════════════════════════════ -->
+<div class="state-block">
+  <div class="state-label">
+    <span>1 / 4</span>
+    <span class="state-name">empty — 空状态（无任务选中）</span>
+  </div>
+  <div class="app-frame">
+    <div class="app">
+
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">YouTube Pipeline</div>
+          <button class="new-btn">+ New</button>
+        </div>
+        <div class="sidebar-search">
+          <div class="search-input-wrap">
+            <span class="search-icon">⌕</span>
+            <input class="sidebar-search-input" type="text" placeholder="搜索标题…" disabled>
+          </div>
+        </div>
+        <div class="history-label">History</div>
+        <div class="history-list">
+          <!-- Empty history -->
+          <div style="padding: 24px 16px; text-align: center; color: #999; font-size: 12px;">暂无历史</div>
+        </div>
+      </div>
+
+      <!-- Main -->
+      <div class="main">
+        <!-- Toolbar hidden in empty state -->
+        <div class="output-section">
+          <div class="content">
+            <div class="content-card-header">
+              <div class="tabs">
+                <div class="tab active">文章</div>
+                <div class="tab">摘要</div>
+              </div>
+            </div>
+            <div class="content-card-body">
+              <div class="empty">输入 YouTube 链接开始</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="resizer"></div>
+
+      <!-- Video Panel -->
+      <div class="video-panel">
+        <div class="panel-tabs">
+          <button class="panel-tab active">播放</button>
+          <button class="panel-tab">信息</button>
+        </div>
+        <div class="panel-pane active">
+          <div class="video-container">
+            <div class="video-empty">
+              <div class="video-empty-icon">▶</div>
+              <div>暂无视频</div>
+            </div>
+          </div>
+          <div class="video-controls">
+            <div class="video-btn">▶</div>
+            <div class="video-btn">■</div>
+            <div class="video-progress-track"><div class="video-progress-fill" style="width:0%"></div></div>
+            <div class="video-time">0:00 / 0:00</div>
+          </div>
+          <div class="video-resizer"></div>
+          <div class="video-placeholder"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     状态 2：task-selected（任务选中，播放 tab）
+════════════════════════════════════════════════════ -->
+<div class="state-block">
+  <div class="state-label">
+    <span>2 / 4</span>
+    <span class="state-name">task-selected — 任务选中，文章内容 + 播放 tab</span>
+  </div>
+  <div class="app-frame">
+    <div class="app">
+
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">YouTube Pipeline</div>
+          <button class="new-btn">+ New</button>
+        </div>
+        <div class="sidebar-search">
+          <div class="search-input-wrap">
+            <span class="search-icon">⌕</span>
+            <input class="sidebar-search-input" type="text" placeholder="搜索标题…" disabled>
+          </div>
+        </div>
+        <div class="history-label">History</div>
+        <div class="history-list">
+          <div class="history-item active">
+            <div class="item-title">Andrej Karpathy：神经网络从零开始完整教程</div>
+            <div class="item-meta">
+              <span class="item-time">2026-05-24 14:32</span>
+              <span class="status-dot completed"></span>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="item-title">The Illustrated Transformer — Jay Alammar</div>
+            <div class="item-meta">
+              <span class="item-time">2026-05-23 09:15</span>
+              <span class="status-dot completed"></span>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="item-title">Stanford CS229: Machine Learning Full Course 2023</div>
+            <div class="item-meta">
+              <span class="item-time">2026-05-22 20:47</span>
+              <span class="status-dot failed"></span>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="item-title">How to Build a Startup — Sam Altman</div>
+            <div class="item-meta">
+              <span class="item-time">2026-05-21 11:08</span>
+              <span class="status-dot completed"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="toolbar">
+          <button class="btn">打开</button>
+          <button class="btn">删除</button>
+          <button class="btn">管理</button>
+        </div>
+        <div class="output-section">
+          <div class="content">
+            <div class="content-card-header">
+              <div class="tabs">
+                <div class="tab active">文章</div>
+                <div class="tab">摘要</div>
+              </div>
+            </div>
+            <div class="content-card-body">
+              <div class="markdown-content">
+                <h1>神经网络从零开始：构建 GPT 的完整指南</h1>
+                <p>本视频由 Andrej Karpathy 主讲，系统讲解了从标量反向传播到完整 GPT 模型的实现过程。核心思路是通过"从零构建"来真正理解每个组件的工作原理。</p>
+                <h2>核心模块</h2>
+                <p>Karpathy 首先演示了如何手工实现自动微分引擎 <code>micrograd</code>，仅用约 100 行 Python 代码即可完成标量级别的反向传播，帮助理解梯度计算的本质。</p>
+                <p>在此基础上逐步扩展到 <code>makemore</code> 字符语言模型，引入 Bigram、MLP、BatchNorm 等模块，最终构建完整的 Transformer 架构并实现一个可运行的 GPT。</p>
+                <h2>关键洞见</h2>
+                <p>视频强调实践优先：每个概念都配有可运行的代码，并通过对比 PyTorch 内置模块来验证手写实现的正确性。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="resizer"></div>
+
+      <!-- Video Panel — Player Tab -->
+      <div class="video-panel">
+        <div class="panel-tabs">
+          <button class="panel-tab active">播放</button>
+          <button class="panel-tab">信息</button>
+        </div>
+        <div class="panel-pane active">
+          <div class="video-container">
+            <!-- Simulated video frame -->
+            <div style="width:100%;height:100%;background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 50%,#1a1a1a 100%);display:flex;align-items:center;justify-content:center;">
+              <div style="text-align:center;color:#555;">
+                <div style="font-size:36px;opacity:0.4;">⏸</div>
+                <div style="font-size:11px;color:#444;margin-top:6px;">video.mp4</div>
+              </div>
+            </div>
+          </div>
+          <div class="video-controls">
+            <div class="video-btn">▶</div>
+            <div class="video-btn">■</div>
+            <div class="video-progress-track">
+              <div class="video-progress-fill" style="width:35%"></div>
+            </div>
+            <div class="video-time">28:14 / 1:21:36</div>
+          </div>
+          <div class="video-resizer"></div>
+          <div class="subtitle-module">
+            <div class="subtitle-header">
+              <span class="subtitle-header-label">字幕</span>
+              <div class="language-switcher">
+                <button class="active">中文</button>
+                <button>English</button>
+              </div>
+            </div>
+            <div class="subtitle-list">
+              <div class="subtitle-item">
+                <span class="timestamp">0:28:02</span>
+                <span class="text">我们来看一下如何用 Python 实现反向传播</span>
+              </div>
+              <div class="subtitle-item active">
+                <span class="timestamp">0:28:14</span>
+                <span class="text">这里 grad 就是损失对该节点的偏导数</span>
+              </div>
+              <div class="subtitle-item">
+                <span class="timestamp">0:28:29</span>
+                <span class="text">链式法则告诉我们，每个节点的梯度等于</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     状态 3：running（任务运行中，进度条可见）
+════════════════════════════════════════════════════ -->
+<div class="state-block">
+  <div class="state-label">
+    <span>3 / 4</span>
+    <span class="state-name">running — 任务运行中，中止按钮 + 信息 tab 状态点</span>
+  </div>
+  <div class="app-frame">
+    <div class="app">
+
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">YouTube Pipeline</div>
+          <button class="new-btn">+ New</button>
+        </div>
+        <div class="sidebar-search">
+          <div class="search-input-wrap">
+            <span class="search-icon">⌕</span>
+            <input class="sidebar-search-input" type="text" placeholder="搜索标题…" disabled>
+          </div>
+        </div>
+        <div class="history-label">History</div>
+        <div class="history-list">
+          <div class="history-item active">
+            <div class="item-title">Andrej Karpathy：从零构建 GPT</div>
+            <div class="item-meta">
+              <span class="item-time">刚刚</span>
+              <span class="status-dot running"></span>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="item-title">The Illustrated Transformer — Jay Alammar</div>
+            <div class="item-meta">
+              <span class="item-time">昨天 09:15</span>
+              <span class="status-dot completed"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="toolbar">
+          <button class="btn">打开</button>
+          <button class="btn">删除</button>
+          <button class="btn danger">中止</button>
+          <button class="btn">管理</button>
+        </div>
+        <div class="output-section">
+          <div class="content">
+            <div class="content-card-header">
+              <div class="tabs">
+                <div class="tab active">文章</div>
+                <div class="tab">摘要</div>
+              </div>
+            </div>
+            <div class="content-card-body">
+              <div class="empty" style="color:#BBB;">文章尚未生成（处理中…）</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="resizer"></div>
+
+      <!-- Video Panel — Player Tab (running) -->
+      <div class="video-panel">
+        <div class="panel-tabs">
+          <button class="panel-tab active">播放</button>
+          <button class="panel-tab">信息<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#FFD700;margin-left:5px;vertical-align:middle;position:relative;top:-1px;animation:pulse 1.4s infinite;"></span></button>
+        </div>
+        <div class="panel-pane active">
+          <div class="video-container">
+            <div style="width:100%;height:100%;background:#111;display:flex;align-items:center;justify-content:center;">
+              <div style="text-align:center;color:#444;">
+                <div style="font-size:28px;opacity:0.3;">⏸</div>
+                <div style="font-size:10px;color:#333;margin-top:4px;">下载中…</div>
+              </div>
+            </div>
+          </div>
+          <div class="video-controls">
+            <div class="video-btn">▶</div>
+            <div class="video-btn">■</div>
+            <div class="video-progress-track"><div class="video-progress-fill" style="width:0%"></div></div>
+            <div class="video-time">0:00 / 0:00</div>
+          </div>
+          <div class="video-resizer"></div>
+          <div class="video-placeholder"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     状态 4：info-tab（右侧面板切换到"信息" tab）
+════════════════════════════════════════════════════ -->
+<div class="state-block">
+  <div class="state-label">
+    <span>4 / 4</span>
+    <span class="state-name">info-tab — 右侧面板切换到信息 tab，全字段展示</span>
+  </div>
+  <div class="app-frame">
+    <div class="app">
+
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">YouTube Pipeline</div>
+          <button class="new-btn">+ New</button>
+        </div>
+        <div class="sidebar-search">
+          <div class="search-input-wrap">
+            <span class="search-icon">⌕</span>
+            <input class="sidebar-search-input" type="text" placeholder="搜索标题…" disabled>
+          </div>
+        </div>
+        <div class="history-label">History</div>
+        <div class="history-list">
+          <div class="history-item active">
+            <div class="item-title">Andrej Karpathy：神经网络从零开始完整教程</div>
+            <div class="item-meta">
+              <span class="item-time">2026-05-24 14:32</span>
+              <span class="status-dot completed"></span>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="item-title">The Illustrated Transformer</div>
+            <div class="item-meta">
+              <span class="item-time">2026-05-23 09:15</span>
+              <span class="status-dot completed"></span>
+            </div>
+          </div>
+          <div class="history-item">
+            <div class="item-title">Stanford CS229: Machine Learning</div>
+            <div class="item-meta">
+              <span class="item-time">2026-05-22 20:47</span>
+              <span class="status-dot failed"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main -->
+      <div class="main">
+        <div class="toolbar">
+          <button class="btn">打开</button>
+          <button class="btn">删除</button>
+          <button class="btn">管理</button>
+        </div>
+        <div class="output-section">
+          <div class="content">
+            <div class="content-card-header">
+              <div class="tabs">
+                <div class="tab active">文章</div>
+                <div class="tab">摘要</div>
+              </div>
+            </div>
+            <div class="content-card-body">
+              <div class="markdown-content">
+                <h1>神经网络从零开始：构建 GPT 的完整指南</h1>
+                <p>本视频由 Andrej Karpathy 主讲，系统讲解了从标量反向传播到完整 GPT 模型的实现过程。</p>
+                <h2>核心模块</h2>
+                <p>首先演示如何手工实现自动微分引擎 micrograd，仅用约 100 行 Python 代码完成标量级别的反向传播，帮助理解梯度计算的本质。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="resizer"></div>
+
+      <!-- Video Panel — INFO Tab active -->
+      <div class="video-panel">
+        <div class="panel-tabs">
+          <button class="panel-tab">播放</button>
+          <button class="panel-tab active">信息</button>
+        </div>
+        <!-- Info Pane -->
+        <div class="panel-pane active">
+          <div class="info-pane-scroll">
+
+            <!-- 视频信息 -->
+            <div class="info-pane-section">
+              <div class="info-pane-section-label">视频信息</div>
+              <div class="info-pane-field">
+                <div class="info-pane-field-label">标题</div>
+                <div class="info-pane-field-value is-title">Let's build GPT: from scratch, in code, spelled out.</div>
+              </div>
+              <div class="info-pane-field">
+                <div class="info-pane-field-label">创作者</div>
+                <div class="info-pane-field-value">Andrej Karpathy</div>
+              </div>
+              <div class="info-pane-field">
+                <div class="info-pane-field-label">URL</div>
+                <div class="info-pane-field-value is-url">https://www.youtube.com/watch?v=kCc8FmEb1nY</div>
+              </div>
+              <div class="info-pane-field">
+                <div class="info-pane-field-label">时长</div>
+                <div class="info-pane-field-value">1:21:36</div>
+              </div>
+            </div>
+
+            <!-- 任务配置 -->
+            <div class="info-pane-section">
+              <div class="info-pane-section-label">任务配置</div>
+              <div class="info-pane-field">
+                <div class="info-pane-field-label">输出语言</div>
+                <div class="info-pane-field-value">zh-CN</div>
+              </div>
+              <div class="info-pane-field">
+                <div class="info-pane-field-label">关注点</div>
+                <div class="info-pane-field-value">Transformer 架构实现细节</div>
+              </div>
+            </div>
+
+            <!-- 处理进度 -->
+            <div class="info-pane-section">
+              <div class="info-pane-section-label">处理进度</div>
+              <div class="info-status">
+                <span class="status-pill done"><span class="icon">✓</span><span>获取信息</span></span>
+                <span class="status-pill done"><span class="icon">✓</span><span>视频下载</span></span>
+                <span class="status-pill done"><span class="icon">✓</span><span>音频下载</span></span>
+                <span class="status-pill done"><span class="icon">✓</span><span>字幕下载</span></span>
+                <span class="status-pill done"><span class="icon">✓</span><span>转换文案</span></span>
+                <span class="status-pill done"><span class="icon">✓</span><span>字幕生成</span></span>
+                <span class="status-pill done"><span class="icon">✓</span><span>文章生产</span></span>
+                <span class="status-pill error" title="重试"><span class="icon">✗</span><span>提炼总结</span></span>
+              </div>
+            </div>
+
+            <!-- 时间 -->
+            <div class="info-pane-section">
+              <div class="info-pane-section-label">时间</div>
+              <div class="info-pane-field">
+                <div class="info-pane-field-label">创建</div>
+                <div class="info-pane-field-value">2026/5/24 14:32:01</div>
+              </div>
+              <div class="info-pane-field">
+                <div class="info-pane-field-label">更新</div>
+                <div class="info-pane-field-value">2026/5/24 15:18:44</div>
+              </div>
+            </div>
+
+            <!-- TODO Stub -->
+            <div class="info-pane-todo">
+              <div class="info-pane-todo-label">扩展信息（待接入）</div>
+              <div class="info-pane-todo-field">
+                <div class="info-pane-todo-field-label">发布日期</div>
+                <div class="info-pane-todo-field-value">—</div>
+              </div>
+              <div class="info-pane-todo-field">
+                <div class="info-pane-todo-field-label">播放量</div>
+                <div class="info-pane-todo-field-value">—</div>
+              </div>
+              <div class="info-pane-todo-field">
+                <div class="info-pane-todo-field-label">点赞数</div>
+                <div class="info-pane-todo-field-value">—</div>
+              </div>
+              <div class="info-pane-todo-field">
+                <div class="info-pane-todo-field-label">视频简介</div>
+                <div class="info-pane-todo-field-value">—</div>
+              </div>
+              <div class="info-pane-todo-field">
+                <div class="info-pane-todo-field-label">分辨率 / 帧率</div>
+                <div class="info-pane-todo-field-value">—</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

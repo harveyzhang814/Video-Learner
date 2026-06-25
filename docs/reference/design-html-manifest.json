@@ -1,0 +1,38 @@
+{
+  "version": 3,
+  "baseBranch": "staging",
+  "config": {
+    "outputDir": "docs/reference/design-previews",
+    "designSpec": "DESIGN.md",
+    "platforms": {
+      "renderer": {
+        "label": "Renderer",
+        "stackRef": "references/stack-electron.md",
+        "uiFilePatterns": [
+          "electron/src/renderer/index.html",
+          "electron/src/renderer/ui-state.js",
+          "electron/src/renderer/client-state.js"
+        ],
+        "designSystemFile": "docs/reference/design-system.md",
+        "styleStrategy": "css",
+        "notes": "单文件渲染层：所有 HTML 结构、CSS 样式、JS 逻辑均内联在 index.html 中。无 React/Vue 框架，不使用 JSX/SFC。ui-state.js 和 client-state.js 为辅助模块，影响 UI 状态渲染但本身不含 HTML。设计令牌以 CSS 变量形式声明在 :root 中（--bg, --text, --accent, --border 等）。Swiss Minimal 风格：直角（--radius: 0px）、黑白灰、8px 栅格。"
+      }
+    }
+  },
+  "entries": [
+    {
+      "id": "app-renderer",
+      "platform": "renderer",
+      "htmlFile": "docs/reference/design-previews/app-renderer-design.html",
+      "sourceFiles": [
+        "electron/src/renderer/index.html",
+        "electron/src/renderer/ui-state.js",
+        "electron/src/renderer/client-state.js"
+      ],
+      "uiStates": ["empty", "task-selected", "running", "info-tab"],
+      "lastSyncCommit": "748bd4535c57b871a7c5498c3e27ab2bde7756bd",
+      "description": "Electron 主窗口 — 三栏布局（侧栏历史列表、中间文章/摘要、右侧播放器+信息面板）"
+    }
+  ],
+  "ignoredFiles": []
+}

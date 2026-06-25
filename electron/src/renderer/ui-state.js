@@ -14,4 +14,16 @@ function deriveUiState({ tasks = [], selectedTaskId = null }) {
   };
 }
 
-module.exports = { deriveUiState };
+/**
+ * Derive the state of the info-tab status dot from a task's steps object.
+ * steps: { [stepName]: { status: 'pending'|'running'|'completed'|'skipped'|'failed' } }
+ * Returns: 'running' | 'error' | 'hidden'
+ */
+function deriveInfoTabDot(steps = {}) {
+  const values = Object.values(steps);
+  if (values.some((s) => s.status === 'running')) return 'running';
+  if (values.some((s) => s.status === 'failed')) return 'error';
+  return 'hidden';
+}
+
+module.exports = { deriveUiState, deriveInfoTabDot };

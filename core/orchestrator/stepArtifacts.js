@@ -2,13 +2,14 @@
 
 const fs = require('fs');
 const path = require('path');
+const { getWorkRoot } = require('../paths');
 
 function isNonEmptyString(s) {
   return typeof s === 'string' && s.trim().length > 0;
 }
 
 function getTaskDir(rootDir, id) {
-  return path.join(rootDir, 'work', id);
+  return path.join(getWorkRoot(rootDir), id);
 }
 
 /**
@@ -34,7 +35,7 @@ function canWriteOrCreateTaskDir(rootDir, id) {
       return { ok: true };
     }
 
-    const workDir = path.join(absRoot, 'work');
+    const workDir = getWorkRoot(absRoot);
     if (fs.existsSync(workDir)) {
       if (!fs.statSync(workDir).isDirectory()) {
         return { ok: false, error: 'work/ exists but is not a directory' };
@@ -99,6 +100,15 @@ function validateStepArtifacts(task, stepName) {
         return { ok: false, error: 'url is required' };
       }
       return canWriteOrCreateTaskDir(rootDir, id);
+    }
+    case 'asr': {
+      const mediaDir = path.join(dir, 'media');
+      const hasVideo = fs.existsSync(path.join(mediaDir, 'video.mp4'));
+      const hasAudio = fs.existsSync(path.join(mediaDir, 'audio.m4a'));
+      if (!hasVideo && !hasAudio) {
+        return { ok: false, error: 'No media file found for ASR transcription' };
+      }
+      return { ok: true };
     }
     case 'vtt2md': {
       if (!fs.existsSync(subsDir) || !fs.statSync(subsDir).isDirectory()) {

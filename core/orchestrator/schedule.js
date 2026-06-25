@@ -1,6 +1,66 @@
 'use strict';
 
 /**
+ * Per-step timeout in milliseconds.
+ * Steps that exceed their timeout are killed (SIGTERM → SIGKILL) and marked failed.
+ * Override any value at runtime via env var: VL_TIMEOUT_<STEP>=<ms>
+ * e.g.  VL_TIMEOUT_VIDEO=7200000  (2 h)
+ *
+ * Rationale:
+ *   video/audio  — large file download; network speed varies widely → 2 h
+ *   article      — LLM generation on long transcript; can be slow → 60 min
+ *   summary      — same as article → 60 min
+ *   asr          — Whisper on long audio → 60 min
+ *   fetch/subs   — HTTP metadata calls → 5 min
+ *   vtt2md/md2vtt — local text conversion, should be instant → 5 min
+ */
+const _STEP_TIMEOUTS_MS = {
+  fetch:     10  * 60 * 1000,  // 10 min
+  video:    120  * 60 * 1000,  //  2 h
+  audio:     30  * 60 * 1000,  // 30 min
+  subs:      10  * 60 * 1000,  // 10 min
+  asr:       60  * 60 * 1000,  // 60 min
+  vtt2md:    10  * 60 * 1000,  // 10 min
+  md2vtt:    10  * 60 * 1000,  // 10 min
+  translate: 60  * 60 * 1000,  // 60 min
+  article:   60  * 60 * 1000,  // 60 min
+  summary:   60  * 60 * 1000,  // 60 min
+};
+
+/**
+ * Returns the effective timeout for a step, with optional per-task scale.
+ *
+ * Priority (highest → lowest):
+ *   1. Per-step env override: VL_TIMEOUT_<STEP>=<ms>  (absolute, scale not applied)
+ *   2. Base default × scale  (scale = per-task timeout_scale param or VL_TIMEOUT_SCALE env)
+ *
+ * scale values: 1 = default, 3 = --long, 6 = --ultra-long.
+ * Example: VL_TIMEOUT_SCALE=3 vdl <URL>   → all steps ×3
+ */
+function getStepTimeoutMs(stepName, scale) {
+  // Per-step absolute override (bypasses scale entirely).
+  const envKey = `VL_TIMEOUT_${stepName.toUpperCase()}`;
+  const envVal = process.env[envKey];
+  if (envVal) {
+    const n = Number(envVal);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+
+  const base = _STEP_TIMEOUTS_MS[stepName] ?? (10 * 60 * 1000);
+
+  // Effective scale: per-task param > VL_TIMEOUT_SCALE env > 1.
+  let effectiveScale = 1;
+  if (Number.isFinite(scale) && scale > 0) {
+    effectiveScale = scale;
+  } else {
+    const envScale = Number(process.env.VL_TIMEOUT_SCALE);
+    if (Number.isFinite(envScale) && envScale > 0) effectiveScale = envScale;
+  }
+
+  return Math.round(base * effectiveScale);
+}
+
+/**
  * DAG edges: predecessor → successor (B-layer schedule).
  * fetch fans out to video, audio, subs; subs → vtt2md; vtt2md → md2vtt & article; article → summary.
  */
@@ -8,8 +68,11 @@ const STEP_EDGES = [
   ['fetch', 'video'],
   ['fetch', 'audio'],
   ['fetch', 'subs'],
+  ['fetch', 'asr'],
   ['subs', 'vtt2md'],
-  ['vtt2md', 'md2vtt'],
+  ['asr', 'vtt2md'],
+  ['vtt2md', 'translate'],
+  ['translate', 'md2vtt'],
   ['vtt2md', 'article'],
   ['article', 'summary']
 ];
@@ -19,7 +82,9 @@ const ALL_STEPS = [
   'video',
   'audio',
   'subs',
+  'asr',
   'vtt2md',
+  'translate',
   'md2vtt',
   'article',
   'summary'
@@ -46,6 +111,107 @@ const SUCCESSORS = (() => {
   }
   return m;
 })();
+
+/**
+ * Gate type per node. Omitted nodes default to AND.
+ * AND: all predecessors must be completed/skipped.
+ * OR:  at least one predecessor that can produce output must be reachable.
+ */
+const GATE_TYPE = {
+  vtt2md: 'OR'
+};
+
+/** The single terminal node whose reachability determines task failure. */
+const TERMINAL_NODE = 'summary';
+
+/**
+ * Nodes that must all be completed/skipped for isTaskCompleted.
+ * Excludes side-branch steps (md2vtt) not required for summary output.
+ */
+const CRITICAL_PATH = ['fetch', 'vtt2md', 'article', 'summary'];
+
+/**
+ * Returns true if `node` can still reach completed or skipped state.
+ *
+ * OR gate semantics: a mode-excluded or skipped predecessor does NOT satisfy
+ * the OR gate — it will never produce the required output (e.g. VTT files).
+ * Only a completed predecessor, or a pending+runnable predecessor whose own
+ * predecessors are reachable, satisfies an OR gate.
+ *
+ * @param {string} node
+ * @param {object} steps  - task.steps map
+ * @param {string} mode   - normalised mode string
+ * @param {Set<string>} visited - cycle guard; pass new Set() from callers
+ * @returns {boolean}
+ */
+function isNodeReachable(node, steps, mode, visited) {
+  if (!visited) visited = new Set();
+  if (visited.has(node)) return false; // cycle guard (DAG is acyclic; defensive)
+
+  const status = (steps[node] && steps[node].status) || 'pending';
+  if (status === 'completed' || status === 'skipped') return true;
+  if (status === 'failed') return false;
+
+  // pending / running: check mode exclusion first
+  if (excludedByMode(mode, steps).has(node)) return false; // won't produce output
+
+  // pending / running + not excluded: recurse into predecessors
+  const nextVisited = new Set(visited);
+  nextVisited.add(node);
+  const preds = PREDECESSORS[node] || [];
+  if (preds.length === 0) return true; // root node (fetch)
+
+  if (GATE_TYPE[node] === 'OR') {
+    // OR gate: need at least one predecessor that can actually produce output.
+    return preds.some(function(p) {
+      const ps = (steps[p] && steps[p].status) || 'pending';
+      if (ps === 'completed') return true;                     // produced output
+      if (ps === 'skipped') return false;                      // no output produced
+      if (excludedByMode(mode, steps).has(p)) return false;   // will never produce output
+      return isNodeReachable(p, steps, mode, new Set(nextVisited)); // path-local visited
+    });
+  }
+  // AND gate: every predecessor must be reachable (path-local visited per branch)
+  return preds.every(function(p) {
+    return isNodeReachable(p, steps, mode, new Set(nextVisited));
+  });
+}
+
+/**
+ * Returns true when the task has provably failed (terminal node unreachable).
+ * Replaces isContentStepFailure + CONTENT_STEPS in index.js.
+ * @param {{ params: { mode: string }, steps: object }} task
+ * @returns {boolean}
+ */
+function isTaskFailed(task) {
+  const mode = normalizeMode((task.params && task.params.mode) || 'media');
+  const steps = task.steps || {};
+  return !isNodeReachable(TERMINAL_NODE, steps, mode, new Set());
+}
+
+/**
+ * Returns true when the task has completed successfully.
+ * All CRITICAL_PATH nodes must be completed/skipped AND:
+ *   - subs must be completed or skipped, OR asr must be completed.
+ * Note: asr must be completed (not just skipped) because a skipped asr
+ * produced no transcript. subs=skipped is allowed (e.g., transcript fast-path).
+ * Stricter than checking summary.status alone — prevents false completion
+ * when skipStep('summary') is called manually without the pipeline running.
+ * @param {{ steps: object }} task
+ * @returns {boolean}
+ */
+function isTaskCompleted(task) {
+  const steps = task.steps || {};
+  const criticalDone = CRITICAL_PATH.every(function(n) {
+    const s = steps[n] && steps[n].status;
+    return s === 'completed' || s === 'skipped';
+  });
+  if (!criticalDone) return false;
+  const subsOrAsrDone =
+    (steps.subs && (steps.subs.status === 'completed' || steps.subs.status === 'skipped')) ||
+    (steps.asr && steps.asr.status === 'completed');
+  return !!subsOrAsrDone;
+}
 
 /**
  * All nodes reachable from `stepName` following edges from → to (includes `stepName`).
@@ -75,8 +241,9 @@ const PRIMARY_CHAIN = ['fetch', 'subs', 'vtt2md', 'article', 'summary'];
 /**
  * Secondary-chain order; filtered by mode inside pickNextStep.
  * both: video + md2vtt (never audio, matching runTask).
+ * asr is also secondary-chain — only activates when subs failed and media is ready.
  */
-const SECONDARY_CHAIN_BASE = ['video', 'audio', 'md2vtt'];
+const SECONDARY_CHAIN_BASE = ['video', 'audio', 'asr', 'translate', 'md2vtt'];
 
 function predecessorSatisfied(task, predName) {
   const st = task.steps && task.steps[predName];
@@ -85,13 +252,32 @@ function predecessorSatisfied(task, predName) {
 }
 
 /**
- * Steps that must never be scheduled as candidates for this mode (even if pending).
+ * Normalise a raw mode string to a known mode value.
+ * Accepts legacy names ('both', 'video') and maps them to 'media'.
+ * Unknown/empty values default to 'media'.
  */
-function excludedByMode(mode) {
-  const m = mode || 'both';
+function normalizeMode(raw) {
+  const m = String(raw || '').trim();
+  if (m === 'both' || m === 'video' || m === 'media') return 'media';
+  if (m === 'audio') return 'audio';
+  if (m === 'transcript') return 'transcript';
+  if (m === 'full') return 'full';
+  return 'media';
+}
+
+/**
+ * Steps that must never be scheduled for a given mode.
+ * @param {string} mode
+ * @param {object} [steps] - current task.steps (used by 'media' for dynamic audio fallback)
+ * @returns {Set<string>}
+ */
+function excludedByMode(mode, steps) {
+  const m = normalizeMode(mode);
   const ex = new Set();
-  if (m === 'both' || m === 'video') {
-    ex.add('audio');
+  if (m === 'media') {
+    // audio only becomes schedulable after video has definitively failed
+    const videoFailed = steps && steps.video && steps.video.status === 'failed';
+    if (!videoFailed) ex.add('audio');
   }
   if (m === 'audio') {
     ex.add('video');
@@ -100,12 +286,28 @@ function excludedByMode(mode) {
     ex.add('video');
     ex.add('audio');
   }
+  // 'full': nothing excluded — video and audio both run, video has higher secondary-chain priority
+
+  // asr: fallback step — only runs when subs failed AND media is available
+  const subsFailed = steps && steps.subs && steps.subs.status === 'failed';
+  if (!subsFailed || m === 'transcript') {
+    ex.add('asr');
+  } else if (m === 'audio') {
+    const audioOk = steps && steps.audio && steps.audio.status === 'completed';
+    if (!audioOk) ex.add('asr');
+  } else {
+    // media and full: need video.mp4 or audio.m4a (audio fallback in media mode)
+    const videoOk = steps && steps.video && steps.video.status === 'completed';
+    const audioOk = steps && steps.audio && steps.audio.status === 'completed';
+    if (!videoOk && !audioOk) ex.add('asr');
+  }
+
   return ex;
 }
 
-function secondaryChainForMode(mode) {
-  const m = mode || 'both';
-  return SECONDARY_CHAIN_BASE.filter((name) => !excludedByMode(m).has(name));
+function secondaryChainForMode(mode, steps) {
+  const m = normalizeMode(mode);
+  return SECONDARY_CHAIN_BASE.filter((name) => !excludedByMode(m, steps).has(name));
 }
 
 /**
@@ -116,8 +318,8 @@ function secondaryChainForMode(mode) {
  * @returns {Set<string>}
  */
 function computeReadySteps(task) {
-  const mode = (task.params && task.params.mode) || 'both';
-  const excluded = excludedByMode(mode);
+  const mode = normalizeMode((task.params && task.params.mode) || 'media');
+  const excluded = excludedByMode(mode, task.steps);
   const ready = new Set();
 
   for (const name of ALL_STEPS) {
@@ -125,13 +327,13 @@ function computeReadySteps(task) {
     const step = task.steps && task.steps[name];
     if (!step || step.status !== 'pending') continue;
 
+    const gate  = GATE_TYPE[name] || 'AND';
     const preds = PREDECESSORS[name] || [];
-    let ok = true;
-    for (const p of preds) {
-      if (!predecessorSatisfied(task, p)) {
-        ok = false;
-        break;
-      }
+    let ok;
+    if (gate === 'OR') {
+      ok = preds.some(function(p) { return predecessorSatisfied(task, p); });
+    } else {
+      ok = preds.every(function(p) { return predecessorSatisfied(task, p); });
     }
     if (ok) ready.add(name);
   }
@@ -142,21 +344,44 @@ function computeReadySteps(task) {
 /**
  * @param {Set<string>|string[]} readySet
  * @param {string} [mode]
+ * @param {object} [steps] - task.steps, used for dynamic exclusion in media mode
  * @returns {string|null}
  */
-function pickNextStep(readySet, mode) {
+function pickNextStep(readySet, mode, steps) {
   const ready =
     readySet instanceof Set ? readySet : new Set(Array.isArray(readySet) ? readySet : []);
-  const m = mode || 'both';
+  const m = normalizeMode(mode);
 
   for (const name of PRIMARY_CHAIN) {
     if (ready.has(name)) return name;
   }
-  const secondary = secondaryChainForMode(m);
+  const secondary = secondaryChainForMode(m, steps);
   for (const name of secondary) {
     if (ready.has(name)) return name;
   }
   return null;
+}
+
+/**
+ * Order all ready steps by scheduling priority (main chain first, then secondary).
+ * Pure: repeatedly applies pickNextStep over a shrinking working copy so the
+ * existing priority rules are the single source of truth.
+ *
+ * @param {Set<string>|string[]} readySet
+ * @param {string} [mode]
+ * @param {object} [steps]
+ * @returns {string[]} ready step names in priority order
+ */
+function pickReadyStepsOrdered(readySet, mode, steps) {
+  const work =
+    readySet instanceof Set ? new Set(readySet) : new Set(Array.isArray(readySet) ? readySet : []);
+  const out = [];
+  let next;
+  while ((next = pickNextStep(work, mode, steps)) !== null) {
+    out.push(next);
+    work.delete(next);
+  }
+  return out;
 }
 
 module.exports = {
@@ -164,8 +389,17 @@ module.exports = {
   ALL_STEPS,
   PREDECESSORS,
   SUCCESSORS,
+  GATE_TYPE,
+  TERMINAL_NODE,
+  CRITICAL_PATH,
+  isNodeReachable,
+  isTaskFailed,
+  isTaskCompleted,
   computeReadySteps,
   pickNextStep,
+  pickReadyStepsOrdered,
   getDownstreamClosure,
-  excludedByMode
+  excludedByMode,
+  normalizeMode,
+  getStepTimeoutMs,
 };

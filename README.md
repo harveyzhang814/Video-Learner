@@ -11,32 +11,45 @@ YouTube 视频处理流水线 - 下载、转录、总结，一站式完成。
 - **文章整理**: 将转录整理为结构化文章
 - **重点总结**: 根据你关注的重点生成精准摘要
 - **桌面客户端**: 提供 Electron GUI，支持视频播放和字幕同步
+- **Web 客户端**: 浏览器界面（`vdl web`），关闭页面后端自动停（详见 [docs/how-to/run-web.md](docs/how-to/run-web.md)）
 
 ## 快速开始
 
-### 首次安装
+### 正式安装（推荐）
+
+安装完成后**可删除仓库**，`vdl` 独立运行：
 
 ```bash
-# 自动安装所有依赖（推荐）
-bash scripts/install.sh
-
-# 或者直接启动（会自动检查并安装依赖）
-bash start-electron.sh
+bash scripts/install.sh                # 安装系统依赖（yt-dlp / ffmpeg / jq）
+npm install                            # 安装 Node 依赖
+npm pack && npm install -g ./video-learner-*.tgz && rm video-learner-*.tgz
 ```
 
-### 部署到新机器
+首次运行任意 `vdl` 命令时，向导自动创建 **`~/.config/vdl/settings.conf`** 并询问数据目录（默认 `~/vdl-work`）。
 
-`scripts/settings.conf` **不会随仓库提交**（见 `.gitignore`），克隆后请复制并编辑：
+### 开发安装
+
+在仓库内直接运行，改代码立即生效，无需重新安装：
 
 ```bash
-cp scripts/settings.example.conf scripts/settings.conf
+bash scripts/install.sh && npm install
+node cli/index.js <URL>                # 直接调用 CLI 入口
+npm link                               # 或：注册 symlink 以使用 vdl 命令（仅开发期间）
 ```
+
+### 启动方式
+
+```bash
+vdl <YouTube URL>          # CLI：跑任务（最常用，给 agent 也是它）
+vdl web                    # Web 端：起后端 + 开浏览器（关浏览器自动停后端）
+bash start-electron.sh     # Electron 桌面客户端
+```
+
+### 配置
 
 至少配置 **`WRITING_ENGINE_DEFAULT`**（`opencode` / `claude`）、**`OUTPUT_LANG`**；若 YouTube 出现人机验证，再配置 **`YT_DLP_COOKIES_BROWSER`** 或 **`YT_DLP_COOKIES_FILE`**。手动跑 Agent Service 时可设置环境变量 **`PORT`**、**`AGENT_EVENTS_TOKEN`**、**`OPENCODE_HOST`** / **`OPENCODE_PORT`** 等。
 
-根目录 **`npm install`** 为跑 Agent Service / 测试所必需；仅 GUI 时仍需 **`cd electron && npm install`**。
-
-**完整清单与步骤**见 **[部署指南：docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**。
+**完整清单与步骤**见 **[部署指南：docs/how-to/deploy.md](docs/how-to/deploy.md)**。
 
 ### Agent Service（HTTP 编排）
 
@@ -47,11 +60,11 @@ cp scripts/settings.example.conf scripts/settings.conf
 npm run agent:serve
 ```
 
-在另一终端使用 `POST /api/tasks` 创建任务（`url`、`focus`、`mode`、`force` 等），或配合外部 agent 调用。字段语义与下面「参数说明」对应；完整约定见 [docs/PROJECT_KNOWLEDGE.md](docs/PROJECT_KNOWLEDGE.md) 中「Agent HTTP Service」一节。
+在另一终端使用 `POST /api/tasks` 创建任务（`url`、`focus`、`mode`、`force` 等），或配合外部 agent 调用。`mode` 可选值：`media`（默认，下载视频，视频失败自动兜底音频）/ `audio`（仅音频）/ `transcript`（仅转录，不下载媒体）/ `full`（视频 + 音频均下载）。字段完整约定见 [docs/reference/api.md](docs/reference/api.md)。
 
-**单步执行与重置**：`POST /api/tasks/:taskId/steps/:stepName/run` 支持 body 字段 **`reset_scope`**：`off`（默认，仅执行该步）| `step`（先重置该步再执行）| `downstream`（按 DAG 重置锚点及下游后再触发整条 `runTask` 调度）。语义与状态码见 [docs/PROJECT_KNOWLEDGE.md](docs/PROJECT_KNOWLEDGE.md) 与 [docs/plans/2026-03-22-resume-from-step-design.md](docs/plans/2026-03-22-resume-from-step-design.md)。
+**单步执行与重置**：`POST /api/tasks/:taskId/steps/:stepName/run` 支持 body 字段 **`reset_scope`**：`off`（默认，仅执行该步）| `step`（先重置该步再执行）| `downstream`（按 DAG 重置锚点及下游后再触发整条 `runTask` 调度）。语义与状态码见 [docs/reference/api.md](docs/reference/api.md)。
 
-编排层 **`runTask`** 使用 B 层 DAG + 主链/次优先串行调度（见 [docs/plans/2026-03-22-orchestrator-dag-scheduler.md](docs/plans/2026-03-22-orchestrator-dag-scheduler.md)），与「视频失败不挡字幕链」等产品约束一致。
+编排层 **`runTask`** 使用 B 层 DAG + 主链/次优先串行调度（见 [docs/reference/architecture.md](docs/reference/architecture.md)），与「视频失败不挡字幕链」等产品约束一致。
 
 端到端校验（与上述编排一致、较慢）：
 
@@ -67,6 +80,19 @@ npm run test:agent:e2e
 bash start-electron.sh
 ```
 
+### Web 端使用
+
+```bash
+# 起后端 + 在默认浏览器打开 web 端
+vdl web                  # 默认
+vdl web --no-browser     # 只起后端，不开浏览器
+vdl web --port 3001      # 端口覆盖
+```
+
+行为：CLI 起后端后**立即退出**，终端回到 prompt；你在浏览器里操作，关闭浏览器 tab 后约 30 秒后端自动停。无需 Ctrl+C 终端。
+
+> **Web 端是给人用的图形界面**，agent 不要自己访问它。Agent 唯一合法触发 `vdl web` 的场景是"替用户打开 UI"。Agent 自己跑任务请用 `vdl <URL>` / `vdl list / status / result` 或 `core/agent-connect.connect()`。详见 [docs/how-to/run-web.md](docs/how-to/run-web.md) 的「Agent 用法」。
+
 ## 参数说明
 
 创建任务时（GUI 表单或 `POST /api/tasks`）常用字段如下：
@@ -74,7 +100,7 @@ bash start-electron.sh
 | 字段 / 概念 | 说明 | 典型默认 |
 |-------------|------|----------|
 | `url` | YouTube 视频链接 | 必填 |
-| `mode` | `both` / `video` / `audio` / `transcript` | 视 UI 而定 |
+| `mode` | `media`（默认）/ `audio` / `transcript` / `full` | `media` |
 | `force` | 是否强制重跑对应步骤 | `false` |
 | `focus` | 总结侧重点 | 可选 |
 | `output_lang` | 输出语言（如 `zh-CN`） | `zh-CN` |
@@ -83,7 +109,7 @@ bash start-electron.sh
 
 ## 输出结构
 
-（与 [docs/PROJECT_KNOWLEDGE.md](docs/PROJECT_KNOWLEDGE.md) 一致；`id` 为 `sha1(url)` 前 12 位。）
+（与 [docs/reference/architecture.md](docs/reference/architecture.md) 一致；`id` 为 `sha1(url)` 前 12 位。）
 
 ```
 work/
@@ -113,6 +139,39 @@ work/
 
 完整列表见根目录 **`package.json`** 的 `scripts`。
 
+## Dev Harness（开发调试）
+
+`harness/` 目录提供带实时错误监测的开发启动脚本，与生产脚本（`scripts/`、`start-electron.sh`）完全分离。
+
+```
+harness/
+├── start-dev.sh           # 统一开发入口（后端 + monitor + debug-env，可选 Electron）
+├── monitor.sh             # 后台 watcher，随应用启动/关闭
+├── check-errors.sh        # 一键错误摘要
+└── debug/                 # 日志聚合工具（setup/read/stop/discover）
+```
+
+**使用方式**：
+
+```bash
+# 仅启动后端（Agent HTTP Service + monitor + debug-env）
+bash harness/start-dev.sh
+
+# 启动后端 + Electron GUI
+bash harness/start-dev.sh --electron
+```
+
+启动后 monitor 在后台持续监测日志，将错误摘要写入 `/tmp/vl-error-summary.txt`。Ctrl-C 退出时，所有子进程同步关闭。
+
+**检查错误**（另开一个终端或由 Agent 调用）：
+
+```bash
+bash harness/check-errors.sh
+```
+
+> **生产部署**：继续使用 `npm run agent:serve` / `bash start-electron.sh`，`harness/` 目录不参与生产。  
+> **详细设计**：见 [harness/README.md](harness/README.md)。
+
 ## 总结模板
 
 生成的 summary.md 包含：
@@ -126,7 +185,7 @@ work/
 ## 示例
 
 - 启动 **GUI**，在界面中粘贴 URL，填写「关注重点」，选择是否下载视频/音频后创建任务。
-- 或使用 **Agent Service**：`npm run agent:serve` 后按 `docs/PROJECT_KNOWLEDGE.md` 中的 HTTP 示例创建任务并轮询状态。
+- 或使用 **Agent Service**：`npm run agent:serve` 后按 [docs/reference/api.md](docs/reference/api.md) 中的 HTTP 示例创建任务并轮询状态。
 
 ## 注意事项
 

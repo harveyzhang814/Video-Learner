@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Video Learner · 任务详情（极简阅读版）</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <style>
+    :root {
+      --bg-canvas: #F9F8F4;
+      --bg-surface: #FFFFFF;
+      --bg-elevated: #F1EFE9;
+      --border-subtle: #E5E2DA;
+      --text-primary: #2C2A24;
+      --text-secondary: #67645E;
+      --text-tertiary: #9C9890;
+      --accent-9: #5A8A5A;
+      --accent-11: #3D5E3D;
+      --accent-3: #EBF1E8;
+      --ok: #4A8A5A;
+    }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+    .surface { background: var(--bg-surface); }
+    .elevated { background: var(--bg-elevated); }
+    .border-subtle { border-color: var(--border-subtle); }
+    .text-secondary { color: var(--text-secondary); }
+    .text-tertiary { color: var(--text-tertiary); }
+    .text-accent { color: var(--accent-11); }
+    .bg-accent-3 { background: var(--accent-3); }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; }
+    .chinese { line-height: 1.75; }
+
+    .prose-cn {
+      line-height: 1.85;
+      font-size: 14px;
+      color: var(--text-primary);
+      font-feature-settings: "kern", "liga";
+    }
+    .prose-cn h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 32px 0 12px;
+      letter-spacing: -0.005em;
+    }
+    .prose-cn h3 {
+      font-size: 14.5px;
+      font-weight: 600;
+      margin: 22px 0 8px;
+    }
+    .prose-cn p { margin: 14px 0; }
+    .prose-cn blockquote {
+      border-left: 2px solid var(--accent-9);
+      padding: 4px 0 4px 14px;
+      margin: 18px 0;
+      color: var(--text-secondary);
+    }
+    .prose-cn code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      color: var(--accent-11);
+      background: var(--accent-3);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+    .prose-cn ul { padding-left: 20px; margin: 12px 0; }
+    .prose-cn li { margin: 8px 0; }
+    .prose-cn strong { color: var(--text-primary); font-weight: 600; }
+
+    kbd {
+      font-size: 11px;
+      padding: 2px 6px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      color: var(--text-secondary);
+    }
+
+    .subtitle-row {
+      transition: background 120ms ease-out;
+      cursor: pointer;
+      padding: 10px 16px;
+    }
+    .subtitle-row:hover { background: var(--bg-canvas); }
+    .subtitle-row.active { background: var(--accent-3); }
+    .subtitle-row.active .time { color: var(--accent-11); }
+
+    .toc-link {
+      color: var(--text-tertiary);
+      transition: color 120ms ease-out;
+      font-size: 12.5px;
+      display: block;
+      padding: 4px 0;
+    }
+    .toc-link.active { color: var(--text-primary); font-weight: 500; }
+    .toc-link:hover { color: var(--text-secondary); }
+
+    .tab {
+      padding: 10px 0;
+      margin-right: 24px;
+      color: var(--text-tertiary);
+      font-size: 14px;
+      border-bottom: 2px solid transparent;
+      transition: color 120ms;
+      cursor: pointer;
+    }
+    .tab:hover { color: var(--text-secondary); }
+    .tab.active {
+      color: var(--text-primary);
+      font-weight: 500;
+      border-bottom-color: var(--accent-9);
+    }
+  </style>
+</head>
+<body class="h-screen overflow-hidden">
+
+<div class="flex flex-col h-full">
+
+  <header class="h-12 flex items-center justify-between px-5 border-b border-subtle flex-shrink-0">
+    <div class="flex items-center gap-4 min-w-0">
+      <button class="text-sm text-tertiary hover:text-secondary">←</button>
+      <h1 class="chinese text-sm font-medium truncate">Andrej Karpathy: Deep Dive into LLMs like ChatGPT</h1>
+    </div>
+    <div class="flex items-center gap-3 flex-shrink-0">
+      <button class="text-xs text-tertiary hover:text-secondary">沉浸 <kbd>F</kbd></button>
+      <button class="text-xs text-tertiary hover:text-secondary"><kbd>⌘K</kbd></button>
+      <button class="text-xs text-tertiary hover:text-secondary">⋯</button>
+    </div>
+  </header>
+
+  <div class="flex-1 flex min-h-0">
+
+    <!-- 左 42%：播放器 + 转录 -->
+    <section class="w-[42%] flex flex-col border-r border-subtle">
+
+      <div class="relative bg-black aspect-video flex-shrink-0">
+        <div class="absolute inset-0 flex items-center justify-center text-white/30 text-sm">
+          <span class="mono text-xs">video</span>
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 px-4 py-3 bg-gradient-to-t from-black/70 to-transparent">
+          <div class="flex items-center gap-3 text-white text-xs">
+            <button class="text-base">▶</button>
+            <span class="mono text-white/70">3:42 / 15:32</span>
+            <div class="flex-1 h-0.5 bg-white/20 rounded-full overflow-hidden">
+              <div class="h-full" style="width: 24%; background: var(--accent-9);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto">
+        <div class="px-4 py-2.5 flex items-center gap-4 text-xs border-b border-subtle">
+          <a class="text-primary font-medium cursor-pointer">中文</a>
+          <a class="text-tertiary hover:text-secondary cursor-pointer">EN</a>
+          <span class="ml-auto text-tertiary">6 段</span>
+        </div>
+        <ul class="py-2">
+          <li class="subtitle-row">
+            <div class="time mono text-xs text-tertiary mb-1">0:00</div>
+            <p class="chinese text-[13.5px] text-secondary">大家好，今天我们要深入聊一聊大语言模型，比如 ChatGPT 是怎么工作的。</p>
+          </li>
+          <li class="subtitle-row">
+            <div class="time mono text-xs text-tertiary mb-1">0:42</div>
+            <p class="chinese text-[13.5px] text-secondary">这个领域过去几年发展得非常快，但底层原理其实可以拆成几个清晰的阶段。</p>
+          </li>
+          <li class="subtitle-row active">
+            <div class="time mono text-xs mb-1">3:42</div>
+            <p class="chinese text-[13.5px]">第一阶段是预训练。我们从互联网上抓取大量文本，然后让神经网络去预测下一个 token。</p>
+          </li>
+          <li class="subtitle-row">
+            <div class="time mono text-xs text-tertiary mb-1">4:18</div>
+            <p class="chinese text-[13.5px] text-secondary">这个过程的计算量是巨大的——通常需要几千张 GPU 跑几个月。</p>
+          </li>
+          <li class="subtitle-row">
+            <div class="time mono text-xs text-tertiary mb-1">5:01</div>
+            <p class="chinese text-[13.5px] text-secondary">预训练完成后，我们得到的是一个 base model。它已经"懂"很多东西，但还不太擅长对话。</p>
+          </li>
+          <li class="subtitle-row">
+            <div class="time mono text-xs text-tertiary mb-1">5:54</div>
+            <p class="chinese text-[13.5px] text-secondary">所以第二阶段就来了：监督式微调（SFT），让模型学会"对话"的风格。</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 右 65%：阅读区，宽敞通透 -->
+    <section class="flex-1 flex flex-col min-w-0 overflow-hidden">
+
+      <div class="px-12 border-b border-subtle flex items-center justify-between flex-shrink-0">
+        <div class="flex">
+          <button class="tab active">总结</button>
+          <button class="tab">文章</button>
+        </div>
+        <button class="text-xs text-tertiary hover:text-secondary py-3">复制</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto">
+        <div class="flex max-w-5xl mx-auto">
+
+          <article class="flex-1 px-12 py-14 prose-cn">
+
+            <h2 id="overview">概览</h2>
+            <p>这是 Andrej Karpathy 关于大语言模型的一次<strong>深度技术讲解</strong>，覆盖了从预训练到 RLHF 的完整流程。整个视频长度 15 分钟，内容密度极高，几乎没有水话。</p>
+
+            <blockquote>
+              如果你只听一次入门讲座，这一个就够了。
+            </blockquote>
+
+            <h2 id="pretraining">一、预训练（Pretraining）</h2>
+            <p>预训练是 LLM 训练的<strong>第一个阶段</strong>，目标是让模型学会"世界知识"。核心方法是 <code>next-token prediction</code>。</p>
+
+            <h3>数据规模</h3>
+            <ul>
+              <li>训练语料：通常 <code>10T+ tokens</code>，来自互联网爬取 + 书籍 + 代码</li>
+              <li>计算资源：<strong>数千张 H100 GPU</strong>，运行 2-3 个月</li>
+              <li>成本：单次训练 <code>$10M+</code></li>
+            </ul>
+
+            <h3>输出形态</h3>
+            <p>预训练完成后得到的是一个 <strong>base model</strong>。它已经掌握了大量知识，但还不擅长"对话"——它只会"接下文"。</p>
+
+            <h2 id="sft">二、监督式微调（SFT）</h2>
+            <p>SFT 阶段教会模型用<strong>助手式语气</strong>回应。人工写一批高质量的「问题 → 答案」配对，让模型在这些数据上继续训练。</p>
+
+            <blockquote>
+              SFT 不是教模型新知识，而是教它新格式。
+            </blockquote>
+
+            <h2 id="rlhf">三、RLHF（人类反馈强化学习）</h2>
+            <p>这一步是 ChatGPT 真正"好用"的关键。流程分三步：</p>
+            <ul>
+              <li>训练一个 reward model 来评估回答质量</li>
+              <li>用 PPO 算法让 LLM 最大化 reward</li>
+              <li>持续收集人类反馈，迭代优化</li>
+            </ul>
+
+            <h2 id="future">四、未来方向</h2>
+            <p>Karpathy 提到几个值得关注的方向：<strong>多模态</strong>、<strong>长上下文</strong>、<strong>agentic 能力</strong>，以及更高效的训练方法。</p>
+
+          </article>
+
+          <aside class="w-44 px-6 py-14 flex-shrink-0">
+            <nav class="sticky top-14">
+              <a href="#overview" class="toc-link">概览</a>
+              <a href="#pretraining" class="toc-link active">一、预训练</a>
+              <a href="#sft" class="toc-link">二、监督式微调</a>
+              <a href="#rlhf" class="toc-link">三、RLHF</a>
+              <a href="#future" class="toc-link">四、未来方向</a>
+            </nav>
+          </aside>
+
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+</body>
+</html>

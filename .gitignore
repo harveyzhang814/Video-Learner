@@ -18,11 +18,14 @@ Thumbs.db
 # Node
 node_modules/
 electron/node_modules/
+web/node_modules
+web/dist
 
 # Temp
 *.tmp
 *.temp
 *.part
+tmp/
 
 # Worktree
 .worktrees/
@@ -34,8 +37,11 @@ scripts/settings.conf
 work/*
 *.log
 
-# Claude
-.claude/*.md
+# Claude（本地配置，不上传）
+.claude/
 
 # Cursor（本地技能，不上传）
 .cursor/skills/ui-ux-pro-max/
+.gstack/
+.superpowers/
+*.tgz

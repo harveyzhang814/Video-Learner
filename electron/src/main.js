@@ -8,14 +8,37 @@ let mainWindow;
 // 将 renderer console 写入项目内文件，便于排查（agent 可直接 read_file）
 const RENDERER_LOG_PATH = path.join(__dirname, '..', 'renderer-console.log');
 
+// 将主进程 console 写入文件，便于 agent 检测崩溃/错误
+const MAIN_LOG_PATH = path.join(__dirname, '..', 'main-process.log');
+(function patchConsole() {
+  const _write = (level, args) => {
+    const line = `[${new Date().toISOString()}] [${level}] ${args.map(String).join(' ')}\n`;
+    try { fs.appendFileSync(MAIN_LOG_PATH, line, 'utf8'); } catch (_) {}
+  };
+  const orig = { log: console.log, warn: console.warn, error: console.error };
+  console.log   = (...a) => { orig.log(...a);   _write('info',  a); };
+  console.warn  = (...a) => { orig.warn(...a);  _write('warn',  a); };
+  console.error = (...a) => { orig.error(...a); _write('error', a); };
+  process.on('uncaughtException', (err) => {
+    _write('fatal', [`UncaughtException: ${err && err.stack ? err.stack : err}`]);
+  });
+  process.on('unhandledRejection', (reason) => {
+    _write('fatal', [`UnhandledRejection: ${reason && reason.stack ? reason.stack : reason}`]);
+  });
+})();
+
+const ICON_PATH = path.join(__dirname, '..', 'assets', 'icon.icns');
+
 function createWindow() {
   try {
     fs.writeFileSync(RENDERER_LOG_PATH, `[${new Date().toISOString()}] Electron launch, log started\n`, 'utf8');
+    fs.appendFileSync(MAIN_LOG_PATH, `[${new Date().toISOString()}] [info] Electron window creating\n`, 'utf8');
   } catch (_) {}
 
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 800,
+    icon: ICON_PATH,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -23,7 +46,7 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  mainWindow.loadURL('http://127.0.0.1:3000/');
 
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
     const levelMap = { 0: 'debug', 1: 'info', 2: 'warn', 3: 'error' };
@@ -42,6 +65,10 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  // 设置 macOS Dock 图标
+  if (process.platform === 'darwin' && app.dock) {
+    try { app.dock.setIcon(ICON_PATH); } catch (_) {}
+  }
   try {
     await helpers.startLocalHttpService();
   } catch (e) {
@@ -58,8 +85,9 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-app.on('before-quit', () => {
-  helpers.stopLocalHttpService();
+app.on('before-quit', (event) => {
+  event.preventDefault();
+  helpers.stopLocalHttpService().then(() => app.quit());
 });
 
 ipcMain.handle('open-task-folder', async (_event, taskId) => {
@@ -71,7 +99,7 @@ ipcMain.handle('open-task-folder', async (_event, taskId) => {
 
     const url = new URL(`/api/tasks/${encodeURIComponent(taskId)}/paths`, info.baseUrl);
     const res = await fetch(url.toString(), {
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${info.token}` }
     });
 
     if (!res.ok) {

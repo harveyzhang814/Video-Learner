@@ -105,6 +105,21 @@ export class ServiceClient {
     return this._fetchJson(`/api/tasks/${encodeURIComponent(taskId)}?${q}`, { method: 'DELETE' });
   }
 
+  cancelTask(taskId) {
+    return this._fetchJson(`/api/tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' });
+  }
+
+  resumeTask(taskId) {
+    return this._fetchJson(`/api/tasks/${encodeURIComponent(taskId)}/resume`, { method: 'POST' });
+  }
+
+  cancelStep(taskId, stepName) {
+    return this._fetchJson(
+      `/api/tasks/${encodeURIComponent(taskId)}/steps/${encodeURIComponent(stepName)}/cancel`,
+      { method: 'POST' }
+    );
+  }
+
   subscribeEvents({ lastEventId } = {}) {
     const url = new URL(`${this.baseUrl}/api/events`);
     url.searchParams.set('token', this.token);

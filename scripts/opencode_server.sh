@@ -28,7 +28,7 @@ opencode_server_pid_file() {
 opencode_server_health() {
   local base
   base="$(opencode_server_base_url)"
-  curl -fsS --max-time 2 "${base}/global/health" >/dev/null
+  curl -fs --max-time 2 "${base}/global/health" >/dev/null 2>&1
 }
 
 opencode_server_ensure() {

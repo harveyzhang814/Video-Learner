@@ -2,13 +2,9 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SETTINGS_FILE="$SCRIPT_DIR/settings.conf"
-
-if [ -f "$SETTINGS_FILE" ]; then
-  # shellcheck source=/dev/null
-  source "$SETTINGS_FILE"
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/user-config.sh"
 
 INPUT_FILE=""
 OUTPUT_FILE=""
@@ -51,7 +47,7 @@ fi
 
 # Resolve final writing engine with precedence:
 # 1) explicit WRITING_ENGINE
-# 2) WRITING_ENGINE_DEFAULT from settings.conf
+# 2) WRITING_ENGINE_DEFAULT from ~/.config/vdl/settings.conf
 # 3) hard fallback: opencode
 raw_engine="${WRITING_ENGINE:-${WRITING_ENGINE_DEFAULT:-opencode}}"
 case "$raw_engine" in
@@ -120,7 +116,7 @@ run_opencode() {
   # Send message and capture response
   local msg_json
   if ! msg_json="$(curl -fsS -H "Content-Type: application/json" \
-    -d "{\"parts\":[{\"type\":\"text\",\"text\":${prompt_json}}],\"model\":{\"providerID\":\"minimax-cn-coding-plan\",\"modelID\":\"MiniMax-M2.5\"}}" \
+    -d "{\"parts\":[{\"type\":\"text\",\"text\":${prompt_json}}],\"model\":{\"providerID\":\"minimax-cn-coding-plan\",\"modelID\":\"MiniMax-M2.7\"}}" \
     "${base_url}/session/${session_id}/message")"; then
     echo "Failed to send message to OpenCode session ${session_id}." >&2
     exit 1

@@ -1,0 +1,66 @@
+#!/bin/bash
+# Pre-commit hook to prevent direct development on master/staging branches
+
+current_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+is_merge_commit=0
+if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+    is_merge_commit=1
+fi
+
+merge_head_sha=$(cat .git/MERGE_HEAD 2>/dev/null || true)
+
+# New rule:
+# - staging: allow merge commits whose merge source tip matches local `fix/*`, `feature/*`, or `chore/*`
+# - main/master: allow merge commits whose merge source tip matches local `staging` or `hotfix/*`
+is_allowed_merge=0
+
+if [[ "$is_merge_commit" == "1" && -n "$merge_head_sha" ]]; then
+    if [[ "$current_branch" == "staging" ]]; then
+        # Compare merge source commit with tips of allowed source branches.
+        while IFS= read -r ref_sha; do
+            [[ -z "$ref_sha" ]] && continue
+            if [[ "$ref_sha" == "$merge_head_sha" ]]; then
+                is_allowed_merge=1
+                break
+            fi
+        done < <(git for-each-ref --format='%(objectname)' \
+            'refs/heads/fix/*' 'refs/heads/feature/*' 'refs/heads/chore/*' 2>/dev/null)
+    elif [[ "$current_branch" == "master" || "$current_branch" == "main" ]]; then
+        # Allow merge from staging by exact branch tip.
+        staging_sha=$(git rev-parse -q --verify staging 2>/dev/null || true)
+        if [[ -n "$staging_sha" && "$staging_sha" == "$merge_head_sha" ]]; then
+            is_allowed_merge=1
+        else
+            # Otherwise allow merge from hotfix/*.
+            while IFS= read -r ref_sha; do
+                [[ -z "$ref_sha" ]] && continue
+                if [[ "$ref_sha" == "$merge_head_sha" ]]; then
+                    is_allowed_merge=1
+                    break
+                fi
+            done < <(git for-each-ref --format='%(objectname)' 'refs/heads/hotfix/*' 2>/dev/null)
+        fi
+    fi
+fi
+
+if [[ "$current_branch" == "master" || "$current_branch" == "main" || "$current_branch" == "staging" ]]; then
+    if [[ "$is_allowed_merge" == "1" ]]; then
+        exit 0
+    fi
+    echo "============================================"
+    echo "Error: Direct development on '$current_branch' is not allowed."
+    echo ""
+    echo "Allowed merge sources:"
+    echo "  - staging: fix/*, feature/*, chore/*"
+    echo "  - main/master: staging, hotfix/*"
+    echo ""
+    echo "Please create a feature or hotfix branch and merge via PR:"
+    echo "  git checkout -b feature/your-feature-name"
+    echo "  # or"
+    echo "  git checkout -b hotfix/your-fix-name"
+    echo "============================================"
+    exit 1
+fi
+
+exit 0

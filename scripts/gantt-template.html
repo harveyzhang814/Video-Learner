@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAG 并发执行时序</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0d1117;
+  --surface:     #161b22;
+  --surface2:    #1c2128;
+  --border:      #30363d;
+  --border-sub:  #21262d;
+  --text:        #e6edf3;
+  --text-dim:    #8b949e;
+  --text-muted:  #484f58;
+
+  --fetch:    #58a6ff;
+  --download: #ff7b72;
+  --convert:  #3fb950;
+  --ai:       #d2a8ff;
+  --conc:     #ffa657;
+
+  --row-h: 34px;
+  --label-w: 148px;
+  --font: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+html, body { height: 100%; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  padding: 28px 32px 40px;
+}
+
+.page { max-width: 1040px; margin: 0 auto; }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.title-block h1 {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.title-block p {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+
+.title-block p code {
+  background: var(--surface2);
+  border: 1px solid var(--border-sub);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+}
+
+.tabs {
+  display: flex;
+  gap: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.tab {
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 14px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  background: transparent;
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.tab.active {
+  background: var(--surface2);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.tab:hover:not(.active) { color: var(--text); }
+.tabs-hidden { display: none; }
+
+.stats {
+  display: flex;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+  border-bottom: none;
+}
+
+.stat {
+  flex: 1;
+  padding: 10px 16px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stat:last-child { border-right: none; }
+
+.stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.stat-unit {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.6;
+  margin-left: 1px;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+.ruler-row {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  height: 28px;
+}
+
+.ruler-label-cell {
+  width: var(--label-w);
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.ruler-track { flex: 1; position: relative; overflow: hidden; }
+
+.ruler-tick {
+  position: absolute;
+  top: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ruler-tick-line { width: 1px; height: 6px; background: var(--border); }
+.ruler-tick-label {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.step-row {
+  display: flex;
+  height: var(--row-h);
+  border-bottom: 1px solid var(--border-sub);
+  position: relative;
+}
+
+.step-row:last-child { border-bottom: none; }
+.step-row:hover { background: rgba(255,255,255,0.018); }
+
+.step-label-cell {
+  width: var(--label-w);
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 12px;
+  gap: 7px;
+  cursor: default;
+}
+
+.cat-pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+.step-name-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-dur-text {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.step-track { flex: 1; position: relative; overflow: hidden; }
+
+.grid-v {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 1px;
+  background: var(--border-sub);
+  pointer-events: none;
+}
+
+.bar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 20px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  padding: 0 7px;
+  cursor: crosshair;
+  will-change: opacity;
+  transition: filter 0.1s;
+  overflow: hidden;
+}
+
+.bar:hover { filter: brightness(1.15) saturate(1.1); }
+
+.bar-inner-label {
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  color: rgba(0,0,0,0.75);
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+.conc-row {
+  display: flex;
+  height: 52px;
+  border-top: 1px solid var(--border);
+  background: rgba(0,0,0,0.15);
+}
+
+.conc-label-cell {
+  width: var(--label-w);
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+
+.conc-chart { flex: 1; position: relative; overflow: hidden; }
+.conc-chart svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface2);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.legend-pip { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+#tooltip {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.08s;
+  background: #1c2128;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 10px 13px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04);
+  min-width: 180px;
+}
+
+#tooltip.show { opacity: 1; }
+
+.tt-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border-sub);
+}
+
+.tt-pip { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.tt-name { font-size: 12px; font-weight: 600; color: var(--text); }
+.tt-rows { display: flex; flex-direction: column; gap: 4px; }
+
+.tt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 11px;
+}
+
+.tt-key { color: var(--text-muted); }
+.tt-val { color: var(--text); font-weight: 500; }
+
+@keyframes bar-slide-in {
+  from { opacity: 0; transform: translateY(-50%) scaleX(0); transform-origin: left center; }
+  to   { opacity: 1; transform: translateY(-50%) scaleX(1); }
+}
+
+.bar.animated { animation: bar-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="title-block">
+      <h1 id="main-title">DAG 并发执行时序</h1>
+      <p id="main-subtitle"></p>
+    </div>
+    <div class="tabs" id="tabs-container"></div>
+  </div>
+
+  <div class="stats" id="stats-bar"></div>
+
+  <div class="panel">
+    <div class="ruler-row" id="ruler-row">
+      <div class="ruler-label-cell">步骤</div>
+      <div class="ruler-track" id="ruler-track"></div>
+    </div>
+    <div id="rows-container"></div>
+    <div class="conc-row">
+      <div class="conc-label-cell">并发数</div>
+      <div class="conc-chart" id="conc-chart"></div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-pip" style="background:#58a6ff"></div>元数据</div>
+      <div class="legend-item"><div class="legend-pip" style="background:#ff7b72"></div>下载</div>
+      <div class="legend-item"><div class="legend-pip" style="background:#3fb950"></div>转换</div>
+      <div class="legend-item"><div class="legend-pip" style="background:#d2a8ff"></div>AI 生成</div>
+    </div>
+  </div>
+
+</div>
+
+<div id="tooltip">
+  <div class="tt-header">
+    <div class="tt-pip" id="tt-pip"></div>
+    <div class="tt-name" id="tt-name"></div>
+  </div>
+  <div class="tt-rows">
+    <div class="tt-row"><span class="tt-key">开始</span><span class="tt-val" id="tt-start"></span></div>
+    <div class="tt-row"><span class="tt-key">结束</span><span class="tt-val" id="tt-end"></span></div>
+    <div class="tt-row"><span class="tt-key">耗时</span><span class="tt-val" id="tt-dur"></span></div>
+    <div class="tt-row"><span class="tt-key">类型</span><span class="tt-val" id="tt-cat"></span></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ─── Injected data ────────────────────────────────────────────
+   The placeholder below is replaced by generate-gantt.js with
+   a JSON object of shape:
+   {
+     title:    string,           // page / h1 title
+     subtitle: string,           // HTML string shown under title
+     serialMs: number,           // sum of all step durations if run serially
+     scenarios: {
+       [key: string]: {
+         label:         string,  // displayed in tab button
+         totalMs:       number,
+         maxConcurrent: number,
+         steps: Array<{
+           name:  string,
+           cat:   'fetch' | 'download' | 'convert' | 'ai',
+           start: number,        // ms relative to task start
+           end:   number,
+         }>
+       }
+     }
+   }
+──────────────────────────────────────────────────────────────── */
+const GANTT_DATA = __GANTT_DATA__;
+
+/* ─── Constants ──────────────────────────────────────────────── */
+const CAT_COLOR = { fetch: '#58a6ff', download: '#ff7b72', convert: '#3fb950', ai: '#d2a8ff' };
+const CAT_LABEL = { fetch: '元数据', download: '下载', convert: '转换', ai: 'AI 生成' };
+
+/* ─── State ──────────────────────────────────────────────────── */
+const scenarioKeys = Object.keys(GANTT_DATA.scenarios);
+let currentScenario = scenarioKeys[0];
+
+/* ─── Init header ────────────────────────────────────────────── */
+document.getElementById('main-title').textContent    = GANTT_DATA.title    || 'DAG 并发执行时序';
+document.getElementById('main-subtitle').innerHTML   = GANTT_DATA.subtitle || '';
+
+/* ─── Tabs ───────────────────────────────────────────────────── */
+const tabsEl = document.getElementById('tabs-container');
+if (scenarioKeys.length <= 1) {
+  tabsEl.classList.add('tabs-hidden');
+} else {
+  scenarioKeys.forEach((key, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (i === 0 ? ' active' : '');
+    btn.dataset.scenario = key;
+    btn.textContent = GANTT_DATA.scenarios[key].label || key;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      currentScenario = key;
+      renderAll(key, true);
+    });
+    tabsEl.appendChild(btn);
+  });
+}
+
+/* ─── Utils ──────────────────────────────────────────────────── */
+function pct(n, total) { return (n / total * 100).toFixed(4) + '%'; }
+
+function concurrencyAt(t, steps) {
+  return steps.filter(s => t >= s.start && t < s.end).length;
+}
+
+function tickInterval(totalMs) {
+  if (totalMs <= 500)    return 100;
+  if (totalMs <= 1200)   return 200;
+  if (totalMs <= 2500)   return 500;
+  if (totalMs <= 10000)  return 1000;
+  if (totalMs <= 60000)  return 10000;
+  if (totalMs <= 300000) return 60000;
+  return 300000;
+}
+
+function fmtMs(ms) {
+  if (ms < 1000)  return ms + 'ms';
+  if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+  return Math.round(ms / 1000) + 's';
+}
+
+/* ─── Render ─────────────────────────────────────────────────── */
+function renderStats(key) {
+  const sc      = GANTT_DATA.scenarios[key];
+  const serial  = GANTT_DATA.serialMs;
+  const speedup = serial > 0 ? (serial / sc.totalMs).toFixed(1) : '—';
+  const saved   = serial > 0 ? (serial - sc.totalMs) : 0;
+
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat">
+      <div class="stat-label">加速比</div>
+      <div class="stat-value" style="color:#3fb950">${speedup}<span class="stat-unit">×</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">实际耗时</div>
+      <div class="stat-value" style="color:#58a6ff">${fmtMs(sc.totalMs)}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">串行估计</div>
+      <div class="stat-value" style="color:var(--text-muted)">${serial > 0 ? fmtMs(serial) : '—'}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">节省时间</div>
+      <div class="stat-value" style="color:#ffa657">${serial > 0 ? fmtMs(saved) : '—'}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">最大并发</div>
+      <div class="stat-value" style="color:#d2a8ff">${sc.maxConcurrent}<span class="stat-unit"> 步</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">步骤数</div>
+      <div class="stat-value" style="color:var(--text-dim)">${sc.steps.length}</div>
+    </div>
+  `;
+}
+
+function renderRuler(totalMs) {
+  const track = document.getElementById('ruler-track');
+  track.innerHTML = '';
+  const interval = tickInterval(totalMs);
+  for (let t = 0; t <= totalMs; t += interval) {
+    const el = document.createElement('div');
+    el.className = 'ruler-tick';
+    el.style.cssText = `position:absolute;top:0;bottom:0;left:${pct(t, totalMs)};display:flex;flex-direction:column;align-items:flex-start`;
+    el.innerHTML = `<div class="ruler-tick-line"></div><div class="ruler-tick-label">${fmtMs(t)}</div>`;
+    track.appendChild(el);
+  }
+}
+
+function buildGridLines(totalMs) {
+  const interval = tickInterval(totalMs);
+  let html = '';
+  for (let t = interval; t < totalMs; t += interval) {
+    html += `<div class="grid-v" style="left:${pct(t, totalMs)}"></div>`;
+  }
+  return html;
+}
+
+function renderRows(key, animate) {
+  const sc = GANTT_DATA.scenarios[key];
+  const { totalMs, steps } = sc;
+  const container = document.getElementById('rows-container');
+  container.innerHTML = '';
+  const grids = buildGridLines(totalMs);
+
+  steps.forEach((step, i) => {
+    const dur      = step.end - step.start;
+    const leftPct  = step.start / totalMs * 100;
+    const widthPct = dur / totalMs * 100;
+    const color    = CAT_COLOR[step.cat] || '#8b949e';
+    const delay    = animate ? (i * 35) : 0;
+
+    const row = document.createElement('div');
+    row.className = 'step-row';
+    row.innerHTML = `
+      <div class="step-label-cell">
+        <div class="cat-pip" style="background:${color}"></div>
+        <span class="step-name-text">${step.name}</span>
+        <span class="step-dur-text">${fmtMs(dur)}</span>
+      </div>
+      <div class="step-track">
+        ${grids}
+        <div class="bar${animate ? ' animated' : ''}"
+             style="left:${leftPct.toFixed(4)}%;width:${Math.max(widthPct,0.3).toFixed(4)}%;background:${color};animation-delay:${delay}ms"
+             data-step="${step.name}" data-cat="${step.cat}"
+             data-start="${step.start}" data-end="${step.end}" data-dur="${dur}">
+          <span class="bar-inner-label">${widthPct > 4 ? fmtMs(dur) : ''}</span>
+        </div>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function renderConcurrencyChart(key) {
+  const sc = GANTT_DATA.scenarios[key];
+  const { totalMs, steps, maxConcurrent } = sc;
+  const SAMPLES = 400;
+  const H = 52, W = 1000;
+  const maxC = Math.max(maxConcurrent, 1);
+
+  const pts = Array.from({ length: SAMPLES + 1 }, (_, i) => {
+    const t = (i / SAMPLES) * totalMs;
+    return { t, c: concurrencyAt(t, steps) };
+  });
+
+  const stepPath = pts.map((p, i) => {
+    const x = (p.t / totalMs) * W;
+    const y = H - (p.c / maxC) * (H - 10);
+    return (i === 0 ? 'M' : 'L') + `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  const fillPath = `${stepPath} L${W},${H} L0,${H} Z`;
+
+  let levelLines = '';
+  for (let c = 1; c <= maxC; c++) {
+    const y = H - (c / maxC) * (H - 10);
+    levelLines += `
+      <line x1="0" y1="${y.toFixed(1)}" x2="${W}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,0.05)" stroke-width="0.8"/>
+      <text x="4" y="${(y-3).toFixed(1)}" font-family="JetBrains Mono,monospace" font-size="8" fill="rgba(255,255,255,0.25)">${c}</text>`;
+  }
+
+  const interval = tickInterval(totalMs);
+  let vGrid = '';
+  for (let t = interval; t < totalMs; t += interval) {
+    const x = (t / totalMs) * W;
+    vGrid += `<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${H}" stroke="rgba(48,54,61,0.8)" stroke-width="0.6"/>`;
+  }
+
+  document.getElementById('conc-chart').innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="conc-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffa657" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#ffa657" stop-opacity="0.02"/>
+        </linearGradient>
+      </defs>
+      ${vGrid}${levelLines}
+      <path d="${fillPath}" fill="url(#conc-grad)"/>
+      <path d="${stepPath}" fill="none" stroke="#ffa657" stroke-width="1.2" stroke-linejoin="round"/>
+    </svg>`;
+}
+
+function renderAll(key, animate) {
+  renderStats(key);
+  renderRuler(GANTT_DATA.scenarios[key].totalMs);
+  renderRows(key, animate);
+  renderConcurrencyChart(key);
+}
+
+/* ─── Tooltip ────────────────────────────────────────────────── */
+const tooltip = document.getElementById('tooltip');
+
+document.addEventListener('mousemove', e => {
+  const bar = e.target.closest('.bar');
+  if (!bar) { tooltip.classList.remove('show'); return; }
+  const { step, cat, start, end, dur } = bar.dataset;
+  document.getElementById('tt-pip').style.background = CAT_COLOR[cat] || '#8b949e';
+  document.getElementById('tt-name').textContent      = step;
+  document.getElementById('tt-start').textContent     = fmtMs(+start);
+  document.getElementById('tt-end').textContent       = fmtMs(+end);
+  document.getElementById('tt-dur').textContent       = fmtMs(+dur);
+  document.getElementById('tt-cat').textContent       = CAT_LABEL[cat] || cat;
+  tooltip.classList.add('show');
+  const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+  tooltip.style.left = Math.min(e.clientX + 14, window.innerWidth  - tw - 8) + 'px';
+  tooltip.style.top  = Math.min(e.clientY - 10, window.innerHeight - th - 8) + 'px';
+});
+
+document.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+
+/* ─── Init ───────────────────────────────────────────────────── */
+renderAll(currentScenario, true);
+</script>
+</body>
+</html>

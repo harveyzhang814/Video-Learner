@@ -29,12 +29,11 @@ npm start &
 ELECTRON_PID=$!
 sleep 8
 
-# Check if WebSocket server started
-if curl -s ws://localhost:8765 >/dev/null 2>&1 || echo "WS running"; then
+# Check if Electron started (HTTP service health check)
+if kill -0 $ELECTRON_PID 2>/dev/null; then
     echo "  ✓ Electron started"
 else
     echo "  ✗ Electron failed to start"
-    kill $ELECTRON_PID 2>/dev/null
     exit 1
 fi
 

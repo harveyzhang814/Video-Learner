@@ -8,7 +8,8 @@ async function sleep(ms) {
 }
 
 async function run() {
-  const app = createApp();
+  const token = 'test-agent-http-token';
+  const app = createApp({ token });
   const server = http.createServer(app.callback());
 
   await new Promise((resolve) => server.listen(0, resolve));
@@ -20,7 +21,7 @@ async function run() {
   // Helper for JSON requests
   async function jsonRequest(path, options = {}) {
     const res = await fetch(base + path, {
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(options.headers || {}) },
       ...options
     });
     const text = await res.text();
@@ -56,6 +57,32 @@ async function run() {
     throw new Error('create task response missing task_id');
   }
   console.log('[test] task created:', taskId);
+
+  // 1b) Old mode names are silently normalised to 'media'
+  {
+    const res = await jsonRequest('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify({
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        mode: 'both'
+      })
+    });
+    if (res.status !== 201) throw new Error(`normalise 'both' failed with status ${res.status}`);
+    if (res.body.meta.mode !== 'media') throw new Error(`expected mode 'media' for 'both', got '${res.body.meta.mode}'`);
+    console.log('[test] both → media normalization: OK');
+  }
+  {
+    const res = await jsonRequest('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify({
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ2',
+        mode: 'video'
+      })
+    });
+    if (res.status !== 201) throw new Error(`normalise 'video' failed with status ${res.status}`);
+    if (res.body.meta.mode !== 'media') throw new Error(`expected mode 'media' for 'video', got '${res.body.meta.mode}'`);
+    console.log('[test] video → media normalization: OK');
+  }
 
   // 2) Poll status a few times to ensure API is responsive
   for (let i = 0; i < 5; i++) {
@@ -95,7 +122,7 @@ async function run() {
   console.log('[test] result outputs:', resultRes.body.outputs);
 
   // 6) Delete task (state mode: only DB, keep files)
-  const deleteRes = await fetch(base + `/api/tasks/${taskId}?mode=state`, { method: 'DELETE' });
+  const deleteRes = await fetch(base + `/api/tasks/${taskId}?mode=state`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
   if (deleteRes.status !== 204 && deleteRes.status !== 200) {
     const t = await deleteRes.text();
     throw new Error('delete task failed: ' + t);

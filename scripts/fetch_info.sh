@@ -23,11 +23,11 @@ fi
 # Database path
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-DB_PATH="$PROJECT_DIR/work/database.sqlite"
 
 # Initialize database
 source "$SCRIPT_DIR/db.sh"
 source "$SCRIPT_DIR/yt-dlp-cookies.sh"
+source "$SCRIPT_DIR/platform.sh"
 init_db
 
 # Create task in database
@@ -44,7 +44,7 @@ echo "[STATUS] fetch_start"
 update_step "$ID" "fetch" "running"
 
 # Get video info as JSON (keep stderr so failures show in log)
-video_info=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL" 2>&1) || true
+video_info=$(yt-dlp $YT_DLP_COOKIE_OPTS --dump-json --no-download "$URL") || true
 
 if [ -z "$video_info" ] || ! echo "$video_info" | jq -e . >/dev/null 2>&1; then
     echo "Error: Failed to fetch video info"
@@ -58,13 +58,34 @@ duration=$(echo "$video_info" | jq -r '.duration // 0' 2>/dev/null)
 thumbnail=$(echo "$video_info" | jq -r '.thumbnail // ""' 2>/dev/null)
 description=$(echo "$video_info" | jq -r '.description // ""' 2>/dev/null)
 uploader=$(echo "$video_info" | jq -r '.uploader // ""' 2>/dev/null)
+upload_date_raw=$(echo "$video_info" | jq -r '.upload_date // ""' 2>/dev/null)
+# Extract and normalize video language (e.g. "en-US" → "en"); default "en"
+lang_raw=$(echo "$video_info" | jq -r '.language // ""' 2>/dev/null)
+lang=$(echo "$lang_raw" | cut -d'-' -f1 | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+if [ -z "$lang" ]; then
+    is_bilibili "$URL" && lang="zh" || lang="en"
+fi
+
+# Normalize upload_date from YYYYMMDD to YYYY-MM-DD
+upload_date=""
+if [ ${#upload_date_raw} -eq 8 ]; then
+    upload_date="${upload_date_raw:0:4}-${upload_date_raw:4:2}-${upload_date_raw:6:2}"
+fi
 
 echo "Title: $title"
 echo "Duration: $duration seconds"
 echo "Uploader: $uploader"
+echo "Upload date: $upload_date"
+echo "Language: $lang"
+echo "[STATUS] fetch_lang: $lang"
 
 # Update task in database with metadata
-sqlite3 "$DB_PATH" "UPDATE tasks SET title = '$title', duration = '$duration', updated_at = datetime('now') WHERE id = '$ID';"
+# Escape single quotes for SQLite (replace ' with '')
+_title_esc=$(echo "$title" | sed "s/'/''/g")
+_duration_esc=$(echo "$duration" | sed "s/'/''/g")
+_uploader_esc=$(echo "$uploader" | sed "s/'/''/g")
+_upload_date_esc=$(echo "$upload_date" | sed "s/'/''/g")
+sqlite3 "$DB_PATH" "UPDATE tasks SET title = '$_title_esc', duration = '$_duration_esc', uploader = '$_uploader_esc', upload_date = '$_upload_date_esc', lang = '$lang', updated_at = datetime('now') WHERE id = '$ID';"
 
 # Update step to completed
 update_step "$ID" "fetch" "completed"

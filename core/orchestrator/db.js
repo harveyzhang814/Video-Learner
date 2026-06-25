@@ -3,13 +3,15 @@
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
+const { getDbPath: resolveDbPath } = require('../paths');
 
 function getDbPath(rootDir) {
-  return path.join(rootDir, 'work', 'database.sqlite');
+  return resolveDbPath(rootDir);
 }
 
 function initTables(db) {
   db.pragma('journal_mode = WAL');
+  db.pragma('busy_timeout = 3000');
   db.pragma('foreign_keys = ON');
 
   db.exec(`
@@ -22,11 +24,18 @@ function initTables(db) {
       duration TEXT,
       output_lang TEXT DEFAULT 'zh-CN',
       focus TEXT,
+      uploader TEXT,
       transcripts TEXT DEFAULT '{}',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migration: add uploader if missing
+  const _uploaderCols = db.prepare('PRAGMA table_info(tasks)').all();
+  if (!_uploaderCols.some((c) => c.name === 'uploader')) {
+    db.exec('ALTER TABLE tasks ADD COLUMN uploader TEXT');
+  }
 
   // Migration: add transcripts if missing
   try {
@@ -60,6 +69,47 @@ function initTables(db) {
     // ignore
   }
 
+  try {
+    const cols = db.prepare('PRAGMA table_info(tasks)').all();
+    if (!cols.some((c) => c.name === 'status')) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN status TEXT`);
+      // NULL default: existing rows use computed status from steps, behavior unchanged
+    }
+  } catch (_) {
+  }
+
+  // Migration: timeout_scale for long-video mode (1 = default, 3 = --long, 6 = --ultra-long)
+  try {
+    const cols = db.prepare('PRAGMA table_info(tasks)').all();
+    if (!cols.some((c) => c.name === 'timeout_scale')) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN timeout_scale REAL DEFAULT 1`);
+    }
+  } catch (_) {
+    // ignore
+  }
+
+  // Migration: media probe fields (width, height, file_size, bit_rate)
+  try {
+    const cols = db.prepare('PRAGMA table_info(tasks)').all();
+    const names = cols.map((c) => c.name);
+    if (!names.includes('width'))     db.exec(`ALTER TABLE tasks ADD COLUMN width INTEGER`);
+    if (!names.includes('height'))    db.exec(`ALTER TABLE tasks ADD COLUMN height INTEGER`);
+    if (!names.includes('file_size')) db.exec(`ALTER TABLE tasks ADD COLUMN file_size INTEGER`);
+    if (!names.includes('bit_rate'))  db.exec(`ALTER TABLE tasks ADD COLUMN bit_rate INTEGER`);
+  } catch (_) {
+    // ignore
+  }
+
+  // Migration: video publish date (YYYY-MM-DD, from yt-dlp upload_date)
+  try {
+    const cols = db.prepare('PRAGMA table_info(tasks)').all();
+    if (!cols.some((c) => c.name === 'upload_date')) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN upload_date TEXT`);
+    }
+  } catch (_) {
+    // ignore
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS steps (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,6 +124,27 @@ function initTables(db) {
       UNIQUE(task_id, step_name)
     )
   `);
+
+  // Migrate old-format timestamps (YYYY-MM-DD HH:MM:SS, space-separated, no ms)
+  // to ISO 8601 with T separator. One-shot: only rows containing a space are touched.
+  db.exec(`
+    UPDATE tasks SET
+      ts         = replace(ts,         ' ', 'T'),
+      created_at = replace(created_at, ' ', 'T'),
+      updated_at = replace(updated_at, ' ', 'T'),
+      deleted_at = replace(deleted_at, ' ', 'T')
+    WHERE ts         LIKE '____-__-__ %'
+       OR created_at LIKE '____-__-__ %'
+       OR updated_at LIKE '____-__-__ %'
+       OR deleted_at LIKE '____-__-__ %'
+  `);
+  db.exec(`
+    UPDATE steps SET
+      started_at   = replace(started_at,   ' ', 'T'),
+      completed_at = replace(completed_at, ' ', 'T')
+    WHERE started_at   LIKE '____-__-__ %'
+       OR completed_at LIKE '____-__-__ %'
+  `);
 }
 
 function createDbManager(dbPath) {
@@ -86,7 +157,7 @@ function createDbManager(dbPath) {
       const rows = db
         .prepare(
           `
-          SELECT id, url, ts, title, lang, duration, output_lang, focus, mode, transcripts, created_at, updated_at
+          SELECT id, url, ts, title, lang, duration, output_lang, focus, mode, transcripts, uploader, upload_date, created_at, updated_at, width, height, file_size, bit_rate
           FROM tasks WHERE deleted_at IS NULL
           ORDER BY datetime(created_at) DESC, datetime(ts) DESC
           LIMIT ?
@@ -111,8 +182,10 @@ function createDbManager(dbPath) {
       return db
         .prepare(
           `
-          INSERT OR REPLACE INTO tasks (id, url, ts)
-          VALUES (?, ?, datetime('now'))
+          INSERT OR REPLACE INTO tasks (id, url, ts, created_at, updated_at)
+          VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'),
+                      strftime('%Y-%m-%dT%H:%M:%f', 'now'),
+                      strftime('%Y-%m-%dT%H:%M:%f', 'now'))
         `
         )
         .run(id, url);
@@ -145,7 +218,7 @@ function createDbManager(dbPath) {
       }
     },
     softDeleteTask(id) {
-      return db.prepare("UPDATE tasks SET deleted_at = datetime('now') WHERE id = ?").run(id);
+      return db.prepare("UPDATE tasks SET deleted_at = strftime('%Y-%m-%dT%H:%M:%f', 'now') WHERE id = ?").run(id);
     },
 
     updateTask(id, data) {
@@ -153,14 +226,14 @@ function createDbManager(dbPath) {
         .map((k) => `${k} = @${k}`)
         .join(', ');
       return db
-        .prepare(`UPDATE tasks SET ${fields}, updated_at = datetime('now') WHERE id = @id`)
+        .prepare(`UPDATE tasks SET ${fields}, updated_at = strftime('%Y-%m-%dT%H:%M:%f', 'now') WHERE id = @id`)
         .run({ ...data, id });
     },
 
     updateStep(taskId, stepName, status, error = null) {
       const taskExists = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
       if (!taskExists) {
-        db.prepare("INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime('now'))").run(taskId, '');
+        db.prepare("INSERT INTO tasks (id, url, ts, created_at, updated_at) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'), strftime('%Y-%m-%dT%H:%M:%f', 'now'), strftime('%Y-%m-%dT%H:%M:%f', 'now'))").run(taskId, '');
       }
 
       const existing = db
@@ -173,8 +246,8 @@ function createDbManager(dbPath) {
           .prepare(
             `
             UPDATE steps SET status = ?, attempts = ?, error = ?,
-            started_at = COALESCE(started_at, datetime('now')),
-            completed_at = CASE WHEN ? IN ('completed', 'failed', 'skipped') THEN datetime('now') ELSE completed_at END
+            started_at = COALESCE(started_at, strftime('%Y-%m-%dT%H:%M:%f', 'now')),
+            completed_at = CASE WHEN ? IN ('completed', 'failed', 'skipped') THEN strftime('%Y-%m-%dT%H:%M:%f', 'now') ELSE completed_at END
             WHERE task_id = ? AND step_name = ?
           `
           )
@@ -185,7 +258,7 @@ function createDbManager(dbPath) {
         .prepare(
           `
           INSERT INTO steps (task_id, step_name, status, attempts, error, started_at)
-          VALUES (?, ?, ?, 1, ?, datetime('now'))
+          VALUES (?, ?, ?, 1, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'))
         `
         )
         .run(taskId, stepName, status, error);
@@ -197,7 +270,7 @@ function createDbManager(dbPath) {
     writeStepState(taskId, stepName, { status, attempts = 0, error = null }) {
       const taskExists = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId);
       if (!taskExists) {
-        db.prepare("INSERT INTO tasks (id, url, ts) VALUES (?, ?, datetime('now'))").run(taskId, '');
+        db.prepare("INSERT INTO tasks (id, url, ts, created_at, updated_at) VALUES (?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'), strftime('%Y-%m-%dT%H:%M:%f', 'now'), strftime('%Y-%m-%dT%H:%M:%f', 'now'))").run(taskId, '');
       }
 
       const existing = db.prepare('SELECT * FROM steps WHERE task_id = ? AND step_name = ?').get(taskId, stepName);
@@ -217,7 +290,7 @@ function createDbManager(dbPath) {
         .prepare(
           `
           INSERT INTO steps (task_id, step_name, status, attempts, error, started_at)
-          VALUES (?, ?, ?, ?, ?, datetime('now'))
+          VALUES (?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%f', 'now'))
         `
         )
         .run(taskId, stepName, status, attempts, error);
@@ -225,6 +298,29 @@ function createDbManager(dbPath) {
 
     getSteps(taskId) {
       return db.prepare('SELECT * FROM steps WHERE task_id = ?').all(taskId);
+    },
+
+    /**
+     * Reset any steps left in 'running' state (e.g. from a previous server crash).
+     * Also removes corrupted rows where task_id is not a valid 12-char hex ID.
+     * Returns the number of steps reset.
+     */
+    resetStaleRunningSteps() {
+      // Remove rows whose task_id is not a valid task ID (e.g. a file path leaked in).
+      db.prepare(`
+        DELETE FROM steps
+        WHERE task_id NOT IN (SELECT id FROM tasks)
+      `).run();
+
+      // Reset any steps stuck in 'running' back to 'failed' so they can be retried.
+      const result = db.prepare(`
+        UPDATE steps
+        SET status = 'failed',
+            error  = 'Server restarted while step was running'
+        WHERE status = 'running'
+      `).run();
+
+      return result.changes;
     },
 
     close() {

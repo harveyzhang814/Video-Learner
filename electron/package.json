@@ -1,6 +1,6 @@
 {
   "name": "youtube-pipeline",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "YouTube Pipeline - Download, Transcript & Summary",
   "main": "src/main.js",
   "scripts": {
@@ -16,6 +16,6 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
-    "ws": "^8.19.0"
+    "marked": "^18.0.0"
   }
 }

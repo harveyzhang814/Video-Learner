@@ -1,167 +1,130 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # YouTube Pipeline - Claude Code 执行标准
 
 ## 重要提醒
 - **每次开发功能前，必须检查当前所在分支**
 - 开发只能在 `feature/*` 或 `hotfix/*` 分支上进行
 - **禁止在 `master` 和 `staging` 分支上直接开发**
-- **合并到 `staging` / `master` 时禁止使用 fast-forward**：必须使用 `git merge --no-ff`（规范见 `docs/GIT_FLOW.md`）
+- **合并到 `staging` / `master` 时禁止使用 fast-forward**：必须使用 `git merge --no-ff`（规范见 `docs/explanation/git-workflow.md`）
 
 ## 概述
-本仓库实现 YouTube URL → 下载/转录/总结 的自动化流水线。
+本仓库实现 YouTube URL → 下载/转录/总结 的自动化流水线。CLI、GUI（Electron）、Web（浏览器）、HTTP API 四种方式共用同一个 `core/orchestrator` 和 SQLite 状态（`work/database.sqlite`）。
 
-## 固定输出结构
-```
-work/
-├── index.jsonl                    # 每次运行追加一条记录
-└── <id>/
-    ├── media/                     # 媒体文件
-    │   ├── video.mp4             # 视频文件（若下载成功）
-    │   ├── audio.m4a              # 音频文件
-    │   └── video_download.log    # 下载日志
-    ├── transcript/               # 转录与字幕
-    │   ├── subs/                 # 字幕文件 (vtt)
-    │   ├── original.md           # 逐字稿，带 [mm:ss] 时间戳（已去重）
-    │   └── meta.json             # 元数据
-    └── writing/                  # 生成内容
-        ├── article.md             # 整理后的结构化文章
-        ├── summary.md             # 总结 (TL;DR + Outline + Key Points + Action Items + Terms)
-        └── summary_prompt.txt    # Claude 总结提示词
-```
+## 最短调用方式
 
-## 关键约束
-
-### 1. 视频下载独立
-- 视频下载成功/失败**不影响** transcript 获取和总结
-- 即使 video 下载失败，也必须完成 original.md + summary.md
-
-### 2. 视频下载重试策略
-- 第一次失败 → 立刻重试一次（清理半成品）
-- 第二次仍失败 → 放弃，记录 `download_status=failed` + `download_error` 到 meta.json
-
-### 3. 视频下载质量策略
-- 默认目标：最高 1080p（不追求 4K）
-- 优先合并格式（progressive）
-- 无法合并 → 下载 DASH 分离流 + ffmpeg 合并
-
-### 4. 去重与复用
-- ID = sha1(url) 前 12 位
-- 若 `meta.json` 存在且 `transcript_done=true`，跳过 transcript/summary（FORCE=1 除外）
-- 若 `video.mp4` 存在且完整，跳过视频下载
-- 任何情况都更新/追加 `work/index.jsonl`
-
-### 5. 用户意图 (FOCUS)
-- 每次处理视频时，需要询问用户想了解视频的哪些方面
-- 如果用户已提供 FOCUS，则使用它来生成总结
-- FOCUS 示例：技术细节、主要论点、行动项、关键术语、架构分析等
-
-## meta.json 字段
-```json
-{
-  "url": "...",
-  "id": "...",
-  "ts": "...",
-  "title": "...",
-  "duration": "...",
-  "lang": "...",
-  "output_lang": "zh-CN|en",
-  "download_status": "pending|success|failed|skipped_existing",
-  "download_attempts": 0,
-  "download_error": "...",
-  "transcript_source": "youtube_transcript|subtitle|existing|asr_missing|none",
-  "transcript_done": true|false,
-  "article_done": true|false,
-  "article_prompt_path": "...",
-  "summary_done": true|false,
-  "focus": "...",
-  "focus_needed": true|false,
-  "claude_summary_pending": true|false,
-  "tool_versions": { "yt_dlp": "...", "ffmpeg": "...", "jq": "..." }
-}
-```
-
-## 执行命令
-
-**`scripts/run.sh` 已废弃**（薄壳：仅打印说明并非零退出）。正式执行仅通过 **GUI（Electron）** 或 **Agent Service（HTTP → `core/orchestrator`）**。
-
-### GUI
 ```bash
-bash start-electron.sh
+vdl <URL>                # CLI（agent 跑任务首选）
+vdl web                  # Web 端：起后端 + 开浏览器（给人用，agent 别自己用）
+bash start-electron.sh   # Electron GUI
+npm run agent:serve      # HTTP API 长驻服务
 ```
-在界面中创建任务并填写 URL、`focus`、`mode`、是否强制重跑等。
 
-### Agent Service（HTTP）
+完整 CLI 参考见 `docs/reference/cli.md`，HTTP API 见 `docs/reference/api.md`，Web 端使用见 `docs/how-to/run-web.md`。
+
+## Agent 与 Web 端的关系
+- Web 端是**给人用的图形界面**，agent **不会自己访问** web 端
+- Agent 唯一合法触发 `vdl web` 的场景：用户让 agent "帮我打开网页"——agent 替用户启动 UI，然后退出
+- Agent 自己跑任务：用 `vdl <URL>` / `vdl list / status / result`
+- Agent 直接调 HTTP API：用 `core/agent-connect.connect({ clientId })`，自动持心跳
+- 详细机制见 `docs/explanation/singleton-backend.md` 的"Web 浏览器：SSE 连接作为被动心跳"小节
+
+## 字段备忘
+- `mode`: `media`（默认）| `audio` | `transcript` | `full`
+- `output_lang`: `zh-CN`（默认）| `en`
+- `focus`: 用户关注点（如「技术架构」「主要论点」）
+- `reset_scope`: `off` | `step` | `downstream`
+- `timeout_scale`: `1`（默认）| `3`（长视频）| `6`（超长视频）
+
+## 超长视频模式
+用户描述含以下信号时，**必须**加上 `timeout_scale`，否则 ASR / LLM 步骤会在完成前超时：
+
+| 用户信号 | timeout_scale | CLI 等效 |
+|---------|--------------|---------|
+| 视频约 1–3 小时 / "讲座" / "会议" / "播客" / "long" | `3` | `--long` |
+| 视频 3 小时以上 / "超长" / "全天" / "ultra-long" | `6` | `--ultra-long` |
+| 用户明确要求"长模式"/"long mode" | `3`（至少） | `--long` |
+
 ```bash
-npm run agent:serve
+# CLI
+vdl --long <URL>
+vdl --ultra-long <URL>
+
+# HTTP API
+POST /api/tasks  { "url": "...", "timeout_scale": 3 }
 ```
-使用 `POST /api/tasks` 创建任务（body 含 `url`、`focus`、`mode`、`force`、`output_lang` 等），轮询 `GET /api/tasks/:id` 或订阅 `GET /api/events`。约定见 `docs/PROJECT_KNOWLEDGE.md`（Agent HTTP Service）。
-
-### 字段备忘（与旧 CLI 对应）
-- `output_lang`: 输出语言，默认 `zh-CN`（简体中文），可由 `settings.conf` 等扩展
-- `mode`: `both` | `video` | `audio` | `transcript`
-- `force`: 是否强制重跑
-- `focus`: 用户想了解的重点（如「技术细节」「主要论点」「行动项」）
-
-## Claude 总结生成流程
-
-当 `claude_summary_pending=true` 或 `focus_needed=true` 时：
-
-1. **如果 focus_needed=true**：
-   - 读取 original.md
-   - 询问用户想了解视频的哪些方面
-   - 用户提供 FOCUS 后，更新 meta.json: `jq --arg focus "用户回答" '.focus = $focus' meta.json`
-   - 继续生成总结
-
-2. **如果 claude_summary_pending=true**：
-   - 读取 original.md 和 summary_prompt.txt
-   - 根据 FOCUS 生成 summary.md
-   - 更新 meta.json: `jq '.claude_summary_pending = false' meta.json`
-
-## Summary 模板 (Claude 生成)
-```markdown
-# Summary
-
-## TL;DR
-[一句话总结]
-
-## Outline
-1. [主要章节/要点，按时间顺序]
-
-## Key Points
-- [关键要点1] [时间戳]
-- [关键要点2] [时间戳]
-- [...]
-
-## Action Items
-- [行动项1]
-- [行动项2]
-
-## Terms/Entities
-- [术语1]: [定义]
-- [术语2]: [定义]
-```
-
-## 复用命令（最短）
-```
-请处理这个 YouTube: <URL>
-```
-在助手侧通过 **GUI** 或 **HTTP 创建任务** 完成处理；勿再使用 `scripts/run.sh`。
 
 ## 多引擎写作
 
-- **全局默认引擎（配置文件）**
-  - 复制 `scripts/settings.example.conf` 为 `scripts/settings.conf`，可选设置：
-    ```bash
-    WRITING_ENGINE_DEFAULT=opencode   # 或 claude；不设或非法时回退为 opencode
-    ```
-  - `scripts/llm_engine.sh` 会读取该默认值，影响 `generate_article.sh` / `generate_summary.sh`（及编排层触发的各 Step）的写作引擎。
-- **单次覆盖（环境变量）**
-  - 启动 Agent Service 或 Electron **之前**在环境中设置 `WRITING_ENGINE=claude|opencode`，子进程中的 `llm_engine.sh` 会继承该覆盖。
-- **当前引擎实现**
-  - `claude`：使用 Claude Code CLI。
-  - `opencode`：使用 OpenCode CLI `opencode run -m minimax-cn-coding-plan/MiniMax-M2.5 --format json`（PTY），从 NDJSON 事件流抽取文本。
+写作引擎通过 `scripts/llm_engine.sh` 路由：
+- **默认**：`~/.config/vdl/settings.conf` 中设置 `WRITING_ENGINE_DEFAULT=opencode|claude`
+- **单次覆盖**：启动前设置环境变量 `WRITING_ENGINE=claude|opencode`
+- `opencode`：MiniMax-M2.7（HTTP）；`claude`：Claude Code CLI
 
-## 测试验证
-- 首次运行：下载视频+字幕，生成 original.md
-- 如果没有 FOCUS：提示用户输入重点
-- 提供 FOCUS 后：Claude 生成 summary.md
-- 第二次运行：全部跳过
+## 开发命令
+
+```bash
+# 安装
+npm install && cd electron && npm install
+
+# 测试（按范围）
+npm run test:agent:core       # Orchestrator + HTTP + SQLite
+npm run test:orchestrator:unit # DAG 调度 + reset_scope
+npm run test:reset-scope      # 全量 HTTP 集成
+npm run test:abort            # 取消/恢复生命周期
+npm run test:sse              # SSE 事件流
+npm run test:cli              # CLI 完整套件
+npm run test:gui              # Electron 主进程 + preload
+
+# 单个文件（无框架）
+node tests/<file>.test.js
+```
+
+## Dev Harness（开发调试）
+
+```bash
+bash harness/start-dev.sh            # 启动后端 + monitor
+bash harness/start-dev.sh --electron # + Electron GUI
+
+bash harness/check-errors.sh         # 查看错误摘要
+curl -s http://127.0.0.1:3000/healthz  # 健康检查
+bash harness/debug/read-logs.sh --errors --last 30  # 近期错误日志
+```
+
+详细设计见 `harness/README.md`，日志过滤见 `docs/how-to/debug-env.md`。
+
+## 架构概览
+
+```
+CLI (vdl) ─────┐
+Electron GUI ──┤
+Web Browser ───┼──► core/orchestrator ──► scripts/*.sh ──► yt-dlp/ffmpeg/llm
+HTTP Service ──┘        │
+                        └──► work/database.sqlite（状态权威）
+```
+
+| 目录 | 职责 |
+|------|------|
+| `core/orchestrator/` | 任务状态机 + DAG 调度（`schedule.js`）+ SQLite（`db.js`） |
+| `core/agent-connect.js` | 统一 check-or-start：CLI/Electron/Web 共用，固定端口 3000；`vdl web` 走 `noHeartbeat: true` 路径 |
+| `core/heartbeat-client.js` | 心跳发送（CLI/Electron）；浏览器走 SSE 被动心跳，不走此路径 |
+| `services/http-server/` | Koa HTTP API + SSE；`index.js` 含全部路由 + `sseRegistry` |
+| `scripts/` | 每步骤一个 shell 脚本（fetch/download/convert/generate） |
+| `electron/src/` | 主进程（`main.js`）+ preload IPC + 渲染器 |
+| `web/` | React/TS SPA，给人用的浏览器界面；agent 不访问 |
+| `cli/commands/web.js` | `vdl web` 子命令：起后端 + 开浏览器 + 立即 exit |
+| `tests/` | 无框架，直接 `node tests/*.test.js` |
+| `harness/` | 仅开发用，不在生产代码中引用 |
+
+### 核心设计要点
+
+- **SQLite 是状态权威**：tasks/steps 表优先于 meta.json；index.jsonl 仅作审计追踪
+- **DAG 调度**：main chain（transcript 流水线）优先；视频下载失败不阻塞后续步骤
+- **单例后端**：固定端口 3000；CLI/API 主动心跳 + 浏览器 SSE 被动心跳共同决定 auto-shutdown（`heartbeatRegistry.size > 0 || sseRegistry.size > 0`，见 `docs/explanation/singleton-backend.md`）
+- **步骤超时**：各步骤有独立超时上限，超时后 SIGTERM kill，步骤标记 failed（可重跑）
+- **步骤并发**：单任务内按 DAG 就绪度并发执行步骤，固定上限 `N`（默认 3，`VL_MAX_PARALLEL_STEPS` 覆盖）；主链优先占槽，旁支用余量（`runTask` 池式调度）
+- **任务 ID**：`sha1(url + '\n').slice(0, 12)`，见 `core/id.js`
+- **Electron IPC**：renderer 只调用 preload 暴露的安全 API
+- **文档**：Diátaxis 方法论（`docs/reference/`、`docs/how-to/`、`docs/explanation/`、`docs/adr/`）

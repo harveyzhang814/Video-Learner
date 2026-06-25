@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('assert');
-const { computeReadySteps, pickNextStep, getDownstreamClosure } = require('../core/orchestrator/schedule');
+const { computeReadySteps, pickNextStep, pickReadyStepsOrdered, getDownstreamClosure, normalizeMode, excludedByMode, isNodeReachable, isTaskFailed, isTaskCompleted } = require('../core/orchestrator/schedule');
 
 function pending() {
   return { status: 'pending', attempts: 0, error: null };
@@ -21,7 +21,9 @@ function baseSteps() {
     video: pending(),
     audio: pending(),
     subs: pending(),
+    asr: pending(),
     vtt2md: pending(),
+    translate: pending(),
     md2vtt: pending(),
     article: pending(),
     summary: pending()
@@ -30,29 +32,160 @@ function baseSteps() {
 
 function run() {
   try {
-    // both: fetch completed, subs+video pending → ready subs+video; pick subs
+    // normalizeMode: old names map to new names
+    assert.strictEqual(normalizeMode('both'), 'media');
+    assert.strictEqual(normalizeMode('video'), 'media');
+    assert.strictEqual(normalizeMode('media'), 'media');
+    assert.strictEqual(normalizeMode('audio'), 'audio');
+    assert.strictEqual(normalizeMode('transcript'), 'transcript');
+    assert.strictEqual(normalizeMode('full'), 'full');
+    assert.strictEqual(normalizeMode(''), 'media');
+    assert.strictEqual(normalizeMode(undefined), 'media');
+    assert.strictEqual(normalizeMode('garbage'), 'media');
+
+    // excludedByMode: media mode — audio excluded until video fails
+    {
+      const noSteps = undefined;
+      assert.ok(excludedByMode('media', noSteps).has('audio'), 'media: audio excluded when video not failed');
+      assert.ok(!excludedByMode('media', noSteps).has('video'), 'media: video not excluded');
+
+      const videoFailed = { video: { status: 'failed' } };
+      assert.ok(!excludedByMode('media', videoFailed).has('audio'), 'media: audio allowed after video failed');
+
+      const videoPending = { video: { status: 'pending' } };
+      assert.ok(excludedByMode('media', videoPending).has('audio'), 'media: audio excluded when video pending');
+    }
+
+    // excludedByMode: full mode — video and audio not excluded (asr excluded until subs fails)
+    {
+      assert.ok(!excludedByMode('full').has('video'), 'full: video not excluded');
+      assert.ok(!excludedByMode('full').has('audio'), 'full: audio not excluded');
+    }
+
+    // excludedByMode: audio mode — video excluded
+    {
+      assert.ok(excludedByMode('audio').has('video'), 'audio: video excluded');
+      assert.ok(!excludedByMode('audio').has('audio'), 'audio: audio not excluded');
+    }
+
+    // excludedByMode: transcript mode — both excluded
+    {
+      assert.ok(excludedByMode('transcript').has('video'), 'transcript: video excluded');
+      assert.ok(excludedByMode('transcript').has('audio'), 'transcript: audio excluded');
+    }
+
+    // excludedByMode: asr — excluded when subs not failed
+    {
+      const subsNotFailed = { subs: { status: 'pending' }, video: { status: 'completed' } };
+      assert.ok(excludedByMode('media', subsNotFailed).has('asr'), 'asr excluded when subs not failed');
+    }
+
+    // excludedByMode: asr — excluded in transcript mode even if subs failed
+    {
+      const subsFailed = { subs: { status: 'failed' }, video: { status: 'completed' } };
+      assert.ok(excludedByMode('transcript', subsFailed).has('asr'), 'asr excluded in transcript mode');
+    }
+
+    // excludedByMode: asr — excluded in media mode when video not yet completed
+    {
+      const subsFailed = { subs: { status: 'failed' }, video: { status: 'pending' } };
+      assert.ok(excludedByMode('media', subsFailed).has('asr'), 'asr excluded when video pending');
+    }
+
+    // excludedByMode: asr — NOT excluded in media mode when subs failed and video completed
+    {
+      const subsFailed = { subs: { status: 'failed' }, video: { status: 'completed' } };
+      assert.ok(!excludedByMode('media', subsFailed).has('asr'), 'asr allowed when subs failed + video completed');
+    }
+
+    // excludedByMode: asr — NOT excluded in media mode when video failed but audio completed
+    {
+      const steps = { subs: { status: 'failed' }, video: { status: 'failed' }, audio: { status: 'completed' } };
+      assert.ok(!excludedByMode('media', steps).has('asr'), 'asr allowed when video failed + audio completed');
+    }
+
+    // excludedByMode: asr — excluded in audio mode when audio not yet completed
+    {
+      const steps = { subs: { status: 'failed' }, audio: { status: 'pending' } };
+      assert.ok(excludedByMode('audio', steps).has('asr'), 'asr excluded in audio mode when audio pending');
+    }
+
+    // excludedByMode: asr — NOT excluded in audio mode when subs failed and audio completed
+    {
+      const steps = { subs: { status: 'failed' }, audio: { status: 'completed' } };
+      assert.ok(!excludedByMode('audio', steps).has('asr'), 'asr allowed in audio mode when audio completed');
+    }
+
+    // media: fetch completed → subs+video ready, audio excluded; pick subs
     {
       const steps = baseSteps();
       steps.fetch = completed();
-      const task = { params: { mode: 'both' }, steps };
+      const task = { params: { mode: 'media' }, steps };
       const ready = computeReadySteps(task);
       assert.ok(ready.has('subs'), 'ready should contain subs');
       assert.ok(ready.has('video'), 'ready should contain video');
-      assert.strictEqual(pickNextStep(ready, 'both'), 'subs');
+      assert.ok(!ready.has('audio'), 'audio must not be ready before video fails');
+      assert.strictEqual(pickNextStep(ready, 'media', task.steps), 'subs');
     }
 
-    // vtt2md completed; article+md2vtt pending → pick article (main before secondary)
+    // media: video failed → audio becomes ready; pick audio
     {
       const steps = baseSteps();
       steps.fetch = completed();
-      steps.video = completed();
       steps.subs = completed();
       steps.vtt2md = completed();
-      const task = { params: { mode: 'both' }, steps };
+      steps.md2vtt = completed();
+      steps.translate = completed();  // ← add this line
+      steps.article = completed();
+      steps.summary = completed();
+      steps.video = failed();
+      const task = { params: { mode: 'media' }, steps };
       const ready = computeReadySteps(task);
-      assert.ok(ready.has('article'));
-      assert.ok(ready.has('md2vtt'));
-      assert.strictEqual(pickNextStep(ready, 'both'), 'article');
+      assert.ok(ready.has('audio'), 'audio must be ready after video failed');
+      assert.strictEqual(pickNextStep(ready, 'media', task.steps), 'audio');
+    }
+
+    // full: fetch completed → subs + video + audio all ready; pick subs (primary first)
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      const task = { params: { mode: 'full' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('subs'), 'full: subs ready');
+      assert.ok(ready.has('video'), 'full: video ready');
+      assert.ok(ready.has('audio'), 'full: audio ready');
+      assert.strictEqual(pickNextStep(ready, 'full', task.steps), 'subs');
+    }
+
+    // full: all primary done, video+audio pending → pick video before audio
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.vtt2md = completed();
+      steps.translate = completed();
+      steps.md2vtt = completed();
+      steps.article = completed();
+      steps.summary = completed();
+      const task = { params: { mode: 'full' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('video'), 'full: video ready');
+      assert.ok(ready.has('audio'), 'full: audio ready');
+      assert.strictEqual(pickNextStep(ready, 'full', task.steps), 'video');
+    }
+
+    // vtt2md completed; article+translate pending → pick article (main before secondary)
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.vtt2md = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('article'),   'article ready after vtt2md');
+      assert.ok(ready.has('translate'), 'translate ready after vtt2md');
+      assert.ok(!ready.has('md2vtt'),   'md2vtt blocked until translate done');
+      assert.strictEqual(pickNextStep(ready, 'media', task.steps), 'article');
     }
 
     // subs failed → vtt2md not ready
@@ -60,9 +193,63 @@ function run() {
       const steps = baseSteps();
       steps.fetch = completed();
       steps.subs = failed();
-      const task = { params: { mode: 'both' }, steps };
+      const task = { params: { mode: 'media' }, steps };
       const ready = computeReadySteps(task);
       assert.ok(!ready.has('vtt2md'), 'vtt2md must not be ready when subs failed');
+    }
+
+    // vtt2md OR: subs=completed → vtt2md ready (asr stays pending/excluded)
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('vtt2md'), 'vtt2md ready when subs=completed');
+    }
+
+    // vtt2md OR: subs=failed + asr=completed → vtt2md ready
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = failed();
+      steps.asr = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('vtt2md'), 'vtt2md ready when asr=completed');
+    }
+
+    // vtt2md OR: subs=failed + asr=failed → vtt2md NOT ready
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = failed();
+      steps.asr = failed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(!ready.has('vtt2md'), 'vtt2md not ready when both subs and asr failed');
+    }
+
+    // asr scheduled after subs=failed + video=completed (media mode)
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = failed();
+      steps.video = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('asr'), 'asr ready when subs=failed + video=completed');
+      assert.ok(!ready.has('vtt2md'), 'vtt2md not ready until asr completes');
+    }
+
+    // vtt2md OR: subs=skipped + asr=pending (excluded) → vtt2md ready
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = { status: 'skipped', attempts: 0, error: null };
+      const task = { params: { mode: 'transcript' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('vtt2md'), 'vtt2md ready when subs=skipped');
     }
 
     // video failed, fetch completed, subs pending → subs still ready
@@ -70,7 +257,7 @@ function run() {
       const steps = baseSteps();
       steps.fetch = completed();
       steps.video = failed();
-      const task = { params: { mode: 'both' }, steps };
+      const task = { params: { mode: 'media' }, steps };
       const ready = computeReadySteps(task);
       assert.ok(ready.has('subs'), 'subs should be ready despite video failed');
     }
@@ -86,6 +273,267 @@ function run() {
       const c = getDownstreamClosure('summary');
       assert.strictEqual(c.size, 1);
       assert.ok(c.has('summary'));
+    }
+
+    // isNodeReachable tests
+    {
+      function skipped() { return { status: 'skipped', attempts: 0, error: null }; }
+      function running() { return { status: 'running',  attempts: 1, error: null }; }
+
+      // Root node: fetch=pending, no predecessors → reachable
+      {
+        const steps = baseSteps();
+        assert.strictEqual(isNodeReachable('fetch', steps, 'media', new Set()), true,
+          'fetch pending: reachable (root node)');
+      }
+
+      // fetch=failed → not reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = failed();
+        assert.strictEqual(isNodeReachable('fetch', steps, 'media', new Set()), false,
+          'fetch failed: not reachable');
+      }
+
+      // fetch=completed → reachable immediately
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        assert.strictEqual(isNodeReachable('fetch', steps, 'media', new Set()), true,
+          'fetch completed: reachable');
+      }
+
+      // subs: fetch=completed, subs=pending → reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        assert.strictEqual(isNodeReachable('subs', steps, 'media', new Set()), true,
+          'subs pending + fetch completed: reachable');
+      }
+
+      // subs: fetch=failed, subs=pending → not reachable (predecessor failed)
+      {
+        const steps = baseSteps();
+        steps.fetch = failed();
+        assert.strictEqual(isNodeReachable('subs', steps, 'media', new Set()), false,
+          'subs pending + fetch failed: not reachable');
+      }
+
+      // vtt2md OR gate: subs=completed, asr=pending → reachable (subs satisfies OR)
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = completed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), true,
+          'vtt2md: subs=completed satisfies OR gate');
+      }
+
+      // vtt2md OR gate: subs=failed, asr=completed → reachable (asr satisfies OR)
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.asr = completed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), true,
+          'vtt2md: asr=completed satisfies OR gate');
+      }
+
+      // vtt2md OR gate: subs=failed, asr=failed → not reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.asr = failed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), false,
+          'vtt2md: both subs and asr failed → not reachable');
+      }
+
+      // KEY: transcript mode, subs=failed, asr=pending+excluded → NOT reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'transcript', new Set()), false,
+          'vtt2md: transcript mode, subs=failed, asr=excluded+pending → not reachable');
+      }
+
+      // media mode, subs=failed, asr=pending, video=pending → asr excluded → not reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.video = pending();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), false,
+          'vtt2md: media mode, subs=failed, asr excluded (video pending) → not reachable');
+      }
+
+      // media mode, subs=failed, asr=pending, video=completed → asr runnable → vtt2md reachable
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = failed();
+        steps.video = completed();
+        assert.strictEqual(isNodeReachable('vtt2md', steps, 'media', new Set()), true,
+          'vtt2md: media mode, subs=failed, video=completed → asr runnable → reachable');
+      }
+
+      // md2vtt=failed → summary still reachable (md2vtt is a side branch)
+      {
+        const steps = baseSteps();
+        steps.fetch = completed();
+        steps.subs = completed();
+        steps.vtt2md = completed();
+        steps.md2vtt = failed();
+        steps.article = completed();
+        assert.strictEqual(isNodeReachable('summary', steps, 'media', new Set()), true,
+          'summary: md2vtt=failed is a side branch → summary still reachable');
+      }
+
+      // Full chain: all steps pending, fetch not failed → summary reachable
+      {
+        const steps = baseSteps();
+        // All steps pending (default from baseSteps) — fetch is root, not excluded
+        assert.strictEqual(isNodeReachable('summary', steps, 'media', new Set()), true,
+          'summary: all steps pending → still reachable (fetch not failed)');
+      }
+    }
+
+    // isTaskFailed / isTaskCompleted tests
+    {
+      function makeTask(mode, stepsOverride) {
+        const steps = Object.assign(baseSteps(), stepsOverride || {});
+        return { params: { mode: mode || 'media' }, steps };
+      }
+
+      // subs=completed → not failed
+      assert.strictEqual(isTaskFailed(makeTask('media', {
+        fetch: completed(), subs: completed(), vtt2md: completed(), article: completed(), summary: completed()
+      })), false, 'isTaskFailed: all completed → false');
+
+      // subs=failed + asr=completed → not failed (fallback path succeeded)
+      assert.strictEqual(isTaskFailed(makeTask('media', {
+        fetch: completed(), subs: failed(), asr: completed(),
+        vtt2md: completed(), article: completed(), summary: completed()
+      })), false, 'isTaskFailed: subs=failed, asr=completed → false');
+
+      // subs=failed + asr=failed → failed
+      assert.strictEqual(isTaskFailed(makeTask('media', {
+        fetch: completed(), subs: failed(), asr: failed()
+      })), true, 'isTaskFailed: subs=failed, asr=failed → true');
+
+      // transcript mode: subs=failed, asr=excluded+pending → failed (core correctness test)
+      assert.strictEqual(isTaskFailed(makeTask('transcript', {
+        fetch: completed(), subs: failed()
+        // asr stays pending; transcript mode excludes it
+      })), true, 'isTaskFailed: transcript, subs=failed, asr=excluded+pending → true');
+
+      // md2vtt=failed, all others ok → NOT failed (md2vtt is a side branch)
+      assert.strictEqual(isTaskFailed(makeTask('media', {
+        fetch: completed(), subs: completed(), vtt2md: completed(),
+        md2vtt: failed(), article: completed(), summary: completed()
+      })), false, 'isTaskFailed: md2vtt=failed → false (side branch, not critical)');
+
+      // isTaskCompleted: all critical path done, subs completed → true
+      assert.strictEqual(isTaskCompleted(makeTask('media', {
+        fetch: completed(), subs: completed(), vtt2md: completed(),
+        article: completed(), summary: completed()
+      })), true, 'isTaskCompleted: all critical + subs done → true');
+
+      // isTaskCompleted: summary=skipped manually but vtt2md still pending → false
+      assert.strictEqual(isTaskCompleted(makeTask('media', {
+        fetch: completed(), subs: completed(), summary: { status: 'skipped', attempts: 0, error: null }
+        // vtt2md still pending
+      })), false, 'isTaskCompleted: summary skipped but vtt2md pending → false');
+
+      // isTaskCompleted: asr path — subs=failed, asr=completed, rest done → true
+      assert.strictEqual(isTaskCompleted(makeTask('media', {
+        fetch: completed(), subs: failed(), asr: completed(),
+        vtt2md: completed(), article: completed(), summary: completed()
+      })), true, 'isTaskCompleted: ASR path completed → true');
+
+      // isTaskCompleted: subs=failed, asr=skipped → false (asr=skipped produced no transcript)
+      assert.strictEqual(isTaskCompleted(makeTask('media', {
+        fetch: completed(), subs: failed(), asr: { status: 'skipped', attempts: 0, error: null },
+        vtt2md: completed(), article: completed(), summary: completed()
+      })), false, 'isTaskCompleted: subs=failed, asr=skipped → false (no transcript produced)');
+    }
+
+    // translate: ready after vtt2md completed
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.vtt2md = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('translate'), 'translate ready when vtt2md completed');
+      assert.ok(!ready.has('md2vtt'),   'md2vtt not ready until translate done');
+    }
+
+    // translate completed → md2vtt ready
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.vtt2md = completed();
+      steps.translate = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('md2vtt'),     'md2vtt ready after translate completed');
+      assert.ok(!ready.has('translate'), 'translate not re-ready after completed');
+    }
+
+    // translate skipped → md2vtt ready (predecessorSatisfied treats skipped as satisfied)
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.vtt2md = completed();
+      steps.translate = { status: 'skipped', attempts: 0, error: null };
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      assert.ok(ready.has('md2vtt'), 'md2vtt ready after translate skipped');
+    }
+
+    // getDownstreamClosure: vtt2md closure includes translate
+    {
+      const c = getDownstreamClosure('vtt2md');
+      assert.ok(c.has('translate'), 'translate in vtt2md downstream closure');
+      assert.ok(c.has('md2vtt'),    'md2vtt in vtt2md downstream closure');
+      assert.ok(c.has('article'),   'article in vtt2md downstream closure');
+      assert.ok(c.has('summary'),   'summary in vtt2md downstream closure');
+    }
+
+    // pickReadyStepsOrdered: media mode after fetch — subs (main chain) before video (secondary)
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);
+      const ordered = pickReadyStepsOrdered(ready, 'media', steps);
+      assert.deepStrictEqual(ordered, ['subs', 'video'], 'subs (main) precedes video (secondary)');
+    }
+
+    // pickReadyStepsOrdered: empty ready set yields empty array
+    {
+      const steps = baseSteps();
+      const ordered = pickReadyStepsOrdered(new Set(), 'media', steps);
+      assert.deepStrictEqual(ordered, [], 'empty ready set -> []');
+    }
+
+    // pickReadyStepsOrdered: parallel side branches — translate and article both ready, main chain first
+    {
+      const steps = baseSteps();
+      steps.fetch = completed();
+      steps.subs = completed();
+      steps.video = completed();
+      steps.vtt2md = completed();
+      const task = { params: { mode: 'media' }, steps };
+      const ready = computeReadySteps(task);              // expect { translate, article, audio? } minus excluded
+      const ordered = pickReadyStepsOrdered(ready, 'media', steps);
+      assert.strictEqual(ordered[0], 'article', 'article (main chain) picked first');
+      assert.ok(ordered.includes('translate'), 'translate (side branch) included');
+      assert.ok(ordered.indexOf('article') < ordered.indexOf('translate'), 'article before translate');
     }
 
     console.log('orchestrator-schedule.test.js: PASS');
