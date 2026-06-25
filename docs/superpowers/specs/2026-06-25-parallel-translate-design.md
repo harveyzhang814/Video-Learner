@@ -1,7 +1,15 @@
+---
+migrated: 2026-06-26
+docs:
+  - explanation/subtitle-translate-pipeline.md  # 全部内容：预合并动机、并行架构、格式校验、被排除方案、参数
+  - reference/architecture.md  # §7.3 字幕命名规则；§8 翻译相关 env vars
+superseded_by: []
+---
+
 # 字幕翻译并行化与可读性优化设计
 
 **日期**：2026-06-25
-**状态**：待实现
+**状态**：已实现（`impl/parallel-translate` 分支，已合并至 staging）
 
 ## 背景
 
