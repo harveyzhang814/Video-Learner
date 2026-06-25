@@ -145,3 +145,14 @@ case "$WRITING_ENGINE" in
     exit 1
     ;;
 esac
+
+# Strip <think>...</think> reasoning traces emitted by reasoning models (e.g. MiniMax-M2.7).
+if [[ -f "$OUTPUT_FILE" ]]; then
+  python3 - "$OUTPUT_FILE" <<'PYEOF'
+import re, sys
+path = sys.argv[1]
+content = open(path).read()
+content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).lstrip()
+open(path, 'w').write(content)
+PYEOF
+fi
