@@ -15,23 +15,39 @@ YouTube 视频处理流水线 - 下载、转录、总结，一站式完成。
 
 ## 快速开始
 
-### 首次安装
+### 正式安装（推荐）
+
+安装完成后**可删除仓库**，`vdl` 独立运行：
 
 ```bash
-# 自动安装所有依赖（推荐）
-bash scripts/install.sh
+bash scripts/install.sh                # 安装系统依赖（yt-dlp / ffmpeg / jq）
+npm install                            # 安装 Node 依赖
+npm pack && npm install -g ./video-learner-*.tgz && rm video-learner-*.tgz
+```
 
-# 启动方式（三选一）
+首次运行任意 `vdl` 命令时，向导自动创建 **`~/.config/vdl/settings.conf`** 并询问数据目录（默认 `~/vdl-work`）。
+
+### 开发安装
+
+在仓库内直接运行，改代码立即生效，无需重新安装：
+
+```bash
+bash scripts/install.sh && npm install
+node cli/index.js <URL>                # 直接调用 CLI 入口
+npm link                               # 或：注册 symlink 以使用 vdl 命令（仅开发期间）
+```
+
+### 启动方式
+
+```bash
 vdl <YouTube URL>          # CLI：跑任务（最常用，给 agent 也是它）
 vdl web                    # Web 端：起后端 + 开浏览器（关浏览器自动停后端）
 bash start-electron.sh     # Electron 桌面客户端
 ```
 
-### 部署到新机器
+### 配置
 
-首次运行任意 `vdl` 命令时，向导自动创建 **`~/.config/vdl/settings.conf`**。至少配置 **`WRITING_ENGINE_DEFAULT`**（`opencode` / `claude`）、**`OUTPUT_LANG`**；若 YouTube 出现人机验证，再配置 **`YT_DLP_COOKIES_BROWSER`** 或 **`YT_DLP_COOKIES_FILE`**。手动跑 Agent Service 时可设置环境变量 **`PORT`**、**`AGENT_EVENTS_TOKEN`**、**`OPENCODE_HOST`** / **`OPENCODE_PORT`** 等。
-
-根目录 **`npm install`** 为跑 Agent Service / 测试所必需；仅 GUI 时仍需 **`cd electron && npm install`**。
+至少配置 **`WRITING_ENGINE_DEFAULT`**（`opencode` / `claude`）、**`OUTPUT_LANG`**；若 YouTube 出现人机验证，再配置 **`YT_DLP_COOKIES_BROWSER`** 或 **`YT_DLP_COOKIES_FILE`**。手动跑 Agent Service 时可设置环境变量 **`PORT`**、**`AGENT_EVENTS_TOKEN`**、**`OPENCODE_HOST`** / **`OPENCODE_PORT`** 等。
 
 **完整清单与步骤**见 **[部署指南：docs/how-to/deploy.md](docs/how-to/deploy.md)**。
 
