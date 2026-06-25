@@ -44,3 +44,4 @@ work/*
 .cursor/skills/ui-ux-pro-max/
 .gstack/
 .superpowers/
+*.tgz
