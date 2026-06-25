@@ -6,11 +6,20 @@
 
 ## 安装
 
+**正式安装**（安装后可删仓库）：
+
 ```bash
 npm pack                               # 生成 video-learner-x.x.x.tgz
 npm install -g ./video-learner-*.tgz   # 真实拷贝，删仓库后 vdl 仍可运行
 rm video-learner-*.tgz
 npm uninstall -g video-learner         # 卸载
+```
+
+**开发安装**（在仓库内直接运行，改代码立即生效）：
+
+```bash
+node cli/index.js <args>   # 直接调用，无需全局安装
+npm link                   # 或：symlink 安装，仅开发期间使用
 ```
 
 ---

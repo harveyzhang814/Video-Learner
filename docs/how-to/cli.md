@@ -2,6 +2,10 @@
 
 ## 安装
 
+### 正式安装（推荐）
+
+从仓库打包后全局安装，安装完成后**可删除仓库**，`vdl` 独立运行：
+
 ```bash
 cd /path/to/Video-Learner
 npm pack                               # 生成 video-learner-x.x.x.tgz
@@ -10,6 +14,22 @@ rm video-learner-*.tgz                 # 清理临时包文件
 ```
 
 首次运行任意 `vdl` 命令时，会自动创建 `~/.config/vdl/settings.conf` 并询问数据目录（默认 `~/vdl-work`）。
+
+### 开发安装
+
+仓库目录下直接运行，无需全局安装，改代码立即生效：
+
+```bash
+node cli/index.js <url>          # 直接调用入口
+node cli/index.js config get
+```
+
+若希望在开发期间也能用 `vdl` 命令，可用 symlink 安装（**仅开发用**，依赖仓库存在）：
+
+```bash
+npm link          # 注册 symlink
+npm unlink vdl    # 开发结束后取消
+```
 
 ## 基本用法
 
