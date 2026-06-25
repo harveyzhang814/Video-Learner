@@ -1,6 +1,12 @@
 #!/bin/bash
-# Subtitle translation step
+# Subtitle translation step - holistic page-level parallel translation
 # Usage: bash scripts/translate_subs.sh <INPUT_EN_MD> <OUTPUT_ZH_MD>
+#
+# Env vars (all optional):
+#   TRANSLATE_PAGE_SIZE     lines per page          (default 200)
+#   TRANSLATE_PARALLEL      max concurrent LLM calls (default 5)
+#   TRANSLATE_PAGE_TIMEOUT  seconds per page call   (default 600)
+#   TRANSLATE_MIN_COVERAGE  minimum coverage %      (default 90)
 
 set -e
 
@@ -20,186 +26,146 @@ if [ ! -f "$INPUT_MD" ]; then
     exit 1
 fi
 
+PAGE_SIZE="${TRANSLATE_PAGE_SIZE:-200}"
+PARALLEL="${TRANSLATE_PARALLEL:-5}"
+PAGE_TIMEOUT="${TRANSLATE_PAGE_TIMEOUT:-600}"
+MIN_COVERAGE="${TRANSLATE_MIN_COVERAGE:-90}"
+
 echo "[STATUS] translate_start"
 mkdir -p "$(dirname "$OUTPUT_MD")"
 
 TMPDIR_TRANS=$(mktemp -d /tmp/translate-XXXXXXXX)
 trap 'rm -rf "$TMPDIR_TRANS"' EXIT INT TERM
 
-# ── Phase 1: 时间窗口分块 ──────────────────────────────────────────────────────
-CHUNKS_JSON="$TMPDIR_TRANS/chunks.json"
+PAGES_DIR="$TMPDIR_TRANS/pages"
+mkdir -p "$PAGES_DIR"
 
-python3 - "$INPUT_MD" "$CHUNKS_JSON" <<'PYTHON_EOF'
-import sys, json, re
+# ── Phase 1: 分页 ─────────────────────────────────────────────────────────────
+EN_LINE_COUNT=$(grep -c '^\[' "$INPUT_MD" || true)
 
-WINDOW_SECS = 25   # 目标窗口 20-30s
-MAX_CHARS   = 800  # 单块字符硬上限
+python3 - "$INPUT_MD" "$PAGES_DIR" "$PAGE_SIZE" <<'PYTHON_EOF'
+import sys
 
-def ts_to_secs(ts):
-    # Strip milliseconds if present: "00:01:23.456" → "00:01:23"
-    ts = ts.split('.')[0]
-    parts = ts.split(':')
-    if len(parts) == 3:
-        h, m, s = parts; return int(h)*3600 + int(m)*60 + int(s)
-    elif len(parts) == 2:
-        m, s = parts; return int(m)*60 + int(s)
-    return 0.0
+input_md, pages_dir, page_size = sys.argv[1], sys.argv[2], int(sys.argv[3])
 
-content = open(sys.argv[1], encoding='utf-8').read()
+with open(input_md, encoding='utf-8') as f:
+    lines = [l for l in f.readlines() if l.strip()]
 
-# Support two formats:
-#   1. [HH:MM:SS.mmm --> HH:MM:SS.mmm] text   (vtt_converter.py output)
-#   2. ## HH:MM:SS\ntext                        (legacy heading format)
-vtt_line_re = re.compile(r'^\[(\d{2}:\d{2}:\d{2})[^\]]*\]\s+(.*)')
-heading_re  = re.compile(r'^## (\d{1,2}:\d{2}:\d{2})\s*\n(.*?)(?=\n## |\Z)',
-                         re.MULTILINE | re.DOTALL)
+for page_num, start in enumerate(range(0, len(lines), page_size)):
+    chunk = lines[start:start + page_size]
+    # Zero-padded filenames for macOS-compatible lexicographic sort (no sort -V needed)
+    with open(f"{pages_dir}/page_{page_num:03d}.en", 'w', encoding='utf-8') as f:
+        f.writelines(chunk)
 
-blocks = []
-for line in content.splitlines():
-    m = vtt_line_re.match(line.strip())
-    if m:
-        blocks.append((m.group(1), m.group(2).strip()))
-
-if not blocks:
-    # Fallback: try heading format
-    blocks = [(m.group(1), m.group(2).strip())
-              for m in heading_re.finditer(content)]
-
-if not blocks:
-    print("ERROR: no timestamp blocks found", file=sys.stderr)
-    sys.exit(1)
-
-chunks = []
-cur_start_ts   = blocks[0][0]
-cur_start_secs = ts_to_secs(blocks[0][0])
-cur_texts      = []
-
-for ts, text in blocks:
-    secs    = ts_to_secs(ts)
-    elapsed = secs - cur_start_secs
-    if elapsed >= WINDOW_SECS or len(' '.join(cur_texts + [text])) > MAX_CHARS:
-        if cur_texts:
-            chunks.append({'start_ts': cur_start_ts, 'text': ' '.join(cur_texts)})
-        cur_start_ts, cur_start_secs, cur_texts = ts, secs, [text]
-    else:
-        cur_texts.append(text)
-
-if cur_texts:
-    chunks.append({'start_ts': cur_start_ts, 'text': ' '.join(cur_texts)})
-
-json.dump(chunks, open(sys.argv[2], 'w', encoding='utf-8'),
-          ensure_ascii=False, indent=2)
-print(f"Phase1: {len(chunks)} chunks from {len(blocks)} blocks")
+print(f"Phase1: {len(lines)} lines → {(len(lines) + page_size - 1) // page_size} pages")
 PYTHON_EOF
 
-CHUNK_COUNT=$(python3 -c "import json; print(len(json.load(open('$CHUNKS_JSON'))))")
-echo "[STATUS] translate_chunks: $CHUNK_COUNT"
+PAGE_COUNT=$(ls "$PAGES_DIR"/*.en 2>/dev/null | wc -l | tr -d ' ')
+echo "[STATUS] translate_chunks: $PAGE_COUNT"
 
-# ── Phase 2: 顺序 LLM 翻译 ───────────────────────────────────────────────────
-ZH_DIR="$TMPDIR_TRANS/results"
-mkdir -p "$ZH_DIR"
-zh_prev_tail=""
-failed_count=0
+# ── Phase 2: 并行翻译 ─────────────────────────────────────────────────────────
+translate_page() {
+    local page_en="$1"
+    local page_num="$2"
+    local page_zh="${page_en%.en}.zh"
+    local prompt_file="$TMPDIR_TRANS/prompt_${page_num}.txt"
 
-for i in $(seq 0 $((CHUNK_COUNT - 1))); do
-    echo "[STATUS] translate_chunk $((i+1))/$CHUNK_COUNT"
-
-    MERGED_EN=$(python3 -c "import json; print(json.load(open('$CHUNKS_JSON'))[$i]['text'])")
-    NEXT_EN=""
-    if [ "$i" -lt "$((CHUNK_COUNT - 1))" ]; then
-        NEXT_EN=$(python3 -c "import json; print(json.load(open('$CHUNKS_JSON'))[$((i+1))]['text'])")
-    fi
-
-    PROMPT_FILE="$TMPDIR_TRANS/prompt_$i.txt"
     {
-        echo '你是一名字幕翻译员。只输出简体中文翻译结果，不要重复英文原文，不要添加任何解释、分隔线或额外标记。'
-        echo '将【待翻译】内容翻译为简体中文，要求：语义准确、中文流畅，不限行数和结构。'
-        if [ -n "$zh_prev_tail" ]; then
-            echo '从【已翻译上文】结束的语义节点自然接续，不重复上文内容。'
-            echo ''
-            echo '--- 已翻译上文（末尾，接续参考）---'
-            printf '%s\n' "$zh_prev_tail"
-        fi
-        echo ''
-        echo '--- 待翻译 ---'
-        printf '%s\n' "$MERGED_EN"
-        if [ -n "$NEXT_EN" ]; then
-            echo ''
-            echo '--- 下文参考（只读，不翻译）---'
-            printf '%s\n' "$NEXT_EN"
-        fi
-    } > "$PROMPT_FILE"
+        printf '%s\n' '你是一名专业字幕翻译员。我将给你一段带时间戳的英文字幕，格式为：'
+        printf '%s\n' '[HH:MM:SS.mmm --> HH:MM:SS.mmm] 英文内容'
+        printf '%s\n' ''
+        printf '%s\n' '任务要求：'
+        printf '%s\n' '1. 先通读全部内容，理解整体语义和上下文'
+        printf '%s\n' '2. 将全部内容翻译为流畅的简体中文'
+        printf '%s\n' '3. 输出必须保留【每一条】原始时间戳，格式完全一致：[HH:MM:SS.mmm --> HH:MM:SS.mmm] 中文内容'
+        printf '%s\n' '4. 中文内容按自然语义分配到各时间戳，可合理调整每行文字量，但不能增删时间戳条目'
+        printf '%s\n' '5. 只输出翻译结果，不要解释、不要注释'
+        printf '%s\n' ''
+        printf '%s\n' '--- 待翻译字幕 ---'
+        cat "$page_en"
+    } > "$prompt_file"
 
-    ZH_OUT="$ZH_DIR/chunk_$i.txt"
-    if bash "$SCRIPT_DIR/llm_engine.sh" --input "$PROMPT_FILE" --output "$ZH_OUT" 2>/dev/null; then
-        # Strip <think>...</think> blocks (extended thinking leakage)
-        python3 -c "
-import re, sys
-raw = open('$ZH_OUT', encoding='utf-8').read()
-clean = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
-open('$ZH_OUT', 'w', encoding='utf-8').write(clean)
-"
-        zh_prev_tail=$(python3 -c "
-t = open('$ZH_OUT', encoding='utf-8').read().strip()
-print(t[-150:] if len(t) > 150 else t)
-")
+    if timeout "$PAGE_TIMEOUT" bash "$SCRIPT_DIR/llm_engine.sh" \
+        --input "$prompt_file" --output "$page_zh" 2>/dev/null; then
+        echo "[STATUS] translate_chunk $((page_num + 1))/$PAGE_COUNT"
     else
-        echo "[STATUS] translate_error: chunk $((i+1)) LLM failed, skipping"
-        zh_prev_tail=""
-        failed_count=$((failed_count + 1))
+        echo "[STATUS] translate_chunk_failed: $((page_num + 1))/$PAGE_COUNT"
+        rm -f "$page_zh"
+    fi
+}
+
+# Semaphore-style parallel execution with cap
+pids=()
+page_num=0
+for page_en in $(ls "$PAGES_DIR"/*.en | sort); do
+    translate_page "$page_en" "$page_num" &
+    pids+=($!)
+    page_num=$((page_num + 1))
+
+    if [ "${#pids[@]}" -ge "$PARALLEL" ]; then
+        wait "${pids[0]}"
+        pids=("${pids[@]:1}")
     fi
 done
+[ "${#pids[@]}" -gt 0 ] && wait "${pids[@]}"
 
-if [ "$failed_count" -eq "$CHUNK_COUNT" ]; then
-    echo "[STATUS] translate_error: all $CHUNK_COUNT chunks failed"
+# ── Phase 3: 页间缝合 ─────────────────────────────────────────────────────────
+smooth_seam() {
+    local page_a_zh="$1"
+    local page_b_zh="$2"
+    local seam_num="$3"
+
+    [ -f "$page_a_zh" ] && [ -f "$page_b_zh" ] || return 0
+
+    local prompt_file="$TMPDIR_TRANS/seam_${seam_num}.txt"
+    local seam_out="$TMPDIR_TRANS/seam_${seam_num}.out"
+
+    {
+        printf '%s\n' '以下是两段相邻字幕的边界内容（简体中文）。请微调【下文开头】的前几行，'
+        printf '%s\n' '使其从【上文结尾】自然接续，保持术语和语气一致。'
+        printf '%s\n' '只输出修改后的【下文开头】行，不要输出其他内容。'
+        printf '%s\n' ''
+        printf '%s\n' '--- 上文结尾（只读）---'
+        tail -3 "$page_a_zh"
+        printf '%s\n' ''
+        printf '%s\n' '--- 下文开头（待调整）---'
+        head -3 "$page_b_zh"
+    } > "$prompt_file"
+
+    if timeout 120 bash "$SCRIPT_DIR/llm_engine.sh" \
+        --input "$prompt_file" --output "$seam_out" 2>/dev/null; then
+        python3 - "$page_b_zh" "$seam_out" <<'PYEOF'
+import sys
+orig  = open(sys.argv[1], encoding='utf-8').readlines()
+patch = open(sys.argv[2], encoding='utf-8').readlines()
+# Replace first min(len(patch), 3) lines, keep the rest
+keep_from = min(len(patch), 3)
+open(sys.argv[1], 'w', encoding='utf-8').writelines(patch + orig[keep_from:])
+PYEOF
+    fi
+}
+
+zh_pages=($(ls "$PAGES_DIR"/*.zh 2>/dev/null | sort))
+seam_pids=()
+for ((i = 0; i < ${#zh_pages[@]} - 1; i++)); do
+    smooth_seam "${zh_pages[$i]}" "${zh_pages[$((i + 1))]}" "$i" &
+    seam_pids+=($!)
+done
+[ "${#seam_pids[@]}" -gt 0 ] && wait "${seam_pids[@]}"
+
+# ── Phase 4: 格式校验、修复、合并写入 ─────────────────────────────────────────
+COMBINED="$TMPDIR_TRANS/combined.zh"
+for page_zh in $(ls "$PAGES_DIR"/*.zh 2>/dev/null | sort); do
+    cat "$page_zh"
+done > "$COMBINED"
+
+if ! python3 "$SCRIPT_DIR/translate_validator.py" \
+    --input "$COMBINED" \
+    --output "$OUTPUT_MD" \
+    --en-line-count "$EN_LINE_COUNT" \
+    --min-coverage "$MIN_COVERAGE"; then
+    echo "[STATUS] translate_error: validation failed"
     exit 1
 fi
-
-# ── Phase 3: 组装 original_zh.md ─────────────────────────────────────────────
-# 输出格式与 vtt_converter.py 一致：[HH:MM:SS.000 --> HH:MM:SS.000] text
-# 每个 chunk 的 end_ts = 下一个 chunk 的 start_ts（最后一个 chunk 加 WINDOW_SECS）
-python3 - "$CHUNKS_JSON" "$ZH_DIR" "$OUTPUT_MD" <<'PYTHON_EOF'
-import sys, json, os
-
-WINDOW_SECS = 25
-
-def secs_to_ts(secs):
-    h = int(secs) // 3600
-    m = (int(secs) % 3600) // 60
-    s = int(secs) % 60
-    ms = int(round((secs - int(secs)) * 1000))
-    return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
-
-def ts_to_secs(ts):
-    parts = ts.split(':')
-    return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
-
-chunks = json.load(open(sys.argv[1], encoding='utf-8'))
-results_dir, output_md = sys.argv[2], sys.argv[3]
-
-lines = []
-for i, chunk in enumerate(chunks):
-    rf = os.path.join(results_dir, f'chunk_{i}.txt')
-    if not os.path.exists(rf):
-        continue
-    zh = open(rf, encoding='utf-8').read().strip()
-    if not zh:
-        continue
-    start_secs = ts_to_secs(chunk['start_ts'])
-    if i + 1 < len(chunks):
-        end_secs = ts_to_secs(chunks[i + 1]['start_ts'])
-    else:
-        end_secs = start_secs + WINDOW_SECS
-    # Inline text (replace newlines with space) for the VTT-line format
-    zh_inline = ' '.join(zh.split())
-    lines.append(f"[{secs_to_ts(start_secs)} --> {secs_to_ts(end_secs)}] {zh_inline}")
-
-if not lines:
-    print("ERROR: no translated chunks to write", file=sys.stderr)
-    sys.exit(1)
-
-open(output_md, 'w', encoding='utf-8').write('\n\n'.join(lines) + '\n')
-print(f"Phase3: wrote {len(lines)} chunks to {output_md}")
-PYTHON_EOF
 
 echo "[STATUS] translate_done"
