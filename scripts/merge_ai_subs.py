@@ -21,7 +21,7 @@ def _secs_to_ts(secs: float) -> str:
     h = int(secs) // 3600
     m = (int(secs) % 3600) // 60
     s_int = int(secs) % 60
-    ms = int(round((secs - int(secs)) * 1000))
+    ms = int(round((secs - int(secs)) * 1000)) % 1000
     return f"{h:02d}:{m:02d}:{s_int:02d}.{ms:03d}"
 
 
