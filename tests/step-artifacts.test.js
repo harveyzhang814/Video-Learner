@@ -21,20 +21,23 @@ function makeTask(rootDir, id, url, mode = 'both') {
 
 function run() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vl-step-art-'));
+  const prevWorkRoot = process.env.WORK_ROOT;
 
   try {
     const id = 'abc123def456';
     const url = 'https://example.com/watch?v=1';
 
-    // rootDir not a directory
+    // good root + fetch (set WORK_ROOT so getWorkRoot() resolves to root/work)
+    const root = path.join(tmp, 'proj');
+    fs.mkdirSync(root, { recursive: true });
+    process.env.WORK_ROOT = root;
+
+    // rootDir not a directory — test canWriteOrCreateTaskDir directly (not path-sensitive)
     const badFile = path.join(tmp, 'notadir');
     fs.writeFileSync(badFile, 'x');
     let r = validateStepArtifacts(makeTask(badFile, id, url), 'fetch');
     assert.strictEqual(r.ok, false);
 
-    // good root + fetch
-    const root = path.join(tmp, 'proj');
-    fs.mkdirSync(root, { recursive: true });
     r = validateStepArtifacts(makeTask(root, id, url), 'fetch');
     assert.strictEqual(r.ok, true);
 
@@ -92,6 +95,7 @@ function run() {
       const roTask = path.join(roRoot, 'work', roId);
       fs.mkdirSync(roTask, { recursive: true });
       fs.chmodSync(roTask, 0o555);
+      process.env.WORK_ROOT = roRoot;
       const wr = canWriteOrCreateTaskDir(roRoot, roId);
       assert.strictEqual(wr.ok, false);
       fs.chmodSync(roTask, 0o755);
@@ -99,6 +103,11 @@ function run() {
 
     console.log('step-artifacts.test.js: PASS');
   } finally {
+    if (prevWorkRoot === undefined) {
+      delete process.env.WORK_ROOT;
+    } else {
+      process.env.WORK_ROOT = prevWorkRoot;
+    }
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 }
