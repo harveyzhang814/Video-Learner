@@ -63,56 +63,89 @@ echo "[STATUS] subs_start"
 update_step "$ID" "subs" "running"
 
 # ── Bilibili ──────────────────────────────────────────────────────────────────
-# Bilibili subtitle strategy:
-#   1. Detect "ai-zh" via --list-subs (Bilibili AI-generated Chinese subtitles in SRT format)
-#   2. If found: download SRT → convert to VTT → save as ID.zh.original.vtt
-#   3. If not found: exit 1 (orchestrator activates ASR fallback)
-# Note: danmaku (xml bullet comments) is intentionally ignored.
+# Bilibili subtitle priority chain (danmaku/xml always ignored):
+#   1. zh      — human Chinese (highest quality)
+#   2. ai-zh   — AI Chinese
+#   3. ai-en   — AI English (pipeline handles English natively)
+#   If none available: exit 1 (orchestrator activates ASR fallback)
 _run_bilibili() {
     echo "Detecting Bilibili subtitles..."
     local subs_list
     subs_list=$(yt-dlp $YT_DLP_COOKIE_OPTS --no-playlist --list-subs "$URL" 2>/dev/null || true)
 
-    if ! echo "$subs_list" | grep -Eq "^ai-zh[[:space:]]"; then
-        echo "No ai-zh subtitles available — ASR fallback will be activated by orchestrator"
+    has_bilibili_track() {
+        echo "$subs_list" | grep -Eq "^${1}[[:space:]]"
+    }
+
+    # Download a Bilibili SRT sub-lang, convert SRT→VTT, save to vtt_out.
+    # Returns 0 on success, 1 on failure. Cleans up its own temp dir.
+    download_bilibili_sub() {
+        local sub_lang="$1"
+        local vtt_out="$2"
+        local tmp
+        tmp=$(mktemp -d)
+
+        yt-dlp $YT_DLP_COOKIE_OPTS \
+            --no-playlist \
+            --skip-download \
+            --write-subs \
+            --sub-lang "$sub_lang" \
+            -o "$tmp/subtitle.%(ext)s" \
+            "$URL" 2>/dev/null || true
+
+        local srt_file
+        srt_file=$(find "$tmp" -name "*.srt" | head -1 || true)
+
+        if [ -z "$srt_file" ] || [ ! -s "$srt_file" ]; then
+            rm -rf "$tmp"
+            return 1
+        fi
+
+        python3 "$SCRIPT_DIR/bilibili/srt2vtt.py" "$srt_file" "$vtt_out"
+        rm -rf "$tmp"
+
+        [ -s "$vtt_out" ] || return 1
+    }
+
+    local zh_downloaded=false
+    local en_downloaded=false
+
+    # Priority 1: human Chinese
+    if has_bilibili_track "zh"; then
+        echo "Found human Chinese subtitles (zh). Downloading..."
+        if download_bilibili_sub "zh" "$SUBS_DIR/${ID}.zh.original.vtt"; then
+            zh_downloaded=true
+            echo "zh subtitles downloaded successfully"
+        else
+            echo "Warning: zh download failed"
+        fi
+    fi
+
+    # Priority 2: AI Chinese
+    if [ "$zh_downloaded" = false ] && has_bilibili_track "ai-zh"; then
+        echo "Found AI Chinese subtitles (ai-zh). Downloading..."
+        if download_bilibili_sub "ai-zh" "$SUBS_DIR/${ID}.zh.original.vtt"; then
+            zh_downloaded=true
+            echo "ai-zh subtitles downloaded successfully"
+        else
+            echo "Warning: ai-zh download failed"
+        fi
+    fi
+
+    # Priority 3: AI English
+    if [ "$zh_downloaded" = false ] && has_bilibili_track "ai-en"; then
+        echo "Found AI English subtitles (ai-en). Downloading..."
+        if download_bilibili_sub "ai-en" "$SUBS_DIR/${ID}.en.original.vtt"; then
+            en_downloaded=true
+            echo "ai-en subtitles downloaded successfully"
+        else
+            echo "Warning: ai-en download failed"
+        fi
+    fi
+
+    if [ "$zh_downloaded" = false ] && [ "$en_downloaded" = false ]; then
+        echo "No usable subtitles available — ASR fallback will be activated by orchestrator"
         update_step "$ID" "subs" "failed" "no Bilibili subtitles available"
-        echo "[STATUS] subs_error"
-        exit 1
-    fi
-
-    echo "Found ai-zh subtitles. Downloading SRT..."
-
-    # Download to a temp dir — yt-dlp appends language codes to filename unpredictably
-    local TMP_DIR
-    TMP_DIR=$(mktemp -d)
-    trap 'rm -rf "$TMP_DIR"; rm -f "${SUBS_DIR}/${ID}".*.temp.* 2>/dev/null' EXIT
-
-    yt-dlp $YT_DLP_COOKIE_OPTS \
-        --no-playlist \
-        --skip-download \
-        --write-subs \
-        --sub-lang "ai-zh" \
-        -o "$TMP_DIR/subtitle.%(ext)s" \
-        "$URL" 2>/dev/null || true
-
-    # yt-dlp may produce e.g. "subtitle.NA.ai-zh.srt" — find any .srt file
-    local SRT_FILE
-    SRT_FILE=$(find "$TMP_DIR" -name "*.srt" | head -1 || true)
-
-    if [ -z "$SRT_FILE" ] || [ ! -s "$SRT_FILE" ]; then
-        echo "ai-zh download failed or produced empty file"
-        update_step "$ID" "subs" "failed" "ai-zh SRT download failed"
-        echo "[STATUS] subs_error"
-        exit 1
-    fi
-
-    # Convert SRT → VTT (pure Python, no ffmpeg needed)
-    local VTT_OUT="$SUBS_DIR/${ID}.zh.original.vtt"
-    python3 "$SCRIPT_DIR/bilibili/srt2vtt.py" "$SRT_FILE" "$VTT_OUT"
-
-    if [ ! -s "$VTT_OUT" ]; then
-        echo "SRT→VTT conversion produced empty output"
-        update_step "$ID" "subs" "failed" "srt2vtt conversion failed"
         echo "[STATUS] subs_error"
         exit 1
     fi
