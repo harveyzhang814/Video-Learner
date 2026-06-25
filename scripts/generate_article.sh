@@ -172,6 +172,16 @@ print(c['seam_start'], c['seam_end'], c['slice_start'], c['slice_end'])
         exit 1
     fi
 
+    # Strip any <think>...</think> blocks that leaked from chunk files generated
+    # before llm_engine.sh post-processing was added.
+    python3 - "$OUTPUT_PATH" <<'PYEOF'
+import re, sys
+path = sys.argv[1]
+content = open(path).read()
+content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).lstrip()
+open(path, 'w').write(content)
+PYEOF
+
     update_step "$TASK_ID" "article" "completed"
     echo "[STATUS] article_done"
     exit 0
