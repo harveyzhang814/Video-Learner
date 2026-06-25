@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.2.0] - 2026-06-25
+
+### Added
+
+#### Bilibili Support
+- Platform detection utility (`is_bilibili`) — routes download/subtitle/audio logic by platform
+- `download_video.sh` / `download_audio.sh` — separate Bilibili and YouTube code paths
+- `download_subs.sh` — ai-zh subtitle path for Bilibili; YouTube path unchanged
+- `srt2vtt.py` — SRT → WebVTT converter for Bilibili subtitles
+- ASR fallback for Bilibili when ai-zh subtitles are unavailable
+- Default output language set to `zh` for Bilibili URLs
+
+#### Installation & Configuration
+- `npm pack`-based global install — true file-copy install, no symlinks
+- First-run wizard creates `~/.config/vdl/settings.conf` on first launch
+- `vdl config get/set` reads and writes `~/.config/vdl/settings.conf`
+- Shell scripts source `user-config.sh`; default work root `~/vdl-work`
+- `WORK_ROOT` configurable via env var or `~/.config/vdl/settings.conf`
+- `paths.js` resolves `WORK_ROOT` dynamically (env → config file → default)
+- `vdl config migrate` — migrates existing task data to a new work root
+
+### Fixed
+
+- `WORK_ROOT` path resolution in tests — test suite now sets `WORK_ROOT` env var to temp dir to avoid polluting or depending on user's real work directory
+- `vdl list` — gracefully handles missing database directory (prints "No tasks found." instead of exiting 1)
+- `better-sqlite3` moved to `dependencies` for correct global install resolution
+
+### Changed
+
+- Install method changed from `npm link` to `npm pack` — see updated README Quick Start
+- Config and work root paths moved from project directory to `~/.config/vdl/` and `~/vdl-work/`
+
 ## [1.1.0] - 2026-05-19
 
 ### Added
@@ -87,5 +121,7 @@ Initial release.
 - Multi-engine writing: Claude Code CLI or OpenCode (MiniMax)
 - zh-CN subtitle fallback and traditional Chinese subtitle support
 
+[Unreleased]: https://github.com/harveyzhang96/video-learner/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/harveyzhang96/video-learner/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/harveyzhang96/video-learner/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/harveyzhang96/video-learner/releases/tag/v1.0.0

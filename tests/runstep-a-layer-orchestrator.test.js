@@ -14,6 +14,7 @@ const orchestrator = require('../core/orchestrator');
 const ROOT_DIR = path.resolve(__dirname, '..');
 
 async function run() {
+  process.env.WORK_ROOT = ROOT_DIR;
   const url = `https://www.youtube.com/watch?v=runstepA${Date.now()}`;
   const { task_id: taskId } = await orchestrator.createTask({
     url,

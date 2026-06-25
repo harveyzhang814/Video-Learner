@@ -3,18 +3,18 @@ const path = require('path');
 const fmt = require('../lib/format');
 const { getDbPath } = require('../../core/paths');
 
-const DB_PATH = getDbPath(path.resolve(__dirname, '../..'));
-
 async function run(_args) {
   let Database;
   try { Database = require('better-sqlite3'); }
   catch { fmt.printError('better-sqlite3 not installed. Run: npm install'); process.exit(1); }
 
+  const DB_PATH = getDbPath(path.resolve(__dirname, '../..'));
   let db;
   try {
     db = new Database(DB_PATH, { readonly: true });
   } catch (err) {
-    if (err.code === 'SQLITE_CANTOPEN' || err.message.includes('cannot open')) {
+    const msg = err.message || '';
+    if (err.code === 'SQLITE_CANTOPEN' || msg.toLowerCase().includes('cannot open') || msg.includes('directory does not exist')) {
       process.stdout.write('No tasks found.\n');
       return;
     }
