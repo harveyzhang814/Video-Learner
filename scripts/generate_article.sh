@@ -146,7 +146,7 @@ print(c['seam_start'], c['seam_end'], c['slice_start'], c['slice_end'])
         fi
 
         # Call writing engine for this chunk
-        if ! WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
+        if ! VL_OPENCODE_SESSION_ID="" WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
                 --input "$TEMP_PROMPT" \
                 --output "$CHUNK_ARTICLE"; then
             echo "[STATUS] article_error: chunk $IDX generation failed"
@@ -171,6 +171,16 @@ print(c['seam_start'], c['seam_end'], c['slice_start'], c['slice_end'])
         echo "[STATUS] article_error: Article merge failed"
         exit 1
     fi
+
+    # Strip any <think>...</think> blocks that leaked from chunk files generated
+    # before llm_engine.sh post-processing was added.
+    python3 - "$OUTPUT_PATH" <<'PYEOF'
+import re, sys
+path = sys.argv[1]
+content = open(path).read()
+content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).lstrip()
+open(path, 'w').write(content)
+PYEOF
 
     update_step "$TASK_ID" "article" "completed"
     echo "[STATUS] article_done"
