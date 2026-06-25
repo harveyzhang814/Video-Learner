@@ -152,7 +152,7 @@ html, body {
 /* ===== MODE B — 阅读优先 ===== */
 [data-mode="B"] .mode-content { display: flex; flex: 1; min-height: 0; }
 [data-mode="B"] .panel-left { display: none !important; }
-[data-mode="B"] .panel-right { flex: 1; min-width: 0; display: flex !important; flex-direction: column; }
+[data-mode="B"] .panel-right { flex: 1; min-width: 0; max-width: 1040px; display: flex !important; flex-direction: column; }
 [data-mode="B"] .panel-sidebar {
   width: 320px;
   flex-shrink: 0;
@@ -188,7 +188,7 @@ html, body {
   min-height: 0;
 }
 [data-mode="C"] .panel-left { display: none !important; }
-[data-mode="C"] .panel-right { flex: 1; min-width: 0; display: flex !important; flex-direction: column; }
+[data-mode="C"] .panel-right { flex: 1; min-width: 0; max-width: 1040px; display: flex !important; flex-direction: column; }
 [data-mode="C"] .subtitle-col {
   width: 280px;
   flex-shrink: 0;
@@ -205,7 +205,7 @@ html, body {
 /* ===== MODE E — 沉浸阅读 ===== */
 [data-mode="E"] .mode-content { display: flex; flex: 1; min-height: 0; }
 [data-mode="E"] .panel-left { display: none !important; }
-[data-mode="E"] .panel-right { flex: 1; display: flex !important; flex-direction: column; min-width: 0; }
+[data-mode="E"] .panel-right { flex: 1; max-width: 1000px; display: flex !important; flex-direction: column; min-width: 0; }
 [data-mode="E"] .panel-sidebar { display: none !important; }
 [data-mode="E"] .audio-bar { display: none !important; }
 [data-mode="E"] .subtitle-col { display: none !important; }
@@ -231,7 +231,7 @@ html, body {
   order: -1;
 }
 [data-mode="F"] .panel-left { display: none !important; }
-[data-mode="F"] .panel-right { flex: 1 !important; min-height: 0; display: flex !important; flex-direction: column; }
+[data-mode="F"] .panel-right { flex: 1 !important; min-height: 0; max-width: 1040px; display: flex !important; flex-direction: column; }
 [data-mode="F"] .panel-sidebar { display: none !important; }
 [data-mode="F"] .audio-bar { display: none !important; }
 [data-mode="F"] .subtitle-col { display: none !important; }
