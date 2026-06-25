@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-06-25
+
+### Added
+
+#### OpenCode Session Reuse
+- `opencode_session_id` column in tasks table — persists the active OpenCode session across steps
+- `core/opencode-session.js` — `createOpencodeSession` / `isOpencodeSessionUsable` helpers for session lifecycle management
+- Orchestrator creates a session before the article step and passes it via `VL_OPENCODE_SESSION_ID` env var; summary step reuses the same session
+- `llm_engine.sh` reuses `VL_OPENCODE_SESSION_ID` when provided; chunked article path clears it to avoid cross-chunk session contamination
+
+### Fixed
+
+- Strip `<think>…</think>` reasoning traces from model output in both single-call and chunk-merged paths
+- Bilibili subtitle download: human zh subtitles now take priority over ai-zh when both are available
+- Web UI: article block left-aligns correctly on wide screens (article-notes-row layout)
+- Web UI: `panel-right` max-width corrected for reading/audio/pure-read/theater modes (B/C/E/F)
+- Web UI: audio player now visible in theater mode for audio tasks (Mode F)
+- `updateTaskMetaFromFilesystem` no longer strips `opencode_session_id` on every filesystem sync
+
 ## [1.2.0] - 2026-06-25
 
 ### Added
@@ -121,7 +140,8 @@ Initial release.
 - Multi-engine writing: Claude Code CLI or OpenCode (MiniMax)
 - zh-CN subtitle fallback and traditional Chinese subtitle support
 
-[Unreleased]: https://github.com/harveyzhang96/video-learner/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/harveyzhang96/video-learner/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/harveyzhang96/video-learner/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/harveyzhang96/video-learner/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/harveyzhang96/video-learner/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/harveyzhang96/video-learner/releases/tag/v1.0.0

@@ -9,6 +9,7 @@ const { getWorkRoot, getIndexPath, resolveWorkBase } = require('../paths');
 const { createDb } = require('./db');
 const { validateStepArtifacts, listOriginalMdFiles } = require('./stepArtifacts');
 const { computeReadySteps, pickNextStep, pickReadyStepsOrdered, getDownstreamClosure, excludedByMode, normalizeMode, isTaskFailed, isTaskCompleted, getStepTimeoutMs } = require('./schedule');
+const { createOpencodeSession, isOpencodeSessionUsable } = require('../opencode-session');
 
 // In-memory task store (also persisted to SQLite via ensureDb).
 const tasks = new Map();
@@ -237,7 +238,8 @@ function loadTaskFromDb(taskId, rootDir) {
       download_status: 'pending',
       transcript_done: false,
       article_done: false,
-      summary_done: false
+      summary_done: false,
+      opencode_session_id: row.opencode_session_id || null
     },
     steps,
     processInfo: null,
@@ -359,7 +361,8 @@ function updateTaskMetaFromFilesystem(task) {
     download_status: task.meta.download_status,
     transcript_done: task.meta.transcript_done,
     article_done: task.meta.article_done,
-    summary_done: task.meta.summary_done
+    summary_done: task.meta.summary_done,
+    opencode_session_id: task.meta.opencode_session_id ?? null
   };
 
   if (fs.existsSync(mediaDir)) {
@@ -460,7 +463,7 @@ function tryDeleteFile(filePath) {
 function runStepScript(rootDir, stepName, args, opts = {}) {
   return new Promise((resolve, reject) => {
     const script = path.join(rootDir, 'scripts', STEP_SCRIPTS[stepName]);
-    const proc = spawn('bash', [script, ...args], { cwd: rootDir, env: spawnEnv(rootDir), detached: true });
+    const proc = spawn('bash', [script, ...args], { cwd: rootDir, env: { ...spawnEnv(rootDir), ...(opts.extraEnv || {}) }, detached: true });
     if (opts.onProc) opts.onProc(proc);
 
     let output = '';
@@ -692,6 +695,7 @@ async function runStep(taskId, stepName, options = {}) {
   }
 
   let args = [];
+  let extraEnv = {};
 
   switch (stepName) {
     case 'fetch':
@@ -898,6 +902,12 @@ async function runStep(taskId, stepName, options = {}) {
       }
       const outPath = path.join(dir, 'writing', 'article.md');
       args = [transcriptPath, outPath, task.meta.output_lang || 'zh-CN'];
+      const sessionId = await createOpencodeSession();
+      if (sessionId) {
+        task.meta.opencode_session_id = sessionId;
+        db.updateTask(id, { opencode_session_id: sessionId });
+        extraEnv = { VL_OPENCODE_SESSION_ID: sessionId };
+      }
       break;
     }
     case 'summary': {
@@ -905,6 +915,9 @@ async function runStep(taskId, stepName, options = {}) {
       const summaryFocus = focus || task.meta.focus || '视频的主要内容和要点';
       const outPath = path.join(dir, 'writing', 'summary.md');
       args = [articlePath, summaryFocus, outPath, task.meta.output_lang || 'zh-CN'];
+      if (task.meta.opencode_session_id && await isOpencodeSessionUsable(task.meta.opencode_session_id)) {
+        extraEnv = { VL_OPENCODE_SESSION_ID: task.meta.opencode_session_id };
+      }
       break;
     }
     default:
@@ -962,13 +975,20 @@ async function runStep(taskId, stepName, options = {}) {
       onStderr,
       onProc: (proc) => { task._currentProcs[stepName] = proc; },
       timeoutScale: options.timeoutScale,
+      extraEnv,
     });
     delete task._currentProcs[stepName];
     // Step-level abort: runStep resets step to pending and notifies abortStep.
     if (task._stepAbortResolves[stepName]) {
       const resolve = task._stepAbortResolves[stepName];
       delete task._stepAbortResolves[stepName];
-      if (stepName === 'article') tryDeleteFile(path.join(dir, 'writing', 'article.md'));
+      if (stepName === 'article') {
+        tryDeleteFile(path.join(dir, 'writing', 'article.md'));
+        if (task.meta.opencode_session_id) {
+          task.meta.opencode_session_id = null;
+          db.updateTask(id, { opencode_session_id: null });
+        }
+      }
       if (stepName === 'summary') tryDeleteFile(path.join(dir, 'writing', 'summary.md'));
       stepState.status = 'pending';
       task.steps[stepName] = stepState;

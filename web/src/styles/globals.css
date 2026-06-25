@@ -119,8 +119,7 @@ html, body {
 /* --- Shared: article + notes row --- */
 .article-notes-row {
   display: flex;
-  max-width: 1040px;
-  margin: 0 auto;
+  margin: 0;
   width: 100%;
 }
 .article-col { flex: 1; min-width: 0; padding: 56px 48px; }
@@ -165,7 +164,6 @@ html, body {
 [data-mode="B"] .theater-section { display: none !important; }
 [data-mode="B"] .left-notes { display: none !important; }
 [data-mode="B"] .notes-col { display: flex !important; flex-direction: column; }
-[data-mode="B"] .article-col { max-width: 720px; }
 
 /* ===== MODE C — 音频+文章 ===== */
 [data-mode="C"] .mode-content {
@@ -200,7 +198,6 @@ html, body {
 [data-mode="C"] .theater-section { display: none !important; }
 [data-mode="C"] .left-notes { display: none !important; }
 [data-mode="C"] .notes-col { display: flex !important; flex-direction: column; }
-[data-mode="C"] .article-col { max-width: 720px; }
 
 /* ===== MODE E — 沉浸阅读 ===== */
 [data-mode="E"] .mode-content { display: flex; flex: 1; min-height: 0; }
@@ -212,8 +209,6 @@ html, body {
 [data-mode="E"] .theater-section { display: none !important; }
 [data-mode="E"] .left-notes { display: none !important; }
 [data-mode="E"] .notes-col { display: flex !important; flex-direction: column; }
-[data-mode="E"] .article-notes-row { max-width: 1000px; }
-[data-mode="E"] .article-col { max-width: 680px; }
 
 /* ===== MODE F — 剧场模式 ===== */
 [data-mode="F"] .mode-content {
@@ -237,7 +232,6 @@ html, body {
 [data-mode="F"] .subtitle-col { display: none !important; }
 [data-mode="F"] .left-notes { display: none !important; }
 [data-mode="F"] .notes-col { display: flex !important; flex-direction: column; }
-[data-mode="F"] .article-col { max-width: 720px; }
 
 /* CC overlay */
 .cc-overlay-text {
