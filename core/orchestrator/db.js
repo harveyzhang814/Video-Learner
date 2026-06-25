@@ -110,6 +110,16 @@ function initTables(db) {
     // ignore
   }
 
+  // Migration: opencode session id for article→summary session reuse (Approach B)
+  try {
+    const cols = db.prepare('PRAGMA table_info(tasks)').all();
+    if (!cols.some((c) => c.name === 'opencode_session_id')) {
+      db.exec(`ALTER TABLE tasks ADD COLUMN opencode_session_id TEXT`);
+    }
+  } catch (_) {
+    // ignore
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS steps (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

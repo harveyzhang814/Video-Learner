@@ -146,7 +146,7 @@ print(c['seam_start'], c['seam_end'], c['slice_start'], c['slice_end'])
         fi
 
         # Call writing engine for this chunk
-        if ! WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
+        if ! VL_OPENCODE_SESSION_ID="" WRITING_ENGINE="${WRITING_ENGINE:-}" bash "$SCRIPT_DIR/llm_engine.sh" \
                 --input "$TEMP_PROMPT" \
                 --output "$CHUNK_ARTICLE"; then
             echo "[STATUS] article_error: chunk $IDX generation failed"

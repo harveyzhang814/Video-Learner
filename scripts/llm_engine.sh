@@ -91,19 +91,21 @@ run_opencode() {
   local base_url
   base_url="$(opencode_server_base_url)"
 
-  # Create a session
-  local session_json session_id
-  if ! session_json="$(curl -fsS -H "Content-Type: application/json" \
-    -d "{\"title\":\"video-learner-writing-$(date -u +%Y%m%dT%H%M%SZ)\"}" \
-    "${base_url}/session")"; then
-    echo "Failed to create OpenCode session via HTTP." >&2
-    exit 1
-  fi
-
-  session_id="$(printf '%s\n' "$session_json" | jq -r '.id // empty')" || session_id=""
-  if [[ -z "$session_id" || "$session_id" == "null" ]]; then
-    echo "OpenCode session response missing id: $session_json" >&2
-    exit 1
+  # Reuse orchestrator-provided session, or create a fresh one
+  local session_id="${VL_OPENCODE_SESSION_ID:-}"
+  if [[ -z "$session_id" ]]; then
+    local session_json
+    if ! session_json="$(curl -fsS -H "Content-Type: application/json" \
+      -d "{\"title\":\"video-learner-writing-$(date -u +%Y%m%dT%H%M%SZ)\"}" \
+      "${base_url}/session")"; then
+      echo "Failed to create OpenCode session via HTTP." >&2
+      exit 1
+    fi
+    session_id="$(printf '%s\n' "$session_json" | jq -r '.id // empty')" || session_id=""
+    if [[ -z "$session_id" || "$session_id" == "null" ]]; then
+      echo "OpenCode session response missing id: $session_json" >&2
+      exit 1
+    fi
   fi
 
   # Read prompt file and JSON-encode as a string
