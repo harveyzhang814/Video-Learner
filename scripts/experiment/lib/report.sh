@@ -32,10 +32,8 @@ out_path = sys.argv[5]
 
 data = {k: json.load(open(v)) for k, v in files.items()}
 
-def cache_input(m):
-    # cache.write = tokens sent this call; cache.read = reused from prior calls
-    c = m.get("cache", {})
-    return c.get("write", 0) + c.get("read", 0)
+def new_input(m):
+    return m.get("input", 0)
 
 def fmt_ms(ms):
     return f"{ms/1000:.1f}s"
@@ -45,7 +43,7 @@ lines = [
     "",
     "## Token 消耗对比",
     "",
-    "| 方案 | article input¹ | article output | article cache.read | summary input¹ | summary output | summary cache.read | 合计 tokens |",
+    "| 方案 | article new input¹ | article output | article cache.read | summary new input¹ | summary output | summary cache.read | 合计 tokens |",
     "|------|---------------|---------------|-------------------|---------------|---------------|-------------------|------------|",
 ]
 
@@ -53,10 +51,10 @@ total_row = {}
 for k, d in data.items():
     a = d["article"]
     s = d["summary"]
-    a_in  = cache_input(a)
+    a_in  = new_input(a)
     a_out = a.get("output", 0)
     a_cr  = a.get("cache", {}).get("read", 0)
-    s_in  = cache_input(s)
+    s_in  = new_input(s)
     s_out = s.get("output", 0)
     s_cr  = s.get("cache", {}).get("read", 0)
     total = a.get("total", 0) + s.get("total", 0)
@@ -65,7 +63,7 @@ for k, d in data.items():
 
 lines += [
     "",
-    "¹ input = cache.write + cache.read（opencode/MiniMax 把实际 input 拆入 cache 字段，raw input 字段为 0）",
+    "¹ new input = tokens newly sent in this call (opencode `input` field); cache.read = session history reused (0 cost for repeat content)",
     "",
     "## 耗时对比",
     "",
