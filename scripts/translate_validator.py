@@ -124,7 +124,7 @@ def main():
 
     if coverage < args.min_coverage:
         print(
-            f"[STATUS] translate_error: coverage {coverage}% below threshold {args.min_coverage}%",
+            f"[STATUS] translate_error: coverage {coverage}% below threshold",
             file=sys.stderr
         )
         sys.exit(1)

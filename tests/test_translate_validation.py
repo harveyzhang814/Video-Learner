@@ -85,6 +85,19 @@ def test_head_orphan_infers_ts():
     assert any("repaired" in w for w in warnings)
     print("PASS: head orphan line gets ts inferred from next_start - 25")
 
+def test_tail_orphan_infers_ts():
+    """尾部孤立异常行用 prev_end + 25 推断时间戳"""
+    lines = [
+        "[00:01:05.000 --> 00:01:10.000] 前面正常行",
+        "孤立尾部行",
+    ]
+    out, _, warnings = validate_and_repair(lines, en_line_count=2)
+    assert len(out) == 2
+    # repaired ts start should be prev_end = 00:01:10
+    assert "00:01:10" in out[1], f"tail orphan start should be prev_end: {out[1]}"
+    assert any("repaired" in w for w in warnings)
+    print("PASS: tail orphan line gets ts inferred from prev_end + 25")
+
 if __name__ == '__main__':
     test_valid_lines_pass_through()
     test_malformed_line_repaired()
@@ -93,4 +106,5 @@ if __name__ == '__main__':
     test_output_format_correct()
     test_disordered_lines_sorted()
     test_head_orphan_infers_ts()
+    test_tail_orphan_infers_ts()
     print("\ntest_translate_validation.py: ALL PASS")
