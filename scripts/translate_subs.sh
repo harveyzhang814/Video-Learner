@@ -138,9 +138,9 @@ smooth_seam() {
 import sys
 orig  = open(sys.argv[1], encoding='utf-8').readlines()
 patch = open(sys.argv[2], encoding='utf-8').readlines()
-# Replace first min(len(patch), 3) lines, keep the rest
+# Replace first min(len(patch), 3) lines with the same number of patch lines, keep the rest
 keep_from = min(len(patch), 3)
-open(sys.argv[1], 'w', encoding='utf-8').writelines(patch + orig[keep_from:])
+open(sys.argv[1], 'w', encoding='utf-8').writelines(patch[:keep_from] + orig[keep_from:])
 PYEOF
     fi
 }
