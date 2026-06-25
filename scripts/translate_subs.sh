@@ -30,6 +30,7 @@ PAGE_SIZE="${TRANSLATE_PAGE_SIZE:-200}"
 PARALLEL="${TRANSLATE_PARALLEL:-5}"
 PAGE_TIMEOUT="${TRANSLATE_PAGE_TIMEOUT:-600}"
 MIN_COVERAGE="${TRANSLATE_MIN_COVERAGE:-90}"
+LLM_ENGINE="${LLM_ENGINE_SCRIPT:-$SCRIPT_DIR/llm_engine.sh}"
 
 echo "[STATUS] translate_start"
 mkdir -p "$(dirname "$OUTPUT_MD")"
@@ -85,7 +86,7 @@ translate_page() {
         cat "$page_en"
     } > "$prompt_file"
 
-    if timeout "$PAGE_TIMEOUT" bash "$SCRIPT_DIR/llm_engine.sh" \
+    if timeout "$PAGE_TIMEOUT" bash "$LLM_ENGINE" \
         --input "$prompt_file" --output "$page_zh" 2>/dev/null; then
         echo "[STATUS] translate_chunk $((page_num + 1))/$PAGE_COUNT"
     else
@@ -132,7 +133,7 @@ smooth_seam() {
         head -3 "$page_b_zh"
     } > "$prompt_file"
 
-    if timeout 120 bash "$SCRIPT_DIR/llm_engine.sh" \
+    if timeout 120 bash "$LLM_ENGINE" \
         --input "$prompt_file" --output "$seam_out" 2>/dev/null; then
         python3 - "$page_b_zh" "$seam_out" <<'PYEOF'
 import sys
