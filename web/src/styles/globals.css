@@ -120,7 +120,7 @@ html, body {
 .article-notes-row {
   display: flex;
   max-width: 1040px;
-  margin: 0 auto;
+  margin: 0;
   width: 100%;
 }
 .article-col { flex: 1; min-width: 0; padding: 56px 48px; }
