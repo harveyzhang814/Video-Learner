@@ -5,7 +5,7 @@
 set -euo pipefail
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPTS_DIR="$(dirname "$SELF_DIR")"
+SCRIPTS_DIR="$(dirname "$(dirname "$SELF_DIR")")"
 # shellcheck source=/dev/null
 source "$SELF_DIR/session_http.sh"
 
