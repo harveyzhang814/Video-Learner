@@ -13,21 +13,20 @@ describe('ui-store proseTheme', () => {
   });
 
   it('setProseTheme updates state', () => {
-    // ThemeId currently only has 'default'; this verifies the setter path executes
-    useUiStore.getState().setProseTheme('default');
-    expect(useUiStore.getState().proseTheme).toBe('default');
+    useUiStore.getState().setProseTheme('academic');
+    expect(useUiStore.getState().proseTheme).toBe('academic');
   });
 
   it('setProseTheme persists to localStorage', () => {
-    useUiStore.getState().setProseTheme('default');
-    expect(localStorage.getItem('prose-theme')).toBe('default');
+    useUiStore.getState().setProseTheme('academic');
+    expect(localStorage.getItem('prose-theme')).toBe('academic');
   });
 
   it('initialises proseTheme from localStorage when a value is stored', () => {
-    localStorage.setItem('prose-theme', 'default');
+    localStorage.setItem('prose-theme', 'academic');
     useUiStore.setState({
       proseTheme: (localStorage.getItem('prose-theme') ?? 'default') as ThemeId,
     });
-    expect(useUiStore.getState().proseTheme).toBe('default');
+    expect(useUiStore.getState().proseTheme).toBe('academic');
   });
 });
