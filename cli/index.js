@@ -19,11 +19,13 @@ const commands = {
 function printUsage() {
   process.stdout.write(`
 Usage:
-  vdl <url> [--focus <text>] [--mode transcript|media|audio|full]
-            [--lang zh-CN|en] [--force] [--json]
-            [--long] [--ultra-long] [--timeout-scale <n>]
-            [--work-root <path>]
+  vdl <url|file> [--focus <text>] [--mode transcript|media|audio|full]
+                 [--lang zh-CN|en] [--src-lang zh|en|ja|…]
+                 [--force] [--json]
+                 [--long] [--ultra-long] [--timeout-scale <n>]
+                 [--work-root <path>]
 
+  --src-lang        源语言 (Whisper hint)，默认 en；本地文件时有效
   --long            超长任务模式：所有步骤超时 ×3（适合 1-3 小时视频）
   --ultra-long      超超长任务模式：所有步骤超时 ×6（适合 4+ 小时视频）
   --timeout-scale   自定义倍率，如 --timeout-scale 4
@@ -57,7 +59,8 @@ Usage:
       require('./lib/format').printError(err.message);
       process.exit(1);
     });
-  } else if (sub.startsWith('http') || sub.startsWith('-')) {
+  } else if (sub.startsWith('http') || sub.startsWith('-') ||
+             sub.startsWith('/') || sub.startsWith('./') || sub.startsWith('../')) {
     require('./commands/run').run(args).catch(err => {
       require('./lib/format').printError(err.message);
       process.exit(1);

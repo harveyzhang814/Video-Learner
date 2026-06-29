@@ -11,12 +11,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **合并到 `staging` / `master` 时禁止使用 fast-forward**：必须使用 `git merge --no-ff`（规范见 `docs/explanation/git-workflow.md`）
 
 ## 概述
-本仓库实现 YouTube URL → 下载/转录/总结 的自动化流水线。CLI、GUI（Electron）、Web（浏览器）、HTTP API 四种方式共用同一个 `core/orchestrator` 和 SQLite 状态（`work/database.sqlite`）。
+本仓库实现「YouTube URL / 本地音视频文件 → 转录/总结」的自动化流水线。CLI、GUI（Electron）、Web（浏览器）、HTTP API 四种方式共用同一个 `core/orchestrator` 和 SQLite 状态（`work/database.sqlite`）。
 
 ## 最短调用方式
 
 ```bash
-vdl <URL>                # CLI（agent 跑任务首选）
+vdl <URL>                # CLI 处理 YouTube 视频（agent 跑任务首选）
+vdl <file>               # CLI 处理本地音频/视频文件（需 ./ 或 / 开头）
 vdl web                  # Web 端：起后端 + 开浏览器（给人用，agent 别自己用）
 bash start-electron.sh   # Electron GUI
 npm run agent:serve      # HTTP API 长驻服务
@@ -27,7 +28,7 @@ npm run agent:serve      # HTTP API 长驻服务
 ## Agent 与 Web 端的关系
 - Web 端是**给人用的图形界面**，agent **不会自己访问** web 端
 - Agent 唯一合法触发 `vdl web` 的场景：用户让 agent "帮我打开网页"——agent 替用户启动 UI，然后退出
-- Agent 自己跑任务：用 `vdl <URL>` / `vdl list / status / result`
+- Agent 自己跑任务：用 `vdl <URL>` / `vdl <file>` / `vdl list / status / result`
 - Agent 直接调 HTTP API：用 `core/agent-connect.connect({ clientId })`，自动持心跳
 - 详细机制见 `docs/explanation/singleton-backend.md` 的"Web 浏览器：SSE 连接作为被动心跳"小节
 

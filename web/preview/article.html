@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="zh-CN" data-prose-theme="default">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Article Render Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Design system tokens ── */
+    :root {
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+      --bg-canvas:     #F9F8F4;
+      --bg-surface:    #FFFFFF;
+      --bg-elevated:   #F1EFE9;
+      --border-subtle: #E5E2DA;
+      --border-strong: #CFCBC0;
+      --text-primary:   #2C2A24;
+      --text-secondary: #67645E;
+      --text-tertiary:  #9C9890;
+      --accent-3:  #EBF1E8;
+      --accent-9:  #5A8A5A;
+      --accent-10: #466F46;
+      --accent-11: #3D5E3D;
+      --accent-12: #243B24;
+      --status-ok:   #4A8A5A;
+      --status-err:  #B05050;
+      --status-busy: #C28A3D;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-canvas:     #1A1A18;
+        --bg-surface:    #232322;
+        --bg-elevated:   #2A2A28;
+        --border-subtle: #2E2E2B;
+        --border-strong: #3D3E3B;
+        --text-primary:   #E8E8E6;
+        --text-secondary: #9A9B98;
+        --text-tertiary:  #6B6C69;
+        --accent-3:  #2A3A2A;
+        --accent-9:  #7DAE7D;
+        --accent-10: #6FA06F;
+        --accent-11: #9BC79B;
+        --accent-12: #C8E0C8;
+      }
+    }
+
+    /* ── Prose theme tokens (source: web/src/styles/themes.css) ── */
+    :root[data-prose-theme="default"] {
+      --prose-font-family:  var(--font-sans);
+      --prose-font-size:    15px;
+      --prose-line-height:  1.85;
+      --prose-max-width:    72ch;
+
+      --prose-h1-size:  26px;
+      --prose-h2-size:  20px;
+      --prose-h3-size:  15.5px;
+      --prose-h4-size:  14px;
+      --prose-h5-size:  13px;
+      --prose-h6-size:  12.5px;
+
+      --prose-code-bg:      var(--accent-3);
+      --prose-code-color:   var(--accent-11);
+      --prose-pre-bg:       var(--bg-elevated);
+      --prose-pre-border:   var(--border-subtle);
+
+      --prose-link-color:        var(--accent-10);
+      --prose-link-hover:        var(--accent-9);
+      --prose-blockquote-border: var(--accent-9);
+    }
+
+    :root[data-prose-theme="academic"] {
+      --prose-font-family:  'Source Serif 4', Georgia, 'Times New Roman', serif;
+      --prose-font-size:    16px;
+      --prose-line-height:  1.9;
+      --prose-max-width:    68ch;
+
+      --prose-h1-size:  28px;
+      --prose-h2-size:  22px;
+      --prose-h3-size:  16.5px;
+      --prose-h4-size:  15px;
+      --prose-h5-size:  13.5px;
+      --prose-h6-size:  13px;
+
+      --prose-code-bg:      #EEF2F8;
+      --prose-code-color:   #2D4A7A;
+      --prose-pre-bg:       #F4F6FB;
+      --prose-pre-border:   #C8D3E8;
+
+      --prose-link-color:        #3B6CB0;
+      --prose-link-hover:        #2A5190;
+      --prose-blockquote-border: #5A7FB5;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root[data-prose-theme="academic"] {
+        --prose-code-bg:      #1E2A3E;
+        --prose-code-color:   #8BAFD4;
+        --prose-pre-bg:       #1A2438;
+        --prose-pre-border:   #2E4068;
+
+        --prose-link-color:        #7BA7E0;
+        --prose-link-hover:        #91B8E8;
+        --prose-blockquote-border: #6B90C5;
+      }
+    }
+
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Page shell ── */
+    .page {
+      max-width: var(--prose-max-width);
+      margin: 0 auto;
+      padding: 56px 32px 80px;
+    }
+
+    /* ── prose-cn element styles ── */
+    .prose-cn {
+      font-family: var(--prose-font-family, var(--font-sans));
+      line-height: var(--prose-line-height, 1.85);
+      font-size: var(--prose-font-size, 15px);
+      color: var(--text-primary);
+    }
+
+    .prose-cn h1 {
+      font-size: var(--prose-h1-size, 26px);
+      font-weight: 700;
+      margin: 40px 0 16px;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+    .prose-cn h2 {
+      font-size: var(--prose-h2-size, 20px);
+      font-weight: 600;
+      margin: 32px 0 12px;
+      letter-spacing: -0.005em;
+    }
+    .prose-cn h3 {
+      font-size: var(--prose-h3-size, 15.5px);
+      font-weight: 600;
+      margin: 22px 0 8px;
+    }
+    .prose-cn h4 {
+      font-size: var(--prose-h4-size, 14px);
+      font-weight: 600;
+      margin: 18px 0 6px;
+      color: var(--text-secondary);
+    }
+    .prose-cn h5 {
+      font-size: var(--prose-h5-size, 13px);
+      font-weight: 600;
+      margin: 14px 0 4px;
+      color: var(--text-secondary);
+    }
+    .prose-cn h6 {
+      font-size: var(--prose-h6-size, 12.5px);
+      font-weight: 600;
+      margin: 12px 0 4px;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .prose-cn p { margin: 14px 0; }
+    .prose-cn strong { color: var(--text-primary); font-weight: 600; }
+    .prose-cn em { font-style: italic; }
+
+    .prose-cn a {
+      color: var(--prose-link-color, var(--accent-10));
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      text-decoration-thickness: 1px;
+    }
+    .prose-cn a:hover { color: var(--prose-link-hover, var(--accent-9)); }
+
+    .prose-cn blockquote {
+      border-left: 2px solid var(--prose-blockquote-border, var(--accent-9));
+      padding: 4px 0 4px 14px;
+      margin: 18px 0;
+      color: var(--text-secondary);
+    }
+
+    .prose-cn hr {
+      border: none;
+      border-top: 1px solid var(--border-subtle);
+      margin: 32px 0;
+    }
+
+    .prose-cn ul { padding-left: 20px; margin: 12px 0; list-style-type: disc; }
+    .prose-cn ol { padding-left: 20px; margin: 12px 0; list-style-type: decimal; }
+    .prose-cn li { margin: 8px 0; }
+
+    .prose-cn img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      display: block;
+      margin: 24px auto;
+    }
+
+    .prose-cn code {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--prose-code-color, var(--accent-11));
+      background: var(--prose-code-bg, var(--accent-3));
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    .prose-cn pre {
+      background: var(--prose-pre-bg, var(--bg-elevated));
+      border: 1px solid var(--prose-pre-border, var(--border-subtle));
+      border-radius: 6px;
+      padding: 16px;
+      overflow-x: auto;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+    .prose-cn pre > code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      font-size: inherit;
+      border-radius: 0;
+      display: block;
+    }
+
+    .prose-cn table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13.5px;
+    }
+    .prose-cn th,
+    .prose-cn td {
+      padding: 5px 12px;
+      vertical-align: top;
+      border: 0;
+    }
+    .prose-cn th {
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      border-bottom: 2px solid var(--text-tertiary);
+    }
+    .prose-cn td { color: var(--text-primary); }
+
+    /* ── hljs syntax highlight ── */
+    .hljs { background: transparent; color: var(--text-primary); }
+    .hljs-keyword, .hljs-selector-tag, .hljs-built_in { color: var(--accent-11); font-weight: 600; }
+    .hljs-string, .hljs-attr, .hljs-attribute          { color: var(--status-busy); }
+    .hljs-number, .hljs-literal                        { color: var(--accent-9); }
+    .hljs-comment, .hljs-quote                         { color: var(--text-tertiary); font-style: italic; }
+    .hljs-title, .hljs-name, .hljs-selector-id         { color: var(--accent-10); }
+    .hljs-type, .hljs-class .hljs-title                { color: var(--text-secondary); font-weight: 600; }
+    .hljs-meta                                         { color: var(--text-tertiary); }
+    .hljs-deletion                                     { color: var(--status-err); }
+    .hljs-addition                                     { color: var(--status-ok); }
+
+    /* ── Preview header ── */
+    .preview-header {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-tertiary);
+      letter-spacing: 0.06em;
+      padding: 10px 32px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .preview-header span { text-transform: uppercase; }
+    .theme-btn {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      padding: 2px 8px;
+      border-radius: 3px;
+      border: 1px solid var(--border-subtle);
+      background: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    .theme-btn.active {
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-header">
+    <span>article render preview</span>
+    <button class="theme-btn active" id="btn-default" onclick="setTheme('default')">默认</button>
+    <button class="theme-btn" id="btn-academic" onclick="setTheme('academic')">学术</button>
+  </div>
+
+  <div class="page">
+    <article class="prose-cn">
+
+      <h1>Attention Is All You Need</h1>
+      <p>
+        The dominant sequence transduction models use <strong>recurrent neural networks</strong>,
+        specifically long short-term memory (<em>LSTM</em>) and gated recurrent (<em>GRU</em>) networks.
+        This paper proposes the <strong>Transformer</strong>, a model architecture relying solely on
+        an <a href="#">attention mechanism</a>, dispensing with recurrence and convolutions entirely.
+      </p>
+
+      <h2>Architecture Overview</h2>
+      <p>
+        The Transformer follows an encoder-decoder structure. The encoder maps an input sequence
+        <code>(x₁, …, xₙ)</code> to a sequence of continuous representations <code>z = (z₁, …, zₙ)</code>.
+        Given <code>z</code>, the decoder generates an output sequence <code>(y₁, …, yₘ)</code> one element
+        at a time.
+      </p>
+
+      <h3>Multi-Head Attention</h3>
+      <p>
+        Instead of performing a single attention function, it is beneficial to linearly project queries,
+        keys, and values <code>h</code> times with different learned projections.
+      </p>
+
+      <pre><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">scaled_dot_product_attention</span>(Q, K, V, mask=<span class="hljs-literal">None</span>):
+    <span class="hljs-comment"># d_k: dimension of key vectors</span>
+    d_k = Q.shape[-<span class="hljs-number">1</span>]
+    scores = (Q @ K.transpose(-<span class="hljs-number">2</span>, -<span class="hljs-number">1</span>)) / d_k ** <span class="hljs-number">0.5</span>
+    <span class="hljs-keyword">if</span> mask <span class="hljs-keyword">is not</span> <span class="hljs-literal">None</span>:
+        scores = scores.masked_fill(mask == <span class="hljs-number">0</span>, <span class="hljs-built_in">float</span>(<span class="hljs-string">'-inf'</span>))
+    weights = F.softmax(scores, dim=-<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">return</span> weights @ V</code></pre>
+
+      <h4>Position-wise Feed-Forward Networks</h4>
+      <p>
+        Each encoder and decoder layer contains a fully connected feed-forward network applied to
+        each position separately and identically. This consists of two linear transformations with
+        a ReLU activation in between.
+      </p>
+
+      <h5>Training Details</h5>
+      <p>
+        The model was trained on the WMT 2014 English-German dataset consisting of about
+        <strong>4.5 million sentence pairs</strong>.
+      </p>
+
+      <h6>Optimizer</h6>
+      <p>Adam with β₁ = 0.9, β₂ = 0.98, ε = 10⁻⁹.</p>
+
+      <hr />
+
+      <h2>Results</h2>
+
+      <blockquote>
+        The Transformer achieves 28.4 BLEU on the WMT 2014 English-to-German translation task,
+        improving over the existing best results, including ensembles, by over 2 BLEU.
+      </blockquote>
+
+      <h3>Comparison Table</h3>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th align="right">EN→DE BLEU</th>
+            <th align="right">EN→FR BLEU</th>
+            <th align="right">Training Cost</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ByteNet</td>
+            <td align="right">23.75</td>
+            <td align="right">—</td>
+            <td align="right">—</td>
+          </tr>
+          <tr>
+            <td>ConvS2S</td>
+            <td align="right">25.16</td>
+            <td align="right">40.46</td>
+            <td align="right">9.6 × 10¹⁸</td>
+          </tr>
+          <tr>
+            <td><strong>Transformer (base)</strong></td>
+            <td align="right">27.3</td>
+            <td align="right">38.1</td>
+            <td align="right">3.3 × 10¹⁸</td>
+          </tr>
+          <tr>
+            <td><strong>Transformer (big)</strong></td>
+            <td align="right"><strong>28.4</strong></td>
+            <td align="right"><strong>41.8</strong></td>
+            <td align="right">2.3 × 10¹⁹</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h2>Key Advantages</h2>
+
+      <ul>
+        <li>Parallelizable computation — no sequential dependency across positions</li>
+        <li>Constant number of operations between any two positions</li>
+        <li>More interpretable attention patterns than RNNs</li>
+      </ul>
+
+      <h3>Training Steps</h3>
+
+      <ol>
+        <li>Tokenize source and target sentences with BPE</li>
+        <li>Construct batches of approximately <code>25 000</code> source and target tokens</li>
+        <li>Apply label smoothing with ε<sub>ls</sub> = 0.1</li>
+        <li>Use learning rate warm-up for the first <code>4 000</code> steps</li>
+      </ol>
+
+      <h2>Conclusion</h2>
+
+      <p>
+        We presented the Transformer, the first sequence transduction model based entirely on
+        attention, replacing the recurrent layers most commonly used in encoder-decoder architectures
+        with <strong>multi-headed self-attention</strong>.
+      </p>
+      <p>
+        We are excited about the future of attention-based models and plan to apply them to other
+        tasks involving input and output modalities other than text, including
+        <a href="#">images, audio, and video</a>.
+      </p>
+
+    </article>
+  </div>
+
+  <script>
+    function setTheme(id) {
+      document.documentElement.dataset.proseTheme = id;
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-' + id).classList.add('active');
+    }
+  </script>
+</body>
+</html>

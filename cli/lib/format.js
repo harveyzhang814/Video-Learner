@@ -55,8 +55,21 @@ function renderProgress(title, steps) {
   _lastLineCount = lines.length;
 }
 
-function logStepLine(stepName, status) {
-  process.stdout.write(`[${displayName(stepName)}] ${status}\n`);
+function logStepLine(stepName, status, elapsedS) {
+  const elapsed = elapsedS != null ? ` (${elapsedS}s)` : '';
+  process.stdout.write(`[${displayName(stepName)}] ${status}${elapsed}\n`);
+}
+
+function logProgressLine(stepName, progress, elapsedS) {
+  const elapsed = elapsedS != null ? ` (${elapsedS}s)` : '';
+  const parts = [];
+  if (progress.percent != null) parts.push(`${progress.percent}%`);
+  if (progress.speed)           parts.push(progress.speed);
+  if (progress.eta)             parts.push(`eta ${progress.eta}`);
+  if (progress.step)            parts.push(`step ${progress.step}`);
+  if (progress.label)           parts.push(progress.label);
+  if (progress.segments)        parts.push(`${progress.segments} segments`);
+  process.stdout.write(`[${displayName(stepName)}] running${elapsed} — ${parts.join(' ')}\n`);
 }
 
 function printDone(elapsed, paths) {
@@ -81,6 +94,6 @@ function printInterrupted(taskId) {
 
 module.exports = {
   displayName, statusIcon, isTTY,
-  buildProgressLines, renderProgress, logStepLine,
+  buildProgressLines, renderProgress, logStepLine, logProgressLine,
   printDone, printError, printInterrupted,
 };

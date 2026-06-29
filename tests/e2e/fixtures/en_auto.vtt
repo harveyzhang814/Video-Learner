@@ -1,0 +1,281 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.000 --> 00:00:02.270 align:start position:0%
+
+00:00:02.270 --> 00:00:02.280 align:start position:0%
+Prompts are out and loops are in. If
+
+00:00:02.280 --> 00:00:04.470 align:start position:0%
+Prompts are out and loops are in. If
+your<00:00:02.680><c> agent</c><00:00:03.120><c> isn't</c><00:00:03.440><c> able</c><00:00:03.640><c> to</c><00:00:03.760><c> prompt</c><00:00:04.120><c> itself</c>
+
+00:00:04.470 --> 00:00:04.480 align:start position:0%
+your agent isn't able to prompt itself
+
+00:00:04.480 --> 00:00:06.190 align:start position:0%
+your agent isn't able to prompt itself
+through<00:00:04.640><c> an</c><00:00:04.760><c> automation,</c><00:00:05.560><c> what</c><00:00:05.720><c> are</c><00:00:05.800><c> you</c><00:00:05.920><c> even</c>
+
+00:00:06.190 --> 00:00:06.200 align:start position:0%
+through an automation, what are you even
+
+00:00:06.200 --> 00:00:08.350 align:start position:0%
+through an automation, what are you even
+doing?<00:00:06.840><c> In</c><00:00:06.960><c> today's</c><00:00:07.400><c> episode,</c><00:00:08.040><c> I'm</c><00:00:08.160><c> going</c><00:00:08.280><c> to</c>
+
+00:00:08.350 --> 00:00:08.360 align:start position:0%
+doing? In today's episode, I'm going to
+
+00:00:08.360 --> 00:00:10.910 align:start position:0%
+doing? In today's episode, I'm going to
+teach<00:00:08.640><c> you</c><00:00:09.120><c> what</c><00:00:09.400><c> a</c><00:00:09.480><c> prompt</c><00:00:09.840><c> is</c><00:00:10.160><c> in</c><00:00:10.520><c> normal</c>
+
+00:00:10.910 --> 00:00:10.920 align:start position:0%
+teach you what a prompt is in normal
+
+00:00:10.920 --> 00:00:13.550 align:start position:0%
+teach you what a prompt is in normal
+person<00:00:11.280><c> speak,</c><00:00:12.120><c> how</c><00:00:12.320><c> to</c><00:00:12.440><c> write</c><00:00:12.680><c> one,</c><00:00:13.360><c> when</c>
+
+00:00:13.550 --> 00:00:13.560 align:start position:0%
+person speak, how to write one, when
+
+00:00:13.560 --> 00:00:15.750 align:start position:0%
+person speak, how to write one, when
+it's<00:00:13.800><c> useful,</c><00:00:14.440><c> and</c><00:00:14.720><c> some</c><00:00:14.880><c> pitfalls</c><00:00:15.360><c> to</c><00:00:15.480><c> watch</c>
+
+00:00:15.750 --> 00:00:15.760 align:start position:0%
+it's useful, and some pitfalls to watch
+
+00:00:15.760 --> 00:00:17.830 align:start position:0%
+it's useful, and some pitfalls to watch
+out<00:00:15.920><c> for.</c><00:00:16.160><c> We</c><00:00:16.320><c> will</c><00:00:16.440><c> be</c><00:00:16.560><c> doing</c><00:00:16.800><c> this</c><00:00:17.000><c> in</c><00:00:17.160><c> Codex</c>
+
+00:00:17.830 --> 00:00:17.840 align:start position:0%
+out for. We will be doing this in Codex
+
+00:00:17.840 --> 00:00:19.710 align:start position:0%
+out for. We will be doing this in Codex
+and<00:00:18.040><c> in</c><00:00:18.160><c> Claude</c><00:00:18.440><c> code,</c><00:00:19.120><c> and</c><00:00:19.240><c> at</c><00:00:19.360><c> the</c><00:00:19.520><c> end</c><00:00:19.640><c> of</c>
+
+00:00:19.710 --> 00:00:19.720 align:start position:0%
+and in Claude code, and at the end of
+
+00:00:19.720 --> 00:00:21.710 align:start position:0%
+and in Claude code, and at the end of
+this<00:00:19.920><c> episode,</c><00:00:20.640><c> you'll</c><00:00:21.000><c> be</c><00:00:21.160><c> one</c><00:00:21.280><c> of</c><00:00:21.360><c> the</c><00:00:21.480><c> cool</c>
+
+00:00:21.710 --> 00:00:21.720 align:start position:0%
+this episode, you'll be one of the cool
+
+00:00:21.720 --> 00:00:24.110 align:start position:0%
+this episode, you'll be one of the cool
+kids<00:00:22.080><c> whose</c><00:00:22.360><c> agents</c><00:00:22.880><c> prompt</c><00:00:23.200><c> itself.</c><00:00:23.880><c> Let's</c>
+
+00:00:24.110 --> 00:00:24.120 align:start position:0%
+kids whose agents prompt itself. Let's
+
+00:00:24.120 --> 00:00:26.150 align:start position:0%
+kids whose agents prompt itself. Let's
+get<00:00:24.320><c> to</c><00:00:24.440><c> it.</c><00:00:24.800><c> This</c><00:00:25.040><c> episode</c><00:00:25.600><c> is</c><00:00:25.760><c> brought</c><00:00:26.040><c> to</c>
+
+00:00:26.150 --> 00:00:26.160 align:start position:0%
+get to it. This episode is brought to
+
+00:00:26.160 --> 00:00:28.910 align:start position:0%
+get to it. This episode is brought to
+you<00:00:26.320><c> by</c><00:00:26.560><c> WorkOS.</c><00:00:27.510><c> [music]</c><00:00:28.000><c> AI</c><00:00:28.240><c> has</c><00:00:28.520><c> already</c>
+
+00:00:28.910 --> 00:00:28.920 align:start position:0%
+you by WorkOS. [music] AI has already
+
+00:00:28.920 --> 00:00:30.870 align:start position:0%
+you by WorkOS. [music] AI has already
+changed<00:00:29.320><c> how</c><00:00:29.440><c> we</c><00:00:29.600><c> work.</c><00:00:30.120><c> Tools</c><00:00:30.480><c> are</c><00:00:30.600><c> helping</c>
+
+00:00:30.870 --> 00:00:30.880 align:start position:0%
+changed how we work. Tools are helping
+
+00:00:30.880 --> 00:00:32.670 align:start position:0%
+changed how we work. Tools are helping
+teams<00:00:31.160><c> write</c><00:00:31.320><c> better</c><00:00:31.520><c> code,</c><00:00:32.279><c> analyze</c>
+
+00:00:32.670 --> 00:00:32.680 align:start position:0%
+teams write better code, analyze
+
+00:00:32.680 --> 00:00:34.990 align:start position:0%
+teams write better code, analyze
+customer<00:00:33.120><c> data,</c><00:00:33.560><c> and</c><00:00:33.880><c> even</c><00:00:34.240><c> handle</c><00:00:34.600><c> support</c>
+
+00:00:34.990 --> 00:00:35.000 align:start position:0%
+customer data, and even handle support
+
+00:00:35.000 --> 00:00:36.790 align:start position:0%
+customer data, and even handle support
+tickets<00:00:35.440><c> automatically.</c>
+
+00:00:36.790 --> 00:00:36.800 align:start position:0%
+tickets automatically.
+
+00:00:36.800 --> 00:00:38.910 align:start position:0%
+tickets automatically.
+But<00:00:36.880><c> there's</c><00:00:37.080><c> a</c><00:00:37.120><c> catch.</c><00:00:37.880><c> These</c><00:00:38.080><c> tools</c><00:00:38.520><c> only</c>
+
+00:00:38.910 --> 00:00:38.920 align:start position:0%
+But there's a catch. These tools only
+
+00:00:38.920 --> 00:00:40.270 align:start position:0%
+But there's a catch. These tools only
+work<00:00:39.160><c> well</c><00:00:39.360><c> when</c><00:00:39.480><c> they</c><00:00:39.600><c> have</c><00:00:39.920><c> deep</c><00:00:39.955><c> [music]</c>
+
+00:00:40.270 --> 00:00:40.280 align:start position:0%
+work well when they have deep [music]
+
+00:00:40.280 --> 00:00:42.990 align:start position:0%
+work well when they have deep [music]
+access<00:00:40.800><c> to</c><00:00:40.920><c> company</c><00:00:41.240><c> systems.</c><00:00:42.280><c> Your</c><00:00:42.440><c> co-pilot</c>
+
+00:00:42.990 --> 00:00:43.000 align:start position:0%
+access to company systems. Your co-pilot
+
+00:00:43.000 --> 00:00:45.185 align:start position:0%
+access to company systems. Your co-pilot
+needs<00:00:43.200><c> to</c><00:00:43.320><c> see</c><00:00:43.480><c> your</c><00:00:43.720><c> entire</c><00:00:44.360><c> code</c><00:00:44.600><c> base.</c>
+
+00:00:45.185 --> 00:00:45.195 align:start position:0%
+needs to see your entire code base.
+
+00:00:45.195 --> 00:00:45.310 align:start position:0%
+needs to see your entire code base.
+&gt;&gt; [music]
+
+00:00:45.310 --> 00:00:45.320 align:start position:0%
+&gt;&gt; [music]
+
+00:00:45.320 --> 00:00:46.910 align:start position:0%
+&gt;&gt; [music]
+&gt;&gt; Your<00:00:45.480><c> chatbot</c><00:00:46.000><c> needs</c><00:00:46.200><c> to</c><00:00:46.320><c> search</c><00:00:46.560><c> across</c>
+
+00:00:46.910 --> 00:00:46.920 align:start position:0%
+&gt;&gt; Your chatbot needs to search across
+
+00:00:46.920 --> 00:00:48.990 align:start position:0%
+&gt;&gt; Your chatbot needs to search across
+internal<00:00:47.400><c> docs.</c><00:00:48.320><c> And</c><00:00:48.480><c> for</c><00:00:48.600><c> enterprise</c>
+
+00:00:48.990 --> 00:00:49.000 align:start position:0%
+internal docs. And for enterprise
+
+00:00:49.000 --> 00:00:51.590 align:start position:0%
+internal docs. And for enterprise
+buyers,<00:00:49.600><c> that</c><00:00:49.960><c> raises</c><00:00:50.480><c> serious</c><00:00:51.160><c> security</c>
+
+00:00:51.590 --> 00:00:51.600 align:start position:0%
+buyers, that raises serious security
+
+00:00:51.600 --> 00:00:52.910 align:start position:0%
+buyers, that raises serious security
+concerns.
+
+00:00:52.910 --> 00:00:52.920 align:start position:0%
+concerns.
+
+00:00:52.920 --> 00:00:55.030 align:start position:0%
+concerns.
+That's<00:00:53.160><c> why</c><00:00:53.280><c> these</c><00:00:53.480><c> apps</c><00:00:53.760><c> face</c><00:00:54.040><c> intense</c><00:00:54.720><c> IT</c>
+
+00:00:55.030 --> 00:00:55.040 align:start position:0%
+That's why these apps face intense IT
+
+00:00:55.040 --> 00:00:57.390 align:start position:0%
+That's why these apps face intense IT
+scrutiny<00:00:55.480><c> from</c><00:00:55.680><c> day</c><00:00:55.880><c> one.</c><00:00:56.680><c> To</c><00:00:56.800><c> pass,</c><00:00:57.280><c> they</c>
+
+00:00:57.390 --> 00:00:57.400 align:start position:0%
+scrutiny from day one. To pass, they
+
+00:00:57.400 --> 00:00:59.310 align:start position:0%
+scrutiny from day one. To pass, they
+need<00:00:57.600><c> secure</c><00:00:57.960><c> authentication,</c><00:00:58.960><c> access</c>
+
+00:00:59.310 --> 00:00:59.320 align:start position:0%
+need secure authentication, access
+
+00:00:59.320 --> 00:01:02.190 align:start position:0%
+need secure authentication, access
+controls,<00:01:00.120><c> audit</c><00:01:00.440><c> logs,</c><00:01:01.040><c> the</c><00:01:01.200><c> whole</c><00:01:01.600><c> suite</c><00:01:02.040><c> of</c>
+
+00:01:02.190 --> 00:01:02.200 align:start position:0%
+controls, audit logs, the whole suite of
+
+00:01:02.200 --> 00:01:03.910 align:start position:0%
+controls, audit logs, the whole suite of
+enterprise<00:01:02.640><c> features.</c>
+
+00:01:03.910 --> 00:01:03.920 align:start position:0%
+enterprise features.
+
+00:01:03.920 --> 00:01:05.550 align:start position:0%
+enterprise features.
+Building<00:01:04.199><c> all</c><00:01:04.280><c> that</c><00:01:04.440><c> from</c><00:01:04.559><c> scratch,</c><00:01:05.320><c> it's</c><00:01:05.519><c> a</c>
+
+00:01:05.550 --> 00:01:05.560 align:start position:0%
+Building all that from scratch, it's a
+
+00:01:05.560 --> 00:01:08.150 align:start position:0%
+Building all that from scratch, it's a
+massive<00:01:06.040><c> lift.</c><00:01:06.880><c> That's</c><00:01:07.160><c> where</c><00:01:07.320><c> WorkOS</c><00:01:07.880><c> comes</c>
+
+00:01:08.150 --> 00:01:08.160 align:start position:0%
+massive lift. That's where WorkOS comes
+
+00:01:08.160 --> 00:01:09.310 align:start position:0%
+massive lift. That's where WorkOS comes
+in.
+
+00:01:09.310 --> 00:01:09.320 align:start position:0%
+in.
+
+00:01:09.320 --> 00:01:11.270 align:start position:0%
+in.
+WorkOS<00:01:09.840><c> gives</c><00:01:10.040><c> you</c><00:01:10.085><c> [music]</c><00:01:10.160><c> drop-in</c><00:01:10.680><c> APIs</c>
+
+00:01:11.270 --> 00:01:11.280 align:start position:0%
+WorkOS gives you [music] drop-in APIs
+
+00:01:11.280 --> 00:01:13.630 align:start position:0%
+WorkOS gives you [music] drop-in APIs
+for<00:01:11.440><c> enterprise</c><00:01:11.920><c> features,</c><00:01:12.760><c> so</c><00:01:12.920><c> your</c><00:01:13.280><c> app</c><00:01:13.520><c> can</c>
+
+00:01:13.630 --> 00:01:13.640 align:start position:0%
+for enterprise features, so your app can
+
+00:01:13.640 --> 00:01:15.315 align:start position:0%
+for enterprise features, so your app can
+become<00:01:14.080><c> enterprise-ready</c><00:01:14.920><c> and</c><00:01:15.080><c> scale</c>
+
+00:01:15.315 --> 00:01:15.325 align:start position:0%
+become enterprise-ready and scale
+
+00:01:15.325 --> 00:01:17.510 align:start position:0%
+become enterprise-ready and scale
+[music]<00:01:15.560><c> upmarket</c><00:01:16.080><c> faster.</c><00:01:17.080><c> Think</c><00:01:17.280><c> of</c><00:01:17.360><c> it</c>
+
+00:01:17.510 --> 00:01:17.520 align:start position:0%
+[music] upmarket faster. Think of it
+
+00:01:17.520 --> 00:01:20.030 align:start position:0%
+[music] upmarket faster. Think of it
+like<00:01:17.800><c> Stripe</c><00:01:18.240><c> for</c><00:01:18.400><c> enterprise</c><00:01:18.800><c> features.</c>
+
+00:01:20.030 --> 00:01:20.040 align:start position:0%
+like Stripe for enterprise features.
+
+00:01:20.040 --> 00:01:22.550 align:start position:0%
+like Stripe for enterprise features.
+OpenAI,<00:01:20.760><c> Perplexity,</c><00:01:21.480><c> and</c><00:01:21.760><c> Cursor</c><00:01:22.280><c> are</c>
+
+00:01:22.550 --> 00:01:22.560 align:start position:0%
+OpenAI, Perplexity, and Cursor are

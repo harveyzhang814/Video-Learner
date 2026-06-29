@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-06-29
+
+### Added
+
+#### Web 阅读体验美化
+- `.prose-cn` 全元素样式（标题层级、链接、代码块、表格、引用、列表、图片）及语法高亮（rehype-highlight + 自定义 `.hljs` CSS，适配深浅两种模式）
+- 多风格阅读主题体系：`themes.css` 存放所有 `:root[data-prose-theme="X"]` 变量块，`themes.ts` 维护注册表，新增主题只需改两个文件
+- 内置两套主题：**默认**（Inter 无衬线，绿色 accent）和 **学术**（Source Serif 4 衬线，冷蓝石板配色，含深色模式覆盖）
+- `ProseThemePicker` 组件（`✦` 按钮），置于任务详情页 header，可即时切换主题并持久化到 localStorage
+- `web/preview/article.html` 独立渲染预览 fixture，内联全部 CSS，支持 `file://` 直接打开，含主题切换按钮
+
+#### CLI 增强
+- 本地文件导入：`vdl ./file.mp4` / `vdl /path/to/file.mp3` 支持本地音视频文件直接处理
+- CLI 进度展示优化
+
+#### 并行翻译
+- 整体式分页并行翻译：200 行/页、5 路并发、页间缝合、格式校验
+- AI 字幕预合并：LLM 直接将中文分配到句子级时间戳，提升可读性
+
+### Fixed
+
+- Web 音频播放器在任务切换时的播放状态问题
+- Web postinstall 脚本修复
+
 ## [1.3.0] - 2026-06-25
 
 ### Added
@@ -140,7 +164,8 @@ Initial release.
 - Multi-engine writing: Claude Code CLI or OpenCode (MiniMax)
 - zh-CN subtitle fallback and traditional Chinese subtitle support
 
-[Unreleased]: https://github.com/harveyzhang96/video-learner/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/harveyzhang96/video-learner/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/harveyzhang96/video-learner/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/harveyzhang96/video-learner/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/harveyzhang96/video-learner/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/harveyzhang96/video-learner/compare/v1.0.0...v1.1.0

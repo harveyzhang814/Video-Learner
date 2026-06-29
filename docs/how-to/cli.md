@@ -44,6 +44,31 @@ vdl https://www.youtube.com/watch?v=XXXX --focus "技术架构" --mode transcrip
 vdl https://www.youtube.com/watch?v=XXXX --focus "核心论点" --json
 ```
 
+## 本地文件导入
+
+直接传入本地音频或视频文件路径，绕过 YouTube 下载步骤，从 ASR（语音识别）阶段开始运行，后续转录 → 文章 → 摘要流程与在线视频完全一致。
+
+**支持格式：**
+- 音频：`mp3`、`m4a`、`wav`、`aac`、`flac`、`ogg`、`opus`
+- 视频：`mp4`、`mkv`、`mov`、`avi`、`webm`、`ts`、`m4v`
+
+```bash
+# 本地音频（需加路径前缀 / 或 ./）
+vdl ./recording.mp3 --src-lang zh --focus "会议重点"
+vdl /recordings/lecture.m4a --src-lang en --lang zh-CN
+
+# 本地视频
+vdl ./screen.mov --src-lang en
+vdl /videos/conf.mp4 --mode audio   # 仅生成文字，不保留视频文件
+
+# 超长录音
+vdl ./3hour-lecture.mp3 --src-lang en --long
+```
+
+`--src-lang` 指定录音的源语言（Whisper hint），默认 `en`；常用值：`zh`、`en`、`ja`、`ko`。
+
+> **注意**：路径必须以 `/`、`./` 或 `../` 开头，裸文件名（如 `recording.mp3`）会被识别为未知子命令。
+
 ## 子命令
 
 ```bash

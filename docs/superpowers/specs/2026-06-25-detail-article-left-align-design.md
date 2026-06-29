@@ -1,3 +1,9 @@
+---
+migrated: 2026-06-29
+implemented_in:
+  - web/src/styles/globals.css  # prose max-width 左对齐单行改动
+---
+
 # 详情页总结/文章模块大屏左对齐修复
 
 **日期**: 2026-06-25

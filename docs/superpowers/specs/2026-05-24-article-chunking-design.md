@@ -1,3 +1,9 @@
+---
+migrated: 2026-06-29
+docs:
+  - explanation/long-video-pipeline.md  # Article 分块参数、Seam 切割合并算法、断点续跑、文件布局
+---
+
 # Article Chunking 设计文档
 
 **日期**：2026-05-24  

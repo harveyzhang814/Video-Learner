@@ -124,7 +124,7 @@ _run_bilibili() {
     # Priority 2: AI Chinese
     if [ "$zh_downloaded" = false ] && has_bilibili_track "ai-zh"; then
         echo "Found AI Chinese subtitles (ai-zh). Downloading..."
-        if download_bilibili_sub "ai-zh" "$SUBS_DIR/${ID}.zh.original.vtt"; then
+        if download_bilibili_sub "ai-zh" "$SUBS_DIR/${ID}.zh.auto.vtt"; then
             zh_downloaded=true
             echo "ai-zh subtitles downloaded successfully"
         else
@@ -135,7 +135,7 @@ _run_bilibili() {
     # Priority 3: AI English
     if [ "$zh_downloaded" = false ] && has_bilibili_track "ai-en"; then
         echo "Found AI English subtitles (ai-en). Downloading..."
-        if download_bilibili_sub "ai-en" "$SUBS_DIR/${ID}.en.original.vtt"; then
+        if download_bilibili_sub "ai-en" "$SUBS_DIR/${ID}.en.auto.vtt"; then
             en_downloaded=true
             echo "ai-en subtitles downloaded successfully"
         else
