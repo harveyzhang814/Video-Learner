@@ -1,3 +1,9 @@
+---
+migrated: 2026-06-29
+docs:
+  - explanation/singleton-backend.md  # SSE 被动心跳、sseRegistry、auto-shutdown 机制（已全覆盖）
+---
+
 # Web 端后端生命周期管理 设计文档
 
 **日期：** 2026-06-21

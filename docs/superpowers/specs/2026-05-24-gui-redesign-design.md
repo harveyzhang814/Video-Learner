@@ -1,3 +1,12 @@
+---
+migrated: 2026-06-29
+superseded_by:
+  - 2026-06-16-electron-to-web-migration-design.md  # 整体 UI 架构已被 Web 迁移方案取代
+  - 2026-06-20-reading-modes-design.md              # 多模式布局被 Reading Modes 重新设计
+implemented_in:
+  - web/src/  # 整体已在 Web 前端实现
+---
+
 # GUI Redesign — Design Spec
 
 **Date:** 2026-05-24  

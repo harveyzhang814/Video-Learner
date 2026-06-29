@@ -1,3 +1,9 @@
+---
+migrated: 2026-06-29
+docs:
+  - explanation/long-video-pipeline.md  # Summary Map-Reduce 触发条件、章节分组公式、Map/Reduce 阶段、断点续跑
+---
+
 # Summary 章节感知分段设计文档
 
 **日期**：2026-05-24  

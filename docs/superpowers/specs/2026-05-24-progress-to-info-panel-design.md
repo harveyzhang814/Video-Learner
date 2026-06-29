@@ -1,3 +1,11 @@
+---
+migrated: 2026-06-29
+superseded_by:
+  - 2026-06-16-electron-to-web-migration-design.md  # 信息面板在 Web 端新信息架构中已重新设计
+implemented_in:
+  - web/src/routes/tasks.$id.tsx  # 信息面板已集成为任务详情页右侧区域
+---
+
 # 设计文档：进度展示从中间界面迁移至信息面板
 
 **日期：** 2026-05-24  

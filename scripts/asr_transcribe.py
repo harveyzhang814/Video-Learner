@@ -88,16 +88,16 @@ def main() -> None:
     # Extract audio to temp WAV
     wav_path = None
     try:
-        media_path = find_media_file(work_dir)  # moved inside try
+        media_path = find_media_file(work_dir)
         os.makedirs(subs_dir, exist_ok=True)
 
         with tempfile.NamedTemporaryFile(suffix=".wav", prefix=f"{task_id}_asr_", delete=False) as f:
             wav_path = f.name
 
-        print(f"[1/3] Extracting audio from {media_path} …", flush=True)
+        print("[PROGRESS] step=1/3 label=extracting_audio", flush=True)
         extract_audio(media_path, wav_path)
 
-        print(f"[2/3] Transcribing with {args.model} …", flush=True)
+        print("[PROGRESS] step=2/3 label=transcribing", flush=True)
         import mlx_whisper
         result = mlx_whisper.transcribe(wav_path, path_or_hf_repo=args.model, verbose=False)
 
@@ -106,9 +106,7 @@ def main() -> None:
             print("ERROR: Whisper returned zero segments.", file=sys.stderr)
             sys.exit(1)
 
-        print(f"      {len(segments)} segments transcribed.", flush=True)
-
-        print(f"[3/3] Writing VTT to {vtt_path} …", flush=True)
+        print(f"[PROGRESS] step=3/3 label=writing_vtt segments={len(segments)}", flush=True)
         with open(vtt_path, "w", encoding="utf-8") as f:
             f.write(segments_to_vtt(segments))
 

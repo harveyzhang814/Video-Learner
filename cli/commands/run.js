@@ -9,15 +9,17 @@ const fmt = require('../lib/format');
 
 function parseArgs(args) {
   const opts = {
-    url: null, focus: '', mode: 'media', lang: 'zh-CN',
+    url: null, filePath: null, focus: '', mode: 'media', modeExplicit: false,
+    srcLang: 'en', lang: 'zh-CN',
     force: false, json: false, timeout_scale: 1, workRoot: null,
   };
   let i = 0;
   while (i < args.length) {
     const a = args[i];
     if (a === '--focus')            { opts.focus  = args[++i]; }
-    else if (a === '--mode')        { opts.mode   = args[++i]; }
+    else if (a === '--mode')        { opts.mode   = args[++i]; opts.modeExplicit = true; }
     else if (a === '--lang')        { opts.lang   = args[++i]; }
+    else if (a === '--src-lang')    { opts.srcLang = args[++i]; }
     else if (a === '--force')       { opts.force  = true; }
     else if (a === '--json')        { opts.json   = true; }
     else if (a === '--long')        { opts.timeout_scale = 3; }
@@ -28,6 +30,9 @@ function parseArgs(args) {
     }
     else if (a === '--work-root')   { opts.workRoot = args[++i]; }
     else if (!opts.url && a.startsWith('http')) { opts.url = a; }
+    else if (!opts.filePath && (a.startsWith('/') || a.startsWith('./') || a.startsWith('../'))) {
+      opts.filePath = a;
+    }
     i++;
   }
   return opts;
@@ -46,6 +51,8 @@ async function askFocus() {
 async function poll(taskId, startedAt) {
   const INTERVAL = 2000;
   const stepStatus = {};
+  const stepProgress = {};   // last-printed progress JSON key per step
+  let titleShown = false;
 
   while (true) {
     await new Promise(r => setTimeout(r, INTERVAL));
@@ -54,23 +61,47 @@ async function poll(taskId, startedAt) {
     catch (err) { throw new Error(`poll failed: ${err.message}`); }
 
     const status = task.status;
-    const steps = task.steps || {};
-    const title = (task.meta && task.meta.title) || taskId;
+    const steps  = task.steps || {};
+    const title  = (task.meta && task.meta.title) || '';
 
     if (fmt.isTTY) {
-      fmt.renderProgress(title, steps);
+      fmt.renderProgress(title || taskId, steps);
     } else {
+      if (!titleShown && title) {
+        process.stdout.write(`Title: ${title}\n`);
+        titleShown = true;
+      }
+
       for (const [name, info] of Object.entries(steps)) {
         if (!info) continue;
-        const prev = stepStatus[name];
-        if (prev !== info.status) {
+
+        // Status change line
+        if (stepStatus[name] !== info.status) {
           stepStatus[name] = info.status;
-          fmt.logStepLine(name, info.status);
+          let elapsedS = null;
+          if (info.started_at && info.completed_at) {
+            elapsedS = Math.round(
+              (new Date(info.completed_at) - new Date(info.started_at)) / 1000
+            );
+          }
+          fmt.logStepLine(name, info.status, elapsedS);
+        }
+
+        // Progress line for running steps
+        if (info.status === 'running' && info.progress) {
+          const progKey = JSON.stringify(info.progress);
+          if (stepProgress[name] !== progKey) {
+            stepProgress[name] = progKey;
+            const elapsedS = info.started_at
+              ? Math.round((Date.now() - new Date(info.started_at)) / 1000)
+              : null;
+            fmt.logProgressLine(name, info.progress, elapsedS);
+          }
         }
       }
     }
 
-    if (status === 'done') {
+    if (status === 'done' || status === 'completed') {
       return { elapsed: Math.round((Date.now() - startedAt) / 1000), task };
     }
 
@@ -86,16 +117,63 @@ async function poll(taskId, startedAt) {
 
 async function run(args) {
   const opts = parseArgs(args);
-  if (!opts.url) { fmt.printError('URL required. Usage: vdl <url> [options]'); process.exit(1); }
 
-  if (opts.workRoot) {
-    process.env.WORK_ROOT = opts.workRoot;
+  if (!opts.url && !opts.filePath) {
+    fmt.printError('URL or local file required. Usage: vdl <url|file> [options]');
+    process.exit(1);
   }
 
-  if (!opts.focus) {
-    opts.focus = await askFocus();
+  if (opts.workRoot) process.env.WORK_ROOT = opts.workRoot;
+
+  if (!opts.focus) opts.focus = await askFocus();
+
+  // ── Local file path ──────────────────────────────────────────────────────
+  if (opts.filePath) {
+    const { ingestLocalFile } = require('../lib/ingest');
+    let taskId;
+    try {
+      taskId = await ingestLocalFile(opts.filePath, {
+        focus: opts.focus,
+        srcLang: opts.srcLang,
+        outputLang: opts.lang,
+        mode: opts.modeExplicit ? opts.mode : null,
+        timeoutScale: opts.timeout_scale,
+      });
+    } catch (err) {
+      fmt.printError(err.message);
+      process.exit(1);
+    }
+
+    process.stdout.write(`Task: ${taskId}\n`);
+
+    const token = await server.ensureServer();
+    server.registerShutdown();
+    client.init('http://127.0.0.1:3000', token);
+
+    const r = await client.runStep(taskId, 'asr', { reset_scope: 'downstream' });
+    if (r && r.status === 409) {
+      fmt.printError('Task is currently running. Wait for it to finish.');
+      process.exit(1);
+    }
+
+    const startedAt = Date.now();
+    const { elapsed } = await poll(taskId, startedAt);
+
+    const workDir = path.join(getWorkRoot(path.resolve(__dirname, '../..')), taskId);
+    const paths = {
+      transcript: `${workDir}/transcript/original.md`,
+      article:    `${workDir}/writing/article.md`,
+      summary:    `${workDir}/writing/summary.md`,
+    };
+    if (opts.json) {
+      process.stdout.write(JSON.stringify({ task_id: taskId, elapsed, ...paths }) + '\n');
+    } else {
+      fmt.printDone(elapsed, paths);
+    }
+    return;
   }
 
+  // ── YouTube / remote URL ─────────────────────────────────────────────────
   const token = await server.ensureServer();
   server.registerShutdown();
   client.init('http://127.0.0.1:3000', token);
@@ -120,7 +198,6 @@ async function run(args) {
     article:    `${workDir}/writing/article.md`,
     summary:    `${workDir}/writing/summary.md`,
   };
-
   if (opts.json) {
     process.stdout.write(JSON.stringify({ task_id: taskId, elapsed, ...paths }) + '\n');
   } else {
