@@ -1,3 +1,9 @@
+---
+migrated: 2026-06-29
+implemented_in:
+  - web/src/routes/tasks.$id.gantt.tsx  # Gantt 独立路由，纯 React 实现
+---
+
 # Gantt Chart Web Embed 设计文档
 
 ## 概述

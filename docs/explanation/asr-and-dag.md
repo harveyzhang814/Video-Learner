@@ -81,10 +81,57 @@ OR 门的关键语义：**被 mode 排除的或已 `skipped` 的前驱不满足 
 
 ---
 
+---
+
+## DAG 并发调度：为何从串行改为池式
+
+### 问题
+
+旧调度循环（`runTask`）每轮调用 `computeReadySteps` 算出**全部**就绪节点，
+但 `pickNextStep` 只取其中一个，`await runStep` 跑完后才进入下一轮。
+
+DAG 中存在两组真正独立的并行机会：
+
+```
+media 下载（最长可达 2h）‖ 转录流水线（subs→vtt2md→article→summary）
+translate→md2vtt          ‖ article→summary
+```
+
+串行调度下，最长的 `video`/`audio` 下载会把主链堵到最后才执行。
+
+### 池式调度（`runTask` 当前实现）
+
+```
+N = VL_MAX_PARALLEL_STEPS（默认 3）
+inFlight = Map<stepName, Promise>
+
+loop:
+  while inFlight.size < N && !abortFlag:
+    next = pickNextStep(computeReadySteps(task))  # 主链优先
+    if !next: break
+    inFlight.set(next, runStep(...))              # 不 await，立即占槽
+  settled = await Promise.race(inFlight.values()) # 等至少一个完成
+  inFlight.delete(settled.stepName)               # 腾槽，回到 loop
+```
+
+**为何主链优先仍然保留**：确保 `summary` 最快产出——用户最关心的产物。
+旁支（`video`/`audio` 下载）只在主链无就绪节点时占用余量槽位。
+
+**为何不用资源感知分类**：固定上限（`VL_MAX_PARALLEL_STEPS`）实现简单、
+可预测，且在现实 DAG 下真正有用的独立步骤约 2–3 个，固定 N=3 足够覆盖。
+
+**并发安全性**：
+- `better-sqlite3` 同步原子，并发 `runStep` 仅在 `await` 点交错，各自写不同步骤行，无冲突
+- 各步骤写不同产物文件（`article.md` / `video.mp4` / `audio.m4a`…），无写冲突
+- `runStep` 在第一个 `await` 之前**同步**将 step 置为 `running`，下一轮 `computeReadySteps` 凭状态自然排除，无需额外去重集合
+
+---
+
 ## 相关文档
 
 - [adr/2026-04-17-asr-fallback.md](../adr/2026-04-17-asr-fallback.md) — ASR 回退设计决策
 - [adr/2026-04-18-dag-reachability.md](../adr/2026-04-18-dag-reachability.md) — 可达性算法设计决策
 - `core/orchestrator/schedule.js` — `isNodeReachable`、`isTaskFailed`、`isTaskCompleted` 实现
+- `core/orchestrator/index.js` — `runTask` 池式调度、`getMaxParallelSteps`
 - `scripts/asr_transcribe.sh` / `scripts/asr_transcribe.py` — ASR 转录脚本
 - `experiments/whisper_asr.py` — 早期独立实验脚本（手动使用）
