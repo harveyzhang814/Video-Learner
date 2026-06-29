@@ -6,7 +6,7 @@
 
 ## 一、项目概述
 
-**Video-Learner** 是一个 YouTube 视频处理流水线工具，实现了从单个 YouTube URL 到「下载 → 字幕/转录 → 结构化文章 → 重点总结」的自动化流程，同时支持：
+**Video-Learner** 是一个音视频处理流水线工具，实现了从「YouTube URL 或本地音视频文件」到「转录 → 结构化文章 → 重点总结」的自动化流程，同时支持：
 
 - **Electron 桌面客户端**：通过 GUI + 本地 HTTP/SSE + `core/orchestrator` + SQLite，对各步骤进行可视化编排与重试；
 - **Agent Service（HTTP）**：同一编排内核，供 API / 外部 agent 驱动（无界面）。
@@ -136,7 +136,7 @@ sequenceDiagram
 
 创建任务时的主要字段：
 
-- **`url`**（必填）、**`focus`**、**`mode`**（`media` | `audio` | `transcript` | `full`，见 [adr/2026-04-13-mode-redesign.md](../adr/2026-04-13-mode-redesign.md)）、**`force`**、**`output_lang`**
+- **`url`**（必填；YouTube/Bilibili 链接，或本地文件导入时的虚拟 URL `local://<absPath>`）、**`focus`**、**`mode`**（`media` | `audio` | `transcript` | `full`，见 [adr/2026-04-13-mode-redesign.md](../adr/2026-04-13-mode-redesign.md)）、**`force`**、**`output_lang`**、**`lang`**（源语言，本地文件导入时用作 Whisper hint）
 - **`WRITING_ENGINE`**：通过进程环境变量传入，由 `scripts/llm_engine.sh` 与 `~/.config/vdl/settings.conf` 中的 `WRITING_ENGINE_DEFAULT` 解析；支持 `claude` / `opencode`，非法或未设时回退 `opencode`
 
 ### 4.1.1 `force` 参数与各 Step
