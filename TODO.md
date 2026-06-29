@@ -37,10 +37,10 @@
 
 ---
 
-### 美化 Web 模块 Markdown 渲染并支持多风格模板
-**优先级**: P2 | **日期**: 2026-06-27
+### 将 Reader 组件打包为独立可嵌入模块
+**优先级**: P2 | **日期**: 2026-06-29
 
-对 Web 模块现有 Markdown 渲染效果进行深化：先打磨出一套美观的默认展示模板，再将样式配置抽象为可切换的多风格体系（如学术风、极简风等），为后续跨产品复用做铺垫。
+将 `web/src/components/reader.tsx` 及其依赖（react-markdown、rehype-highlight、MermaidChart、prose-cn CSS）打包为独立 bundle（Vite lib 模式，输出 `reader.umd.js` + `reader.css`），可通过 `<script>` 标签嵌入任意 HTML 页面，也可发包供衍生产品复用。设计要点：API 面向 `content: string` + 可选 `theme: string`，CSS 作用域隔离（Shadow DOM 或 CSS 前缀），peerDependencies 声明 React。`web/preview/article.html` 作为验收 fixture，目标是将其改写为直接引用打包产物，无需手动内联 CSS。
 
 ---
 
