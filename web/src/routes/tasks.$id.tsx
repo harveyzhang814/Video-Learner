@@ -7,6 +7,7 @@ import { SubtitleList } from '@/components/subtitle-list';
 import { Player } from '@/components/player';
 import { NotesPanel } from '@/components/notes-panel';
 import { ModeSwitcher } from '@/components/mode-switcher';
+import { ProseThemePicker } from '@/components/prose-theme-picker';
 import { useUiStore } from '@/stores/ui-store';
 import type { LayoutMode } from '@/stores/ui-store';
 import { usePlayerStore } from '@/stores/player-store';
@@ -70,6 +71,7 @@ export default function TaskDetail() {
           <h1 className="chinese text-sm font-medium truncate">{task.title || task.url}</h1>
         </div>
         <div className="flex items-center gap-3">
+          <ProseThemePicker />
           <ModeSwitcher />
           <Link
             to={`/tasks/${id}/gantt`}
