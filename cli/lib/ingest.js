@@ -4,7 +4,7 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 const Database = require('better-sqlite3');
 const { generateId } = require('../../core/id');
-const { getWorkRoot, getDbPath, getTaskDirs } = require('../../core/paths');
+const { getDbPath, getTaskDirs } = require('../../core/paths');
 const { createDb } = require('../../core/orchestrator/db');
 
 const AUDIO_EXTS = new Set(['mp3','m4a','wav','aac','flac','ogg','opus']);
@@ -42,10 +42,8 @@ async function ingestLocalFile(filePath, opts = {}) {
   const projectRoot = path.resolve(__dirname, '../..');
   const dirs = getTaskDirs(projectRoot, taskId);
 
-  // Initialize DB tables via the manager, then open a raw connection for direct SQL
-  const dbPath = getDbPath(projectRoot);
+  // Initialize DB tables via the manager (runs migrations / creates schema)
   createDb(projectRoot).close();
-  const db = new Database(dbPath);
 
   fs.mkdirSync(dirs.media, { recursive: true });
   fs.mkdirSync(path.join(dirs.base, 'transcript', 'subs'), { recursive: true });
@@ -81,6 +79,10 @@ async function ingestLocalFile(filePath, opts = {}) {
       }
     }
   }
+
+  // Open raw DB connection only after ffmpeg has completed successfully
+  const dbPath = getDbPath(projectRoot);
+  const db = new Database(dbPath);
 
   const now = new Date().toISOString();
   const title = path.basename(absPath);
