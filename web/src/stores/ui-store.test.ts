@@ -20,4 +20,12 @@ describe('ui-store proseTheme', () => {
     useUiStore.getState().setProseTheme('minimal');
     expect(localStorage.getItem('prose-theme')).toBe('minimal');
   });
+
+  it('initialises proseTheme from localStorage when a value is stored', () => {
+    localStorage.setItem('prose-theme', 'minimal');
+    useUiStore.setState({ proseTheme: localStorage.getItem('prose-theme') ?? 'default' });
+    expect(useUiStore.getState().proseTheme).toBe('minimal');
+    // cleanup
+    useUiStore.getState().setProseTheme('default');
+  });
 });

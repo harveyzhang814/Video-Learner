@@ -43,6 +43,8 @@
 
   --prose-link-color:   var(--accent-10);
   --prose-link-hover:   var(--accent-9);
+
+  --prose-blockquote-border: var(--accent-9);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -133,7 +135,7 @@ html, body {
 
 /* Blockquote */
 .prose-cn blockquote {
-  border-left: 2px solid var(--accent-9);
+  border-left: 2px solid var(--prose-blockquote-border, var(--accent-9));
   padding: 4px 0 4px 14px;
   margin: 18px 0;
   color: var(--text-secondary);

@@ -40,7 +40,7 @@ export function ProseThemePicker() {
             background: 'var(--bg-surface)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 6,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            boxShadow: '0 2px 8px var(--border-strong)',
             minWidth: 96,
             zIndex: 50,
           }}
