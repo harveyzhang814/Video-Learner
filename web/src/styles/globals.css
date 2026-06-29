@@ -52,6 +52,7 @@ html, body {
 
 :lang(zh), .chinese { line-height: 1.75; }
 .prose-cn {
+  font-family: var(--prose-font-family, var(--font-sans));
   line-height: var(--prose-line-height, 1.85);
   font-size: var(--prose-font-size, 15px);
   color: var(--text-primary);
