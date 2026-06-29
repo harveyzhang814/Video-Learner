@@ -41,3 +41,41 @@ function run() {
 
 run();
 
+function testParseProgressLine() {
+  // Duplicate the function inline for isolated testing (not exported from orchestrator)
+  function parseProgressLine(line) {
+    const m = line.match(/^\[PROGRESS\]\s+(.+)$/);
+    if (!m) return null;
+    const pairs = {};
+    for (const token of m[1].trim().split(/\s+/)) {
+      const eq = token.indexOf('=');
+      if (eq > 0) pairs[token.slice(0, eq)] = token.slice(eq + 1);
+    }
+    return Object.keys(pairs).length > 0 ? pairs : null;
+  }
+
+  // valid lines
+  assert.deepStrictEqual(
+    parseProgressLine('[PROGRESS] percent=45 speed=2.1MiB/s eta=01:11'),
+    { percent: '45', speed: '2.1MiB/s', eta: '01:11' }
+  );
+  assert.deepStrictEqual(
+    parseProgressLine('[PROGRESS] step=2/3 label=transcribing'),
+    { step: '2/3', label: 'transcribing' }
+  );
+  assert.deepStrictEqual(
+    parseProgressLine('[PROGRESS] step=3/3 label=writing_vtt segments=847'),
+    { step: '3/3', label: 'writing_vtt', segments: '847' }
+  );
+
+  // invalid / non-PROGRESS lines
+  assert.strictEqual(parseProgressLine('[STATUS] asr_start'), null);
+  assert.strictEqual(parseProgressLine('[progress] downloaded=1024 total=2048 speed=512.0 eta=10'), null);
+  assert.strictEqual(parseProgressLine('ordinary log line'), null);
+  assert.strictEqual(parseProgressLine('[PROGRESS]'), null);          // no pairs
+  assert.strictEqual(parseProgressLine('[PROGRESS] noequals'), null); // no = sign
+
+  console.log('orchestrator-progress-logging.test.js: parseProgressLine OK');
+}
+testParseProgressLine();
+

@@ -67,6 +67,17 @@ function parseYtDlpProgressLine(line) {
   return { downloaded, total, speed: Number.isFinite(speed) ? speed : 0, eta: Number.isFinite(eta) ? eta : 0 };
 }
 
+function parseProgressLine(line) {
+  const m = line.match(/^\[PROGRESS\]\s+(.+)$/);
+  if (!m) return null;
+  const pairs = {};
+  for (const token of m[1].trim().split(/\s+/)) {
+    const eq = token.indexOf('=');
+    if (eq > 0) pairs[token.slice(0, eq)] = token.slice(eq + 1);
+  }
+  return Object.keys(pairs).length > 0 ? pairs : null;
+}
+
 function formatBytesToHuman(bytes) {
   const b = typeof bytes === 'number' && bytes >= 0 ? bytes : 0;
   const KB = 1024;
@@ -577,6 +588,7 @@ async function runStep(taskId, stepName, options = {}) {
       stepName,
       stepStatus: 'failed'
     });
+    if (task.steps[stepName]) delete task.steps[stepName].progress;
     return { success: false, error: pre.error };
   }
 
@@ -667,6 +679,10 @@ async function runStep(taskId, stepName, options = {}) {
 
     for (const line of parts) {
       emitJsonlRecord({ stream, line });
+      const prog = parseProgressLine(line.trim());
+      if (prog && task.steps[stepName]) {
+        task.steps[stepName].progress = prog;
+      }
     }
   }
 
@@ -748,6 +764,7 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.status = 'pending';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'pending');
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
         emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'pending' });
@@ -755,6 +772,7 @@ async function runStep(taskId, stepName, options = {}) {
         return { success: false, error: 'aborted' };
       }
       if (task._abortFlag) {
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         return { success: false, error: 'aborted' };
       }
@@ -763,6 +781,7 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.error = errors.join('\n');
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'failed', stepState.error);
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         return { success: false, error: stepState.error };
       }
@@ -770,6 +789,7 @@ async function runStep(taskId, stepName, options = {}) {
       task.steps[stepName] = stepState;
       db.updateStep(id, stepName, 'completed');
       updateTaskMetaFromFilesystem(task);
+      if (task.steps[stepName]) delete task.steps[stepName].progress;
       finishLogs();
       return { success: true };
     }
@@ -781,6 +801,7 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.status = 'skipped';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'skipped');
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         return { success: true };
       }
@@ -789,6 +810,7 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.status = 'skipped';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'skipped');
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         return { success: true };
       }
@@ -797,6 +819,7 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.status = 'skipped';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'skipped');
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         return { success: true };
       }
@@ -816,6 +839,7 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.status = 'pending';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'pending');
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
         emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'pending' });
@@ -823,6 +847,7 @@ async function runStep(taskId, stepName, options = {}) {
         return { success: false, error: 'aborted' };
       }
       if (task._abortFlag) {
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         return { success: false, error: 'aborted' };
       }
@@ -831,12 +856,14 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.error = result.output || 'translate_subs.sh failed';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'failed', stepState.error);
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         return { success: false, error: stepState.error };
       }
       stepState.status = 'completed';
       task.steps[stepName] = stepState;
       db.updateStep(id, stepName, 'completed');
+      if (task.steps[stepName]) delete task.steps[stepName].progress;
       finishLogs();
       return { success: true };
     }
@@ -869,6 +896,7 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.status = 'pending';
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'pending');
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         emitOrchestratorEvent('step.finished', taskId, { stepName, status: 'pending', aborted: true });
         emitOrchestratorEvent('task.updated', taskId, { status: task.status, stepName, stepStatus: 'pending' });
@@ -876,6 +904,7 @@ async function runStep(taskId, stepName, options = {}) {
         return { success: false, error: 'aborted' };
       }
       if (task._abortFlag) {
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         return { success: false, error: 'aborted' };
       }
@@ -884,6 +913,7 @@ async function runStep(taskId, stepName, options = {}) {
         stepState.error = errors.join('\n');
         task.steps[stepName] = stepState;
         db.updateStep(id, stepName, 'failed', stepState.error);
+        if (task.steps[stepName]) delete task.steps[stepName].progress;
         finishLogs();
         return { success: false, error: stepState.error };
       }
@@ -891,6 +921,7 @@ async function runStep(taskId, stepName, options = {}) {
       task.steps[stepName] = stepState;
       db.updateStep(id, stepName, 'completed');
       updateTaskMetaFromFilesystem(task);
+      if (task.steps[stepName]) delete task.steps[stepName].progress;
       finishLogs();
       return { success: true };
     }
@@ -965,6 +996,14 @@ async function runStep(taskId, stepName, options = {}) {
           });
           state.lastSentAt = now;
           state.lastSentPercent = percent;
+          // Store as step.progress so CLI polling can display it
+          if (task.steps[stepName]) {
+            task.steps[stepName].progress = {
+              percent: percent != null ? String(percent) : null,
+              speed:   speed > 0 ? `${formatBytesToHuman(speed)}/s` : null,
+              eta:     formatEta(eta) || null,
+            };
+          }
         }
       };
     }
@@ -1022,6 +1061,7 @@ async function runStep(taskId, stepName, options = {}) {
   finishLogs();
   updateTaskMetaFromFilesystem(task);
 
+  if (task.steps[stepName]) delete task.steps[stepName].progress;
   emitOrchestratorEvent('step.finished', taskId, {
     stepName,
     status: task.steps[stepName].status,
