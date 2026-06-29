@@ -46,10 +46,65 @@ function runCli(args, opts = {}) {
   opts = parseArgs(['--focus', 'test']);
   assert.strictEqual(opts.url, null);
 
+  // === parseArgs: local file path detection ===
+
+  // Absolute path → filePath set, url null
+  opts = parseArgs(['/recordings/meeting.mp3']);
+  assert.strictEqual(opts.filePath, '/recordings/meeting.mp3', 'absolute path → filePath');
+  assert.strictEqual(opts.url, null, 'absolute path → url null');
+
+  // Relative ./ path
+  opts = parseArgs(['./audio.m4a']);
+  assert.strictEqual(opts.filePath, './audio.m4a', 'relative ./ → filePath');
+  assert.strictEqual(opts.url, null, 'relative ./ → url null');
+
+  // Relative ../ path
+  opts = parseArgs(['../audio.wav']);
+  assert.strictEqual(opts.filePath, '../audio.wav', 'relative ../ → filePath');
+
+  // URL still routes to url, not filePath
+  opts = parseArgs(['https://youtube.com/watch?v=xyz']);
+  assert.strictEqual(opts.url, 'https://youtube.com/watch?v=xyz', 'url still detected');
+  assert.strictEqual(opts.filePath, null, 'url → filePath null');
+
+  // --src-lang
+  opts = parseArgs(['/recording.mp3', '--src-lang', 'zh']);
+  assert.strictEqual(opts.srcLang, 'zh', '--src-lang zh');
+  assert.strictEqual(opts.filePath, '/recording.mp3', 'filePath preserved with --src-lang');
+
+  // srcLang defaults to 'en'
+  opts = parseArgs(['/recording.mp3']);
+  assert.strictEqual(opts.srcLang, 'en', 'srcLang defaults to en');
+
+  // modeExplicit false by default
+  opts = parseArgs(['/recording.mp3']);
+  assert.strictEqual(opts.modeExplicit, false, 'modeExplicit defaults to false');
+
+  // --mode sets modeExplicit = true
+  opts = parseArgs(['/video.mp4', '--mode', 'audio']);
+  assert.strictEqual(opts.modeExplicit, true, '--mode sets modeExplicit=true');
+  assert.strictEqual(opts.mode, 'audio', '--mode audio preserved');
+
+  // === CLI subprocess: local file routing ===
+
+  // Absolute path that doesn't exist → exit 1 with "File not found", not "Unknown command"
+  let r = runCli(['/definitely/not/here.mp3', '--focus', 'test']);
+  assert.strictEqual(r.status, 1, 'nonexistent local file → exit 1');
+  assert.ok(
+    r.stderr.includes('File not found') || r.stderr.includes('not found'),
+    `expected "File not found" in stderr, got: ${r.stderr}`
+  );
+  assert.ok(!r.stderr.includes('Unknown command'), 'absolute local path must not say Unknown command');
+
+  // Relative ./ path that doesn't exist → same routing check
+  r = runCli(['./not-here.mp3', '--focus', 'test']);
+  assert.strictEqual(r.status, 1, 'relative nonexistent file → exit 1');
+  assert.ok(!r.stderr.includes('Unknown command'), 'relative local path must not say Unknown command');
+
   // === CLI subprocess error path tests ===
 
   // vdl status (no task_id) → exit 1
-  let r = runCli(['status']);
+  r = runCli(['status']);
   assert.strictEqual(r.status, 1, 'status with no task_id should exit 1');
   assert.ok(r.stderr.includes('Usage'), `expected Usage in stderr, got: ${r.stderr}`);
 
