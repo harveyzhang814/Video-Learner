@@ -36,6 +36,7 @@
     "test:http-notes": "node tests/http-notes.test.js",
     "test:e2e:notes": "node tests/e2e-notes.test.js",
     "test:e2e:anchor-notes": "node tests/e2e-anchor-notes.test.js",
+    "postinstall": "cd web && npm install && npm run build",
     "web:install": "cd web && npm install",
     "web:dev": "cd web && npm run dev",
     "web:build": "cd web && npm run build"
