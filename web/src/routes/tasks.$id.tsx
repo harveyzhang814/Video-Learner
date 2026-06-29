@@ -111,6 +111,7 @@ export default function TaskDetail() {
                 <Player
                   taskId={id}
                   kind={mediaKind}
+                  audioOnly={mediaKind === 'audio'}
                   showCc={true}
                   ccEnabled={ccEnabled}
                   onToggleCc={() => setCcEnabled((v) => !v)}
@@ -178,7 +179,7 @@ export default function TaskDetail() {
             {/* MODE B: right sidebar (video + subtitles) */}
             <aside className="panel-sidebar">
               {layoutMode === 'B' && mediaKind && (
-                <Player taskId={id} kind={mediaKind} />
+                <Player taskId={id} kind={mediaKind} audioOnly={mediaKind === 'audio'} />
               )}
               <div className="flex-1 overflow-hidden">
                 <SubtitleList taskId={id} />
