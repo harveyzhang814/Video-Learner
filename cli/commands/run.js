@@ -46,6 +46,8 @@ async function askFocus() {
 async function poll(taskId, startedAt) {
   const INTERVAL = 2000;
   const stepStatus = {};
+  const stepProgress = {};   // last-printed progress JSON key per step
+  let titleShown = false;
 
   while (true) {
     await new Promise(r => setTimeout(r, INTERVAL));
@@ -54,23 +56,47 @@ async function poll(taskId, startedAt) {
     catch (err) { throw new Error(`poll failed: ${err.message}`); }
 
     const status = task.status;
-    const steps = task.steps || {};
-    const title = (task.meta && task.meta.title) || taskId;
+    const steps  = task.steps || {};
+    const title  = (task.meta && task.meta.title) || '';
 
     if (fmt.isTTY) {
-      fmt.renderProgress(title, steps);
+      fmt.renderProgress(title || taskId, steps);
     } else {
+      if (!titleShown && title) {
+        process.stdout.write(`Title: ${title}\n`);
+        titleShown = true;
+      }
+
       for (const [name, info] of Object.entries(steps)) {
         if (!info) continue;
-        const prev = stepStatus[name];
-        if (prev !== info.status) {
+
+        // Status change line
+        if (stepStatus[name] !== info.status) {
           stepStatus[name] = info.status;
-          fmt.logStepLine(name, info.status);
+          let elapsedS = null;
+          if (info.started_at && info.completed_at) {
+            elapsedS = Math.round(
+              (new Date(info.completed_at) - new Date(info.started_at)) / 1000
+            );
+          }
+          fmt.logStepLine(name, info.status, elapsedS);
+        }
+
+        // Progress line for running steps
+        if (info.status === 'running' && info.progress) {
+          const progKey = JSON.stringify(info.progress);
+          if (stepProgress[name] !== progKey) {
+            stepProgress[name] = progKey;
+            const elapsedS = info.started_at
+              ? Math.round((Date.now() - new Date(info.started_at)) / 1000)
+              : null;
+            fmt.logProgressLine(name, info.progress, elapsedS);
+          }
         }
       }
     }
 
-    if (status === 'done') {
+    if (status === 'done' || status === 'completed') {
       return { elapsed: Math.round((Date.now() - startedAt) / 1000), task };
     }
 
