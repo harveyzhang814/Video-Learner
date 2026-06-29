@@ -26,7 +26,7 @@ npm link                   # 或：symlink 安装，仅开发期间使用
 
 ## 子命令
 
-### `vdl <url> [options]` — 主命令
+### `vdl <url|file> [options]` — 主命令
 
 处理一个 YouTube 视频：询问 focus → 创建任务 → 实时进度 → 打印结果路径。
 
@@ -41,6 +41,7 @@ npm link                   # 或：symlink 安装，仅开发期间使用
 | `--ultra-long` | — | 超超长视频模式：所有步骤超时 ×6（适合 4+ 小时视频） |
 | `--timeout-scale <n>` | `1` | 自定义超时倍率（正数，覆盖 `--long`/`--ultra-long`） |
 | `--work-root <path>` | — | 临时覆盖 work 根目录（仅本次进程，不写 settings.conf） |
+| `--src-lang <lang>` | `en` | 源语言（Whisper hint）；本地文件导入时有效，如 `zh`、`en`、`ja` |
 
 **超时倍率参考（默认 × scale）：**
 
@@ -52,6 +53,27 @@ npm link                   # 或：symlink 安装，仅开发期间使用
 | `fetch` / `subs` / `vtt2md` / `translate` / `md2vtt` | 10 min | 30 min | 60 min |
 
 超时倍率也可通过环境变量 `VL_TIMEOUT_SCALE=<n>` 在服务端全局设置（对该服务上所有任务生效）；单步绝对覆盖仍可用 `VL_TIMEOUT_<STEP>=<ms>`，优先级最高。
+
+#### 本地文件导入
+
+`vdl` 可直接接受本地音频或视频文件路径，绕过 YouTube 下载步骤，从 ASR 阶段开始运行：
+
+```bash
+# 音频文件（mp3 / m4a / wav / aac / flac / ogg / opus）
+vdl ./meeting.mp3 --src-lang zh --focus "核心议题"
+vdl /recordings/lecture.m4a --src-lang en --lang zh-CN --long
+
+# 视频文件（mp4 / mkv / mov / avi / webm / ts / m4v）
+vdl ./screen.mov --src-lang en
+vdl /videos/conf.mp4 --mode audio   # 仅生成文字，不保留视频文件
+```
+
+| 输入类型 | 自动 mode | fetch / video / subs | audio |
+|---------|----------|---------------------|-------|
+| 音频文件 | `audio`  | skipped / skipped / failed | completed（直接复制/转码） |
+| 视频文件 | `media`  | skipped / completed / failed | completed（从视频提取音轨） |
+
+`--mode audio` 可在传入视频文件时强制跳过视频保存，仅提取音轨。
 
 ### `vdl status <task_id>`
 
