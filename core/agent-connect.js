@@ -1,7 +1,7 @@
 // core/agent-connect.js
 'use strict';
 const http    = require('http');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const fs      = require('fs');
 const path    = require('path');
 const heartbeat = require('./heartbeat-client');
@@ -37,6 +37,21 @@ async function _readTokenWithRetry(tokenFile) {
     if (i < 2) await new Promise(r => setTimeout(r, 100));
   }
   return null;
+}
+
+/** Kill the stale process listening on baseUrl's port and wait for it to exit. */
+async function _killStaleServer(baseUrl) {
+  const port = new URL(baseUrl).port || '3000';
+  try {
+    const pids = execSync(`lsof -ti :${port} 2>/dev/null`, { encoding: 'utf8' })
+      .split('\n').map(s => s.trim()).filter(Boolean);
+    for (const pid of pids) process.kill(Number(pid), 'SIGTERM');
+  } catch (_) {}
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline) {
+    if (!(await _checkHealthz(baseUrl))) return;
+    await new Promise(r => setTimeout(r, 200));
+  }
 }
 
 async function _waitForReady(baseUrl, timeoutMs) {
@@ -80,12 +95,12 @@ async function connect(opts = {}) {
   // ── Phase 1: server already alive ────────────────────────────────────────
   if (await _checkHealthz(baseUrl)) {
     const token = await _readTokenWithRetry(tokenFile);
-    if (!token) {
-      throw new Error(
-        `Server running but token file not found at ${tokenFile}. Restart the server.`
-      );
+    if (token) {
+      return { baseUrl, token, heartbeatHandle: _startHeartbeat(token) };
     }
-    return { baseUrl, token, heartbeatHandle: _startHeartbeat(token) };
+    // Token file missing — stale server (e.g. leftover from a crashed session).
+    // Kill it and fall through to Phase 2 to spawn a fresh one.
+    await _killStaleServer(baseUrl);
   }
 
   // ── Phase 2: spawn a new server ──────────────────────────────────────────
@@ -113,9 +128,9 @@ async function connect(opts = {}) {
       try { child.kill(); } catch (_) {}
       const token = await _readTokenWithRetry(tokenFile);
       if (!token) {
-        throw new Error(
-          `Server running but token file not found at ${tokenFile}. Restart the server.`
-        );
+        try { child.kill(); } catch (_) {}
+        await _killStaleServer(baseUrl);
+        return connect(opts); // stale server cleared — retry once
       }
       return { baseUrl, token, heartbeatHandle: _startHeartbeat(token) };
     }
