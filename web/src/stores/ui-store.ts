@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { ThemeId } from '@/lib/themes';
 
 export type Theme = 'system' | 'light' | 'dark';
 export type StatusFilter = 'all' | 'running' | 'done' | 'failed';
@@ -13,8 +14,8 @@ interface UiState {
   setStatusFilter: (f: StatusFilter) => void;
   layoutMode: LayoutMode;
   setLayoutMode: (m: LayoutMode) => void;
-  proseTheme: string;
-  setProseTheme: (theme: string) => void;
+  proseTheme: ThemeId;
+  setProseTheme: (theme: ThemeId) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -26,7 +27,7 @@ export const useUiStore = create<UiState>((set) => ({
   setStatusFilter: (statusFilter) => set({ statusFilter }),
   layoutMode: 'A',
   setLayoutMode: (layoutMode) => set({ layoutMode }),
-  proseTheme: localStorage.getItem('prose-theme') ?? 'default',
+  proseTheme: (localStorage.getItem('prose-theme') ?? 'default') as ThemeId,
   setProseTheme: (proseTheme) => {
     localStorage.setItem('prose-theme', proseTheme);
     set({ proseTheme });

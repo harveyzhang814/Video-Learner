@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useUiStore } from '@/stores/ui-store';
-
-const THEMES = [
-  { id: 'default', label: '默认' },
-] as const;
+import { THEMES } from '@/lib/themes';
 
 export function ProseThemePicker() {
   const proseTheme = useUiStore((s) => s.proseTheme);
