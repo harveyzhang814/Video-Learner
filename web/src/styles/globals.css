@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./themes.css";
 
 @theme inline {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
@@ -51,38 +52,124 @@ html, body {
 
 :lang(zh), .chinese { line-height: 1.75; }
 .prose-cn {
-  line-height: 1.85;
-  font-size: 14px;
+  line-height: var(--prose-line-height, 1.85);
+  font-size: var(--prose-font-size, 15px);
+  color: var(--text-primary);
+}
+
+/* Headings */
+.prose-cn h1 {
+  font-size: var(--prose-h1-size, 26px);
+  font-weight: 700;
+  margin: 40px 0 16px;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
 }
 .prose-cn h2 {
-  font-size: 18px; font-weight: 600;
-  margin: 32px 0 12px; letter-spacing: -0.005em;
+  font-size: var(--prose-h2-size, 20px);
+  font-weight: 600;
+  margin: 32px 0 12px;
+  letter-spacing: -0.005em;
 }
 .prose-cn h3 {
-  font-size: 14.5px; font-weight: 600;
+  font-size: var(--prose-h3-size, 15.5px);
+  font-weight: 600;
   margin: 22px 0 8px;
 }
+.prose-cn h4 {
+  font-size: var(--prose-h4-size, 14px);
+  font-weight: 600;
+  margin: 18px 0 6px;
+  color: var(--text-secondary);
+}
+.prose-cn h5 {
+  font-size: var(--prose-h5-size, 13px);
+  font-weight: 600;
+  margin: 14px 0 4px;
+  color: var(--text-secondary);
+}
+.prose-cn h6 {
+  font-size: var(--prose-h6-size, 12.5px);
+  font-weight: 600;
+  margin: 12px 0 4px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Body */
 .prose-cn p { margin: 14px 0; }
+.prose-cn strong { color: var(--text-primary); font-weight: 600; }
+.prose-cn em { font-style: italic; }
+
+/* Links */
+.prose-cn a {
+  color: var(--prose-link-color, var(--accent-10));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+.prose-cn a:hover { color: var(--prose-link-hover, var(--accent-9)); }
+
+/* Blockquote */
 .prose-cn blockquote {
-  border-left: 2px solid var(--accent-9);
+  border-left: 2px solid var(--prose-blockquote-border, var(--accent-9));
   padding: 4px 0 4px 14px;
   margin: 18px 0;
   color: var(--text-secondary);
 }
+
+/* Horizontal rule */
+.prose-cn hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 32px 0;
+}
+
+/* Lists */
+.prose-cn ul { padding-left: 20px; margin: 12px 0; list-style-type: disc; }
+.prose-cn ol { padding-left: 20px; margin: 12px 0; list-style-type: decimal; }
+.prose-cn li { margin: 8px 0; }
+
+/* Images */
+.prose-cn img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  display: block;
+  margin: 24px auto;
+}
+
+/* Inline code */
 .prose-cn code {
   font-family: var(--font-mono);
   font-size: 12.5px;
-  color: var(--accent-11);
-  background: var(--accent-3);
+  color: var(--prose-code-color, var(--accent-11));
+  background: var(--prose-code-bg, var(--accent-3));
   padding: 1px 6px;
   border-radius: 3px;
 }
-.prose-cn ul { padding-left: 20px; margin: 12px 0; }
-.prose-cn li { margin: 8px 0; }
-.prose-cn strong { color: var(--text-primary); font-weight: 600; }
 
-/* Tables: borderless body, header-only bottom rule */
+/* Code blocks */
+.prose-cn pre {
+  background: var(--prose-pre-bg, var(--bg-elevated));
+  border: 1px solid var(--prose-pre-border, var(--border-subtle));
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 20px 0;
+  font-size: 13px;
+}
+.prose-cn pre > code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+  border-radius: 0;
+  display: block;
+}
+
+/* Tables */
 .prose-cn table {
   width: 100%;
   border-collapse: collapse;
@@ -274,6 +361,28 @@ html, body {
   border-radius: 50%;
   background: var(--accent-9);
   display: inline-block;
+}
+
+/* ==============================
+   Syntax Highlighting — hljs overrides
+   All colors use design system vars; dark mode adapts automatically.
+   ============================== */
+.hljs { background: transparent; color: var(--text-primary); }
+.hljs-keyword, .hljs-selector-tag, .hljs-built_in { color: var(--accent-11); font-weight: 600; }
+.hljs-string, .hljs-attr, .hljs-attribute      { color: var(--status-busy); }
+.hljs-number, .hljs-literal                    { color: var(--accent-9); }
+.hljs-comment, .hljs-quote                     { color: var(--text-tertiary); font-style: italic; }
+.hljs-title, .hljs-name, .hljs-selector-id     { color: var(--accent-10); }
+.hljs-type, .hljs-class .hljs-title            { color: var(--text-secondary); font-weight: 600; }
+.hljs-meta                                     { color: var(--text-tertiary); }
+.hljs-deletion                                 { color: var(--status-err); }
+.hljs-addition                                 { color: var(--status-ok); }
+
+/* Reading width — only in reading-first modes */
+[data-mode="B"] .prose-cn,
+[data-mode="E"] .prose-cn {
+  max-width: var(--prose-max-width, 72ch);
+  margin-inline: auto;
 }
 
 /* ===== LAYOUT FIXES =====
