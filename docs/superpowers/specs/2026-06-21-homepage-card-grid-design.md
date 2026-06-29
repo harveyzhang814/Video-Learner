@@ -1,3 +1,9 @@
+---
+migrated: 2026-06-29
+implemented_in:
+  - web/src/routes/index.tsx  # 首页卡片 Grid 布局与实时搜索框
+---
+
 # 首页卡片 Grid + 搜索 设计文档
 
 ## 概述

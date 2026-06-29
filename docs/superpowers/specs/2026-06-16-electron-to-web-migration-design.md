@@ -1,9 +1,12 @@
 ---
 date: 2026-06-16
 topic: electron-to-web-migration
-status: draft
+status: implemented
 owner: harveyzhang96
 todo_id: 5
+migrated: 2026-06-29
+docs:
+  - explanation/web-frontend-architecture.md  # 技术栈选型、状态管理边界、鉴权模型、Electron 并存策略、CLI 操作边界
 ---
 
 # 将前端架构从 Electron 迁移至 Web — 设计文档

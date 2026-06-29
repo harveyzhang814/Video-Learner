@@ -1,3 +1,10 @@
+---
+migrated: 2026-06-29
+docs:
+  - how-to/cli.md              # 正式安装（npm pack）与开发安装（npm link）章节
+  - how-to/configure-work-dir.md  # WORK_ROOT 配置、~/.config/vdl/settings.conf 路径
+---
+
 # vdl 本地独立安装设计
 
 **日期**：2026-06-24  

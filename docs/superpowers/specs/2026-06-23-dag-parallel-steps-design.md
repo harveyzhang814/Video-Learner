@@ -1,8 +1,12 @@
 ---
 title: 按 DAG 拓扑支持无依赖步骤并发执行
 date: 2026-06-23
-status: approved
+status: implemented
 topic: dag-parallel-steps
+migrated: 2026-06-29
+docs:
+  - explanation/asr-and-dag.md      # DAG 并发调度 section：为何从串行改为池式、主链优先、并发安全性
+  - reference/architecture.md       # VL_MAX_PARALLEL_STEPS 环境变量表、runTask 池式描述
 ---
 
 # 按 DAG 拓扑支持无依赖步骤并发执行

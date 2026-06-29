@@ -1,3 +1,10 @@
+---
+migrated: 2026-06-29
+implemented_in:
+  - web/src/routes/tasks.$id.tsx        # 锚点笔记交互逻辑
+  - web/src/components/                 # 笔记气泡与卡片组件
+---
+
 # Article Anchor Notes 设计文档
 
 ## 概述

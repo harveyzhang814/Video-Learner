@@ -1,3 +1,12 @@
+---
+migrated: 2026-06-29
+docs:
+  - explanation/web-frontend-architecture.md  # 五种阅读模式（Layout Modes A/B/C/E/F）设计理由
+implemented_in:
+  - web/src/routes/tasks.$id.tsx              # layoutMode 状态与各模式渲染逻辑
+  - web/src/store/ui-store.ts                 # layoutMode 状态管理
+---
+
 # 任务详情页多阅读模式设计稿
 
 **日期**：2026-06-20  

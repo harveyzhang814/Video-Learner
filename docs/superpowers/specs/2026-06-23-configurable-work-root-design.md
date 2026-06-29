@@ -1,8 +1,13 @@
 ---
 title: 支持配置 work 根目录路径以便 Syncthing 同步
 date: 2026-06-23
-status: approved
+status: implemented
 topic: configurable-work-root
+migrated: 2026-06-29
+docs:
+  - how-to/configure-work-dir.md  # WORK_ROOT 配置、~/.config/vdl/settings.conf、迁移步骤、Syncthing 说明
+superseded_by:
+  - 2026-06-24-local-install-design.md  # WORK_ROOT 配置已统一在 local-install 文档中覆盖
 ---
 
 # 支持配置 work 根目录路径以便 Syncthing 同步
