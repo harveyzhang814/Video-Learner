@@ -13,6 +13,8 @@ interface UiState {
   setStatusFilter: (f: StatusFilter) => void;
   layoutMode: LayoutMode;
   setLayoutMode: (m: LayoutMode) => void;
+  proseTheme: string;
+  setProseTheme: (theme: string) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -24,4 +26,9 @@ export const useUiStore = create<UiState>((set) => ({
   setStatusFilter: (statusFilter) => set({ statusFilter }),
   layoutMode: 'A',
   setLayoutMode: (layoutMode) => set({ layoutMode }),
+  proseTheme: localStorage.getItem('prose-theme') ?? 'default',
+  setProseTheme: (proseTheme) => {
+    localStorage.setItem('prose-theme', proseTheme);
+    set({ proseTheme });
+  },
 }));
